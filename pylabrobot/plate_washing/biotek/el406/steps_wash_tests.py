@@ -10,7 +10,6 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
   EL406PlateType,
-  EL406StepType,
 )
 from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 

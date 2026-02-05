@@ -19,7 +19,7 @@ class PlateWasher(Resource, Machine):
 
   Example:
     >>> from pylabrobot.plate_washing import PlateWasher
-    >>> from pylabrobot.plate_washing.biotek import BioTekEL406Backend
+    >>> from pylabrobot.plate_washing.biotek.el406 import BioTekEL406Backend
     >>> washer = PlateWasher(
     ...   name="washer",
     ...   size_x=200, size_y=200, size_z=100,

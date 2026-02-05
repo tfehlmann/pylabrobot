@@ -73,6 +73,9 @@ VALID_SYRINGES = {"A", "B", "BOTH"}
 # Valid intensity levels
 VALID_INTENSITIES = {"Slow", "Medium", "Fast", "Variable"}
 
+# Valid peristaltic flow rates
+VALID_PERISTALTIC_FLOW_RATES = {"Low", "Medium", "High"}
+
 # Flow rate range
 MIN_FLOW_RATE = 1
 MAX_FLOW_RATE = 9

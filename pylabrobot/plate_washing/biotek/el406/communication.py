@@ -199,7 +199,7 @@ class EL406CommunicationMixin:
         resp = await self._send_framed_command(cmd_frame, timeout=2.0)
         logger.debug("Command 0x%04X response: %s", cmd, resp.hex())
       except Exception as e:
-        logger.debug("Command 0x%04X failed: %s", cmd, e)
+        logger.warning("Pre-batch command 0x%04X failed: %s", cmd, e)
 
     # Data byte is the plate type value (e.g., 0x04 for 96-well, 0x01 for 384-well).
     start_step_data = bytes([self.plate_type.value])
@@ -260,7 +260,7 @@ class EL406CommunicationMixin:
 
       # Fresh timestamp after ACK — header + data share a single timeout budget.
       t0 = time.time()
-      resp_header = await self._read_exact_bytes(11, timeout, time.time())
+      resp_header = await self._read_exact_bytes(11, timeout, t0)
 
       if len(resp_header) == 11:
         result += resp_header
@@ -395,8 +395,8 @@ class EL406CommunicationMixin:
         raise TimeoutError(f"Timeout waiting for ACK (command 0x{command:04X})") from e
 
       t0 = time.time()
-      # Read 11-byte response header (full timeout, fresh timestamp)
-      resp_header = await self._read_exact_bytes(11, timeout, time.time())
+      # Read 11-byte response header (shares timeout budget with data)
+      resp_header = await self._read_exact_bytes(11, timeout, t0)
       if len(resp_header) < 11:
         raise TimeoutError(
           f"Timeout reading response header (got {len(resp_header)}/11 bytes)"

@@ -25,6 +25,7 @@ from ..helpers import (
   plate_type_max_columns,
   plate_type_max_rows,
   plate_type_well_count,
+  validate_num_pre_dispenses,
   validate_peristaltic_flow_rate,
   validate_volume,
 )
@@ -186,6 +187,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     Raises:
       ValueError: If parameters are invalid.
     """
+    validate_num_pre_dispenses(num_pre_dispenses)
     offset_z, flow_rate_enum, column_mask = self._validate_peristaltic_dispense_params(
       volume=volume,
       flow_rate=flow_rate,

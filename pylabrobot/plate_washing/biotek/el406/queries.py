@@ -28,6 +28,8 @@ from .enums import (
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
+_E = TypeVar("_E", bound=enum.Enum)
+
 
 class EL406QueriesMixin:
   """Mixin providing query methods for the EL406.
@@ -54,8 +56,6 @@ class EL406QueriesMixin:
   def _extract_payload_byte(response_data: bytes) -> int:
     """Extract the first payload byte, handling optional 2-byte header prefix."""
     return response_data[2] if len(response_data) > 2 else response_data[0]
-
-  _E = TypeVar("_E", bound=enum.Enum)
 
   async def _query_enum(self, command: int, enum_cls: type[_E], label: str) -> _E:
     """Send a framed query and parse the response byte as an *enum_cls* member."""

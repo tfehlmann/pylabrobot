@@ -938,8 +938,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       )
     )
 
-    vol_low = int(dispense_volume) & 0xFF
-    vol_high = (int(dispense_volume) >> 8) & 0xFF
+    vol_low, vol_high = encode_volume_16bit(dispense_volume)
 
     final_asp_z = final_aspirate_z if final_aspirate_z is not None else aspirate_z
 

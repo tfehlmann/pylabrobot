@@ -19,6 +19,7 @@ from .constants import (
   SYRINGE_MIN_VOLUME,
   VALID_BUFFERS,
   VALID_INTENSITIES,
+  VALID_PERISTALTIC_FLOW_RATES,
   VALID_SYRINGES,
 )
 from .enums import EL406PlateType
@@ -161,9 +162,10 @@ def validate_intensity(intensity: str) -> None:
 
 def validate_peristaltic_flow_rate(flow_rate: str) -> None:
   """Validate peristaltic flow rate (Low/Medium/High)."""
-  valid = {"Low", "Medium", "High"}
-  if flow_rate not in valid:
-    raise ValueError(f"flow_rate must be one of {valid}, got {flow_rate!r}")
+  if flow_rate not in VALID_PERISTALTIC_FLOW_RATES:
+    raise ValueError(
+      f"flow_rate must be one of {VALID_PERISTALTIC_FLOW_RATES}, got {flow_rate!r}"
+    )
 
 
 def validate_syringe_flow_rate(flow_rate: int) -> None:
@@ -201,6 +203,12 @@ def validate_submerge_duration(duration: int) -> None:
 
 
 
+def validate_num_pre_dispenses(num_pre_dispenses: int) -> None:
+  """Validate number of pre-dispenses (0-255, uint8 wire format)."""
+  if not 0 <= num_pre_dispenses <= 255:
+    raise ValueError(f"num_pre_dispenses must be 0-255, got {num_pre_dispenses}")
+
+
 def syringe_to_byte(syringe: str) -> int:
   """Convert syringe letter to byte value.
 
@@ -228,8 +236,13 @@ def encode_volume_16bit(volume_ul: float) -> tuple[int, int]:
 
   Returns:
     Tuple of (low_byte, high_byte).
+
+  Raises:
+    ValueError: If volume exceeds uint16 range (65535).
   """
-  vol_int = int(volume_ul) & 0xFFFF
+  vol_int = int(volume_ul)
+  if vol_int < 0 or vol_int > 0xFFFF:
+    raise ValueError(f"Volume {volume_ul} uL exceeds 16-bit encoding range (0-65535)")
   return (vol_int & 0xFF, (vol_int >> 8) & 0xFF)
 
 

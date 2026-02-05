@@ -20,6 +20,7 @@ from ..helpers import (
   encode_volume_16bit,
   plate_type_well_count,
   syringe_to_byte,
+  validate_num_pre_dispenses,
   validate_offset_xy,
   validate_offset_z,
   validate_pump_delay,
@@ -87,6 +88,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     validate_offset_xy(offset_y, "offset_y")
     validate_offset_z(offset_z, "offset_z")
     validate_pump_delay(pump_delay)
+    validate_num_pre_dispenses(num_pre_dispenses)
 
     column_mask = columns_to_column_mask(columns, plate_wells=plate_type_well_count(self.plate_type))
 
