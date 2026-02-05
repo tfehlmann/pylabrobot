@@ -6,6 +6,8 @@ Sub-mixins inherit from this class so they can reference
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..enums import EL406PlateType
 
 
@@ -15,9 +17,10 @@ class EL406StepsBaseMixin:
   plate_type: EL406PlateType
   timeout: float
 
-  async def _send_step_command(
-    self,
-    framed_message: bytes,
-    timeout: float | None = None,
-  ) -> bytes:
-    raise NotImplementedError
+  if TYPE_CHECKING:
+    async def _send_step_command(
+      self,
+      framed_message: bytes,
+      timeout: float | None = None,
+    ) -> bytes:
+      ...

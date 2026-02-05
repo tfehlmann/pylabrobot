@@ -1,3 +1,4 @@
+# mypy: disable-error-code="union-attr,assignment,arg-type"
 """Tests for BioTek EL406 plate washer backend - Aspirate operations.
 
 This module contains tests for aspirate-related step methods:

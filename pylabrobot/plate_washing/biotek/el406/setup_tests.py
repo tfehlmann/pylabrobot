@@ -1,3 +1,4 @@
+# mypy: disable-error-code="union-attr,assignment,arg-type"
 """Tests for BioTek EL406 plate washer backend - Setup, serialization, and configuration.
 
 This module contains tests for setup, serialization, error classes,

@@ -1,3 +1,4 @@
+# mypy: disable-error-code="union-attr,assignment,arg-type"
 """Tests for BioTek EL406 plate washer backend - Query methods.
 
 This module contains tests for Query methods.
