@@ -6,15 +6,18 @@ Sub-mixins inherit from this class so they can reference
 
 from __future__ import annotations
 
+from ..enums import EL406PlateType
+
 
 class EL406StepsBaseMixin:
   """Type stubs consumed by the per-subsystem step mixins."""
 
+  plate_type: EL406PlateType
   timeout: float
 
   async def _send_step_command(
     self,
     framed_message: bytes,
-    timeout: float = ...,  # type: ignore[assignment]
+    timeout: float | None = None,
   ) -> bytes:
-    ...
+    raise NotImplementedError

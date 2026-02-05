@@ -6,6 +6,8 @@ across the BioTek EL406 plate washer backend modules.
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 from .constants import (
   MAX_FLOW_RATE,
   MIN_FLOW_RATE,
@@ -473,9 +475,13 @@ PLATE_TYPE_DEFAULTS: dict[EL406PlateType, dict[str, int]] = {
 }
 
 
-def get_plate_type_wash_defaults(
-  plate_type: EL406PlateType,
-) -> dict[str, int | float]:
+class WashDefaults(TypedDict):
+  dispense_volume: float
+  dispense_z: int
+  aspirate_z: int
+
+
+def get_plate_type_wash_defaults(plate_type: EL406PlateType) -> WashDefaults:
   """Return wash defaults for a plate type.
 
   Returns dict with keys: dispense_volume, dispense_z, aspirate_z.

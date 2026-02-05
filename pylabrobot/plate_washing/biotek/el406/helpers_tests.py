@@ -64,10 +64,10 @@ class TestHelperFunctions(unittest.TestCase):
 
 
 class TestColumnMaskEncoding(unittest.TestCase):
-  """Test well mask encoding helper function.
+  """Test column mask encoding helper function.
 
-  Well mask encodes 48 well selections into 6 bytes (48 bits).
-  - wells is a list of well indices (0-47)
+  Column mask encodes 48 column selections into 6 bytes (48 bits).
+  - columns is a list of column indices (0-47)
   - Each index sets the corresponding bit to 1
   - Bytes are in little-endian order
   """
@@ -195,7 +195,7 @@ class TestColumnMaskEncoding(unittest.TestCase):
     self.assertIn("-1", str(ctx.exception))
 
   def test_encode_column_mask_duplicate_wells_handled(self):
-    """encode_column_mask should handle duplicate well indices."""
+    """encode_column_mask should handle duplicate column indices."""
 
 
     # Duplicates should just set the same bit twice (no effect)
@@ -205,7 +205,7 @@ class TestColumnMaskEncoding(unittest.TestCase):
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
 
   def test_encode_column_mask_unsorted_wells(self):
-    """encode_column_mask should handle unsorted well indices."""
+    """encode_column_mask should handle unsorted column indices."""
 
 
     # Order shouldn't matter

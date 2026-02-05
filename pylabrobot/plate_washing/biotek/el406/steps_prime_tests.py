@@ -350,7 +350,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[8], 1)  # Submerge tips = True
     self.assertEqual(cmd[9], 0x5A)  # Submerge duration low (90 min = 0x005A)
     self.assertEqual(cmd[10], 0x00)  # Submerge duration high
-    self.assertEqual(cmd[11], 2)  # Bottle (B → eSyrB1=3 → 3-1=2)
+    self.assertEqual(cmd[11], 2)  # Bottle (B → 2)
     self.assertEqual(cmd[12], 0)  # Padding
 
   def test_syringe_prime_bottle_encoding(self):

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from .constants import (
   ACK_BYTE,
@@ -24,9 +24,13 @@ from .constants import (
   STATUS_POLL_COMMAND,
   TEST_COMM_COMMAND,
 )
+from .enums import EL406PlateType
 from .error_codes import get_error_message
 from .errors import EL406CommunicationError, EL406DeviceError
 from .protocol import build_framed_message
+
+if TYPE_CHECKING:
+  from pylabrobot.io.ftdi import FTDI
 
 
 class DevicePollResult(NamedTuple):
@@ -57,12 +61,18 @@ class EL406CommunicationMixin:
     self._command_lock: asyncio.Lock for command serialization
   """
 
+  io: FTDI | None
+  timeout: float
+  plate_type: EL406PlateType
+  _command_lock: asyncio.Lock
+
   async def _write_to_device(self, data: bytes) -> None:
     """Write bytes to the FTDI device, wrapping errors.
 
     Raises:
       EL406CommunicationError: If the write fails.
     """
+    assert self.io is not None
     try:
       await self.io.write(data)
     except Exception as e:
@@ -83,6 +93,7 @@ class EL406CommunicationMixin:
       RuntimeError: If device sends NAK.
       TimeoutError: If no ACK within timeout.
     """
+    assert self.io is not None
     while time.time() - t0 < timeout:
       byte = await self.io.read(1)
       if byte:
@@ -107,6 +118,7 @@ class EL406CommunicationMixin:
     Returns:
       Bytes read (may be shorter than *count* if timeout is reached).
     """
+    assert self.io is not None
     buf = b""
     while len(buf) < count and time.time() - t0 < timeout:
       chunk = await self.io.read(count - len(buf))

@@ -43,8 +43,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     self,
     columns: list[int] | None,
     rows: list[int] | None,
-  ) -> list[int]:
-    """Validate column/row selection and return well indices list."""
+  ) -> list[int] | None:
+    """Validate column/row selection and return column mask."""
     max_cols = plate_type_max_columns(self.plate_type)
     if columns is not None:
       for col in columns:
@@ -69,11 +69,11 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     pre_dispense_volume: float,
     columns: list[int] | None,
     rows: list[int] | None,
-  ) -> tuple[int, int, list[int]]:
+  ) -> tuple[int, int, list[int] | None]:
     """Validate peristaltic dispense parameters and resolve defaults.
 
     Returns:
-      (offset_z, flow_rate_enum, well_indices)
+      (offset_z, flow_rate_enum, column_mask)
     """
     if not 1 <= volume <= 3000:
       raise ValueError(f"Peri-pump dispense volume must be 1-3000 µL, got {volume}")
@@ -90,9 +90,9 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
     validate_volume(pre_dispense_volume, allow_zero=True)
 
-    well_indices = self._validate_peristaltic_well_selection(columns, rows)
+    column_mask = self._validate_peristaltic_well_selection(columns, rows)
 
-    return (offset_z, PERISTALTIC_FLOW_RATE_MAP[flow_rate], well_indices)
+    return (offset_z, PERISTALTIC_FLOW_RATE_MAP[flow_rate], column_mask)
 
   async def peristaltic_prime(
     self,
@@ -186,7 +186,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     Raises:
       ValueError: If parameters are invalid.
     """
-    offset_z, flow_rate_enum, well_indices = self._validate_peristaltic_dispense_params(
+    offset_z, flow_rate_enum, column_mask = self._validate_peristaltic_dispense_params(
       volume=volume,
       flow_rate=flow_rate,
       offset_x=offset_x,
@@ -213,7 +213,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       offset_z=offset_z,
       pre_dispense_volume=pre_dispense_volume,
       num_pre_dispenses=num_pre_dispenses,
-      column_mask=well_indices,
+      column_mask=column_mask,
       rows=rows,
       pump=1,
     )
@@ -254,6 +254,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       purge_volume = 0.0
       purge_duration = duration
     else:
+      assert volume is not None  # guaranteed by the mutual-exclusion check above
       if not 1 <= volume <= 3000:
         raise ValueError("volume must be 1-3000 µL (GUI limit)")
       purge_volume = volume

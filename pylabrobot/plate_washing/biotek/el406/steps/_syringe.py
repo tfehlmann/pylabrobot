@@ -88,8 +88,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     validate_offset_z(offset_z, "offset_z")
     validate_pump_delay(pump_delay)
 
-    # Convert 1-indexed columns to 0-indexed column indices
-    column_indices = columns_to_column_mask(columns, plate_wells=plate_type_well_count(self.plate_type))
+    column_mask = columns_to_column_mask(columns, plate_wells=plate_type_well_count(self.plate_type))
 
     logger.info(
       "Syringe dispense: %.1f uL from syringe %s, flow rate %d",
@@ -109,7 +108,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       pre_dispense=pre_dispense,
       pre_dispense_volume=pre_dispense_volume,
       num_pre_dispenses=num_pre_dispenses,
-      column_mask=column_indices,
+      column_mask=column_mask,
     )
     framed_command = build_framed_message(SYRINGE_DISPENSE_COMMAND, data)
     await self._send_step_command(framed_command)

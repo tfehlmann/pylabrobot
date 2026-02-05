@@ -45,6 +45,11 @@ class EL406QueriesMixin:
     self._send_framed_query: Async method for sending framed queries
   """
 
+  async def _send_framed_query(
+    self, command: int, data: bytes = b"", timeout: float | None = None,
+  ) -> bytes:
+    raise NotImplementedError
+
   @staticmethod
   def _extract_payload_byte(response_data: bytes) -> int:
     """Extract the first payload byte, handling optional 2-byte header prefix."""

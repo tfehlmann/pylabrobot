@@ -47,6 +47,16 @@ class EL406ActionsMixin:
     self._send_action_command: Async method for sending action commands
   """
 
+  async def _send_framed_command(
+    self, framed_message: bytes, timeout: float | None = None,
+  ) -> bytes:
+    raise NotImplementedError
+
+  async def _send_action_command(
+    self, framed_message: bytes, timeout: float | None = None,
+  ) -> bytes:
+    raise NotImplementedError
+
   async def abort(
     self,
     step_type: EL406StepType | None = None,

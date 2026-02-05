@@ -160,9 +160,9 @@ class TestEL406BackendDispense(unittest.IsolatedAsyncioTestCase):
 class TestEL406BackendSyringeDispense(unittest.IsolatedAsyncioTestCase):
   """Test EL406 syringe dispense functionality.
 
-  The syringe dispense operation (eSDispense = 4) uses the syringe pump
-  to dispense liquid to wells. This provides more precise volume control
-  than peristaltic dispensing.
+  The syringe dispense operation uses the syringe pump to dispense liquid
+  to wells. This provides more precise volume control than peristaltic
+  dispensing.
   """
 
   async def asyncSetUp(self):
