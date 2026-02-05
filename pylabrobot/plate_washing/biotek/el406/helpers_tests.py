@@ -1,0 +1,377 @@
+"""Tests for BioTek EL406 plate washer backend - Helper functions.
+
+This module contains tests for Helper functions.
+"""
+
+import unittest
+
+# Import the backend module (mock is already installed by test_el406_mock import)
+from pylabrobot.plate_washing.biotek.el406 import (
+  BioTekEL406Backend,
+)
+
+
+class TestHelperFunctions(unittest.TestCase):
+  """Test helper functions for encoding."""
+
+  def setUp(self):
+    self.backend = BioTekEL406Backend()
+
+  def test_buffer_to_byte_a(self):
+    """Buffer A should encode to 0."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
+
+    self.assertEqual(buffer_to_byte("A"), 0)
+
+  def test_buffer_to_byte_b(self):
+    """Buffer B should encode to 1."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
+
+    self.assertEqual(buffer_to_byte("B"), 1)
+
+  def test_buffer_to_byte_c(self):
+    """Buffer C should encode to 2."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
+
+    self.assertEqual(buffer_to_byte("C"), 2)
+
+  def test_buffer_to_byte_d(self):
+    """Buffer D should encode to 3."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
+
+    self.assertEqual(buffer_to_byte("D"), 3)
+
+  def test_buffer_to_byte_lowercase(self):
+    """Lowercase buffer should work."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
+
+    self.assertEqual(buffer_to_byte("a"), 0)
+    self.assertEqual(buffer_to_byte("b"), 1)
+
+  def test_encode_volume_little_endian(self):
+    """Volume should be encoded as little-endian 2 bytes."""
+    # Test helper method if it exists, otherwise test via command building
+    cmd = self.backend._build_dispense_command(
+      volume=1000.0,
+      buffer="A",
+      flow_rate=5,
+      offset_x=0,
+      offset_y=0,
+      offset_z=100,
+    )
+    # Current format: [0]=0x04, [1]=buffer, [2-3]=volume
+    # 1000 = 0x03E8, little-endian = [0xE8, 0x03]
+    self.assertEqual(cmd[2], 0xE8)
+    self.assertEqual(cmd[3], 0x03)
+
+  def test_encode_signed_byte_positive(self):
+    """Positive offset should encode correctly."""
+    cmd = self.backend._build_aspirate_command(
+      time_value=1000,
+      travel_rate_byte=3,
+      offset_x=50,
+      offset_y=30,
+      offset_z=29,
+    )
+    # Current format: [5]=offset_x, [6]=offset_y (signed bytes)
+    self.assertEqual(cmd[5], 50)
+    self.assertEqual(cmd[6], 30)
+
+  def test_encode_signed_byte_negative(self):
+    """Negative offset should encode as two's complement."""
+    cmd = self.backend._build_aspirate_command(
+      time_value=1000,
+      travel_rate_byte=3,
+      offset_x=-30,
+      offset_y=-50,
+      offset_z=29,
+    )
+    # Current format: [5]=offset_x, [6]=offset_y (signed bytes)
+    # -30 as unsigned byte: 256 - 30 = 226 = 0xE2
+    self.assertEqual(cmd[5], 226)
+    # -50 as unsigned byte: 256 - 50 = 206 = 0xCE
+    self.assertEqual(cmd[6], 206)
+
+
+class TestWellMaskEncoding(unittest.TestCase):
+  """Test well mask encoding helper function.
+
+  Well mask encodes 48 well selections into 6 bytes (48 bits).
+  - wells is a list of well indices (0-47)
+  - Each index sets the corresponding bit to 1
+  - Bytes are in little-endian order
+  """
+
+  def test_encode_well_mask_none_returns_all_ones(self):
+    """encode_well_mask(None) should return all 1s (all wells selected)."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    mask = encode_well_mask(None)
+
+    self.assertEqual(len(mask), 6)
+    # All 48 bits set = 6 bytes of 0xFF
+    self.assertEqual(mask, bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]))
+
+  def test_encode_well_mask_empty_list_returns_all_zeros(self):
+    """encode_well_mask([]) should return all 0s (no wells selected)."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    mask = encode_well_mask([])
+
+    self.assertEqual(len(mask), 6)
+    self.assertEqual(mask, bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_single_well_0(self):
+    """encode_well_mask([0]) should set bit 0 only."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    mask = encode_well_mask([0])
+
+    # Well 0 = bit 0 = 0b00000001 = 0x01 in byte 0
+    self.assertEqual(mask[0], 0x01)
+    self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_single_well_7(self):
+    """encode_well_mask([7]) should set bit 7 only."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    mask = encode_well_mask([7])
+
+    # Well 7 = bit 7 = 0b10000000 = 0x80 in byte 0
+    self.assertEqual(mask[0], 0x80)
+    self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_single_well_8(self):
+    """encode_well_mask([8]) should set bit 0 in byte 1."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    mask = encode_well_mask([8])
+
+    # Well 8 = bit 8 = bit 0 of byte 1 = 0x01
+    self.assertEqual(mask[0], 0x00)
+    self.assertEqual(mask[1], 0x01)
+    self.assertEqual(mask[2:], bytes([0x00, 0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_single_well_47(self):
+    """encode_well_mask([47]) should set bit 7 in byte 5."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    mask = encode_well_mask([47])
+
+    # Well 47 = bit 47 = bit 7 of byte 5 = 0x80
+    self.assertEqual(mask[:5], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
+    self.assertEqual(mask[5], 0x80)
+
+  def test_encode_well_mask_multiple_wells(self):
+    """encode_well_mask with multiple wells should set multiple bits."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    # Wells 0, 1, 2, 3 = bits 0-3 in byte 0 = 0b00001111 = 0x0F
+    mask = encode_well_mask([0, 1, 2, 3])
+
+    self.assertEqual(mask[0], 0x0F)
+    self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_wells_in_different_bytes(self):
+    """encode_well_mask with wells spanning multiple bytes."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    # Wells 0 (byte 0, bit 0), 8 (byte 1, bit 0), 16 (byte 2, bit 0)
+    mask = encode_well_mask([0, 8, 16])
+
+    self.assertEqual(mask[0], 0x01)
+    self.assertEqual(mask[1], 0x01)
+    self.assertEqual(mask[2], 0x01)
+    self.assertEqual(mask[3:], bytes([0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_all_48_wells(self):
+    """encode_well_mask with all 48 wells should return all 1s."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    all_wells = list(range(48))
+    mask = encode_well_mask(all_wells)
+
+    self.assertEqual(mask, bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]))
+
+  def test_encode_well_mask_first_row_96_plate(self):
+    """encode_well_mask for first row of 96-well plate (wells 0-11)."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    # For 48-well selection, first 12 wells would be wells 0-11
+    mask = encode_well_mask(list(range(12)))
+
+    # Wells 0-7 = byte 0 = 0xFF
+    # Wells 8-11 = bits 0-3 of byte 1 = 0x0F
+    self.assertEqual(mask[0], 0xFF)
+    self.assertEqual(mask[1], 0x0F)
+    self.assertEqual(mask[2:], bytes([0x00, 0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_out_of_range_raises(self):
+    """encode_well_mask should raise ValueError for well index >= 48."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    with self.assertRaises(ValueError) as ctx:
+      encode_well_mask([48])
+
+    self.assertIn("48", str(ctx.exception))
+
+  def test_encode_well_mask_negative_raises(self):
+    """encode_well_mask should raise ValueError for negative well index."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    with self.assertRaises(ValueError) as ctx:
+      encode_well_mask([-1])
+
+    self.assertIn("-1", str(ctx.exception))
+
+  def test_encode_well_mask_duplicate_wells_handled(self):
+    """encode_well_mask should handle duplicate well indices."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    # Duplicates should just set the same bit twice (no effect)
+    mask = encode_well_mask([0, 0, 0])
+
+    self.assertEqual(mask[0], 0x01)
+    self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
+
+  def test_encode_well_mask_unsorted_wells(self):
+    """encode_well_mask should handle unsorted well indices."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
+    # Order shouldn't matter
+    mask = encode_well_mask([3, 0, 2, 1])
+
+    self.assertEqual(mask[0], 0x0F)
+    self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
+
+
+class TestQuadrantMaskEncoding(unittest.TestCase):
+  """Test quadrant mask encoding helper function.
+
+  Quadrant mask encodes 4 quadrant selections into 1 byte (4 bits).
+  - quadrants is a list of quadrant indices (0-3) or EL406Quadrant enums
+  - Each index sets the corresponding bit to 1
+  - Bits 4-7 are unused (should be 0)
+  """
+
+  def test_encode_quadrant_mask_none_returns_all_quadrants(self):
+    """encode_quadrant_mask(None) should return 0x0F (all 4 quadrants)."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask(None)
+
+    self.assertEqual(len(mask), 1)
+    # All 4 quadrants = bits 0-3 set = 0b00001111 = 0x0F
+    self.assertEqual(mask[0], 0x0F)
+
+  def test_encode_quadrant_mask_empty_list_returns_zero(self):
+    """encode_quadrant_mask([]) should return 0x00 (no quadrants)."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([])
+
+    self.assertEqual(len(mask), 1)
+    self.assertEqual(mask[0], 0x00)
+
+  def test_encode_quadrant_mask_single_quadrant_0(self):
+    """encode_quadrant_mask([0]) should set bit 0 only."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([0])
+
+    self.assertEqual(mask[0], 0x01)
+
+  def test_encode_quadrant_mask_single_quadrant_1(self):
+    """encode_quadrant_mask([1]) should set bit 1 only."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([1])
+
+    self.assertEqual(mask[0], 0x02)
+
+  def test_encode_quadrant_mask_single_quadrant_2(self):
+    """encode_quadrant_mask([2]) should set bit 2 only."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([2])
+
+    self.assertEqual(mask[0], 0x04)
+
+  def test_encode_quadrant_mask_single_quadrant_3(self):
+    """encode_quadrant_mask([3]) should set bit 3 only."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([3])
+
+    self.assertEqual(mask[0], 0x08)
+
+  def test_encode_quadrant_mask_quadrants_0_and_1(self):
+    """encode_quadrant_mask([0, 1]) should set bits 0 and 1."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([0, 1])
+
+    # Bits 0 and 1 = 0b00000011 = 0x03
+    self.assertEqual(mask[0], 0x03)
+
+  def test_encode_quadrant_mask_all_quadrants(self):
+    """encode_quadrant_mask([0, 1, 2, 3]) should set all 4 bits."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([0, 1, 2, 3])
+
+    self.assertEqual(mask[0], 0x0F)
+
+  def test_encode_quadrant_mask_with_enum(self):
+    """encode_quadrant_mask should accept EL406Quadrant enum values."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406Quadrant
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([EL406Quadrant.QUADRANT_1])
+
+    self.assertEqual(mask[0], 0x01)
+
+  def test_encode_quadrant_mask_mixed_enum_and_int(self):
+    """encode_quadrant_mask should accept mixed enum and int values."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406Quadrant
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([EL406Quadrant.QUADRANT_1, 2])
+
+    # Quadrant 1 (0) and Quadrant 3 (2) = bits 0 and 2 = 0x05
+    self.assertEqual(mask[0], 0x05)
+
+  def test_encode_quadrant_mask_out_of_range_raises(self):
+    """encode_quadrant_mask should raise ValueError for quadrant >= 4."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    with self.assertRaises(ValueError) as ctx:
+      encode_quadrant_mask([4])
+
+    self.assertIn("4", str(ctx.exception))
+
+  def test_encode_quadrant_mask_negative_raises(self):
+    """encode_quadrant_mask should raise ValueError for negative quadrant."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    with self.assertRaises(ValueError) as ctx:
+      encode_quadrant_mask([-1])
+
+    self.assertIn("-1", str(ctx.exception))
+
+  def test_encode_quadrant_mask_duplicate_quadrants_handled(self):
+    """encode_quadrant_mask should handle duplicate quadrant indices."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([0, 0, 0])
+
+    self.assertEqual(mask[0], 0x01)
+
+  def test_encode_quadrant_mask_diagonal_quadrants(self):
+    """encode_quadrant_mask with diagonal quadrants (0 and 3)."""
+    from pylabrobot.plate_washing.biotek.el406.helpers import encode_quadrant_mask
+
+    mask = encode_quadrant_mask([0, 3])
+
+    # Bits 0 and 3 = 0b00001001 = 0x09
+    self.assertEqual(mask[0], 0x09)

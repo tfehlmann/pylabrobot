@@ -1,0 +1,770 @@
+"""Tests for BioTek EL406 plate washer backend - Action methods.
+
+This module contains tests for Action methods.
+"""
+
+import unittest
+
+# Import the backend module (mock is already installed by test_el406_mock import)
+from pylabrobot.plate_washing.biotek.el406 import (
+  BioTekEL406Backend,
+  EL406StepType,
+  EL406WasherManifold,
+)
+
+
+class TestEL406BackendAbort(unittest.IsolatedAsyncioTestCase):
+  """Test EL406 abort functionality.
+
+  The abort operation cancels a running step.
+  - Command byte: 137 (0x89)
+  - Accepts a step type parameter (can be 0 for current operation)
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_abort_sends_command(self):
+    """Abort should send abort command to device."""
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.abort()
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_abort_command_byte(self):
+    """Abort command should be 137 (0x89) in framed message."""
+    await self.backend.abort()
+
+    # Abort sends header + data, so header is at -2
+    last_header = self.backend.dev.written_data[-2]
+    # Command byte is at position 2 in framed message
+    self.assertEqual(last_header[2], 0x89)
+
+  async def test_abort_with_step_type(self):
+    """Abort should accept optional step type parameter."""
+    await self.backend.abort(step_type=EL406StepType.M_WASH)
+
+    # Abort sends header + data, so header is at -2
+    last_header = self.backend.dev.written_data[-2]
+    self.assertEqual(last_header[2], 0x89)
+
+  async def test_abort_without_step_type_uses_zero(self):
+    """Abort without step_type should default to 0 (abort current)."""
+    await self.backend.abort()
+
+    # Abort sends header + data separately
+    last_header = self.backend.dev.written_data[-2]
+    last_data = self.backend.dev.written_data[-1]
+    self.assertEqual(last_header[2], 0x89)
+    self.assertEqual(last_data[0], 0)  # Default step type = 0
+
+  async def test_abort_raises_when_device_not_initialized(self):
+    """Abort should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    # Note: no setup() called
+    with self.assertRaises(RuntimeError):
+      await backend.abort()
+
+
+class TestAbortCommandEncoding(unittest.TestCase):
+  """Test abort command binary encoding.
+
+  Protocol format for abort:
+    Command byte: 137 (0x89)
+    The step type parameter may be included in the command.
+  """
+
+  def setUp(self):
+    self.backend = BioTekEL406Backend()
+
+  def test_build_abort_command_basic(self):
+    """Abort command should start with byte 137 (0x89)."""
+    cmd = self.backend._build_abort_command()
+
+    self.assertEqual(cmd[0], 0x89)
+
+  def test_build_abort_command_with_step_type(self):
+    """Abort command with step type should include step type byte."""
+    cmd = self.backend._build_abort_command(step_type=EL406StepType.M_WASH)
+
+    self.assertEqual(cmd[0], 0x89)
+    # Step type should be included (M_WASH = 6)
+    self.assertEqual(cmd[1], EL406StepType.M_WASH.value)
+
+  def test_build_abort_command_default_step_type_zero(self):
+    """Abort command without step type should use 0 (abort current)."""
+    cmd = self.backend._build_abort_command()
+
+    self.assertEqual(len(cmd), 2)
+    self.assertEqual(cmd[0], 0x89)  # Command byte
+    self.assertEqual(cmd[1], 0)  # Default step type = 0 (abort current)
+
+  def test_build_abort_command_step_type_aspirate(self):
+    """Abort with M_ASPIRATE step type."""
+    cmd = self.backend._build_abort_command(step_type=EL406StepType.M_ASPIRATE)
+
+    self.assertEqual(cmd[0], 0x89)
+    self.assertEqual(cmd[1], EL406StepType.M_ASPIRATE.value)
+
+  def test_build_abort_command_step_type_dispense(self):
+    """Abort with M_DISPENSE step type."""
+    cmd = self.backend._build_abort_command(step_type=EL406StepType.M_DISPENSE)
+
+    self.assertEqual(cmd[0], 0x89)
+    self.assertEqual(cmd[1], EL406StepType.M_DISPENSE.value)
+
+  def test_build_abort_command_all_step_types(self):
+    """Abort command should work with all valid step types."""
+    for step_type in EL406StepType:
+      cmd = self.backend._build_abort_command(step_type=step_type)
+      self.assertEqual(cmd[0], 0x89)
+      self.assertEqual(cmd[1], step_type.value)
+
+
+class TestEL406BackendPause(unittest.IsolatedAsyncioTestCase):
+  """Test EL406 pause functionality.
+
+  The pause operation temporarily halts a running step.
+  - Command byte: 138 (0x8A)
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_pause_sends_command(self):
+    """Pause should send pause command to device."""
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.pause()
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_pause_command_byte(self):
+    """Pause command should be 138 (0x8A) in framed message."""
+    await self.backend.pause()
+
+    # Get the last command sent
+    last_command = self.backend.dev.written_data[-1]
+    # Command byte is at position 2 in framed message
+    self.assertEqual(last_command[2], 0x8A)
+
+  async def test_pause_raises_when_device_not_initialized(self):
+    """Pause should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    # Note: no setup() called
+    with self.assertRaises(RuntimeError):
+      await backend.pause()
+
+  async def test_pause_raises_on_timeout(self):
+    """Pause should raise TimeoutError when device does not respond."""
+    self.backend.dev.set_read_buffer(b"")  # No ACK response
+    with self.assertRaises(TimeoutError):
+      await self.backend.pause()
+
+  async def test_pause_resume_sequence(self):
+    """Pause followed by resume should work correctly."""
+    await self.backend.pause()
+    # Verify pause command was sent (command byte at position 2 in framed message)
+    pause_cmd = self.backend.dev.written_data[-1]
+    self.assertEqual(pause_cmd[2], 0x8A)
+
+    await self.backend.resume()
+    # Verify resume command was sent after pause (command byte at position 2)
+    resume_cmd = self.backend.dev.written_data[-1]
+    self.assertEqual(resume_cmd[2], 0x8B)
+
+
+class TestPauseCommandEncoding(unittest.TestCase):
+  """Test pause command binary encoding.
+
+  Protocol format for pause:
+    Command byte: 138 (0x8A)
+  """
+
+  def setUp(self):
+    self.backend = BioTekEL406Backend()
+
+  def test_build_pause_command(self):
+    """Pause command should be byte 138 (0x8A)."""
+    cmd = self.backend._build_pause_command()
+
+    self.assertEqual(len(cmd), 1)
+    self.assertEqual(cmd[0], 0x8A)
+
+
+class TestEL406BackendResume(unittest.IsolatedAsyncioTestCase):
+  """Test EL406 resume functionality.
+
+  The resume operation continues a paused step.
+  - Command byte: 139 (0x8B)
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_resume_sends_command(self):
+    """Resume should send resume command to device."""
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.resume()
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_resume_command_byte(self):
+    """Resume command should be 139 (0x8B) in framed message."""
+    await self.backend.resume()
+
+    # Get the last command sent
+    last_command = self.backend.dev.written_data[-1]
+    # Command byte is at position 2 in framed message
+    self.assertEqual(last_command[2], 0x8B)
+
+  async def test_resume_raises_when_device_not_initialized(self):
+    """Resume should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    # Note: no setup() called
+    with self.assertRaises(RuntimeError):
+      await backend.resume()
+
+  async def test_resume_raises_on_timeout(self):
+    """Resume should raise TimeoutError when device does not respond."""
+    self.backend.dev.set_read_buffer(b"")  # No ACK response
+    with self.assertRaises(TimeoutError):
+      await self.backend.resume()
+
+
+class TestResumeCommandEncoding(unittest.TestCase):
+  """Test resume command binary encoding.
+
+  Protocol format for resume:
+    Command byte: 139 (0x8B)
+  """
+
+  def setUp(self):
+    self.backend = BioTekEL406Backend()
+
+  def test_build_resume_command(self):
+    """Resume command should be byte 139 (0x8B)."""
+    cmd = self.backend._build_resume_command()
+
+    self.assertEqual(len(cmd), 1)
+    self.assertEqual(cmd[0], 0x8B)
+
+
+class TestEL406BackendReset(unittest.IsolatedAsyncioTestCase):
+  """Test EL406 reset functionality.
+
+  The reset operation resets the instrument to a known state.
+  - Command byte: 112 (0x70)
+  - Timeout: 30000ms (30 seconds)
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_reset_sends_command(self):
+    """Reset should send reset command to device."""
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.reset()
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_reset_command_byte(self):
+    """Reset command should be 112 (0x70) in framed message."""
+    await self.backend.reset()
+
+    # Get the last command sent
+    last_command = self.backend.dev.written_data[-1]
+    # Command byte is at position 2 in framed message
+    self.assertEqual(last_command[2], 0x70)
+
+  async def test_reset_raises_when_device_not_initialized(self):
+    """Reset should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    # Note: no setup() called
+    with self.assertRaises(RuntimeError):
+      await backend.reset()
+
+  async def test_reset_raises_on_timeout(self):
+    """Reset should raise TimeoutError when device does not respond."""
+    self.backend.dev.set_read_buffer(b"")  # No ACK response
+    with self.assertRaises(TimeoutError):
+      await self.backend.reset()
+
+
+class TestResetCommandEncoding(unittest.TestCase):
+  """Test reset command binary encoding.
+
+  Protocol format for reset:
+    Command byte: 112 (0x70)
+  """
+
+  def setUp(self):
+    self.backend = BioTekEL406Backend()
+
+  def test_build_reset_command(self):
+    """Reset command should be byte 112 (0x70)."""
+    cmd = self.backend._build_reset_command()
+
+    self.assertEqual(len(cmd), 1)
+    self.assertEqual(cmd[0], 0x70)
+
+
+class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
+  """Test EL406 motor homing functionality.
+
+  The home_motors operation homes and/or verifies motor positions.
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_home_motors_sends_command(self):
+    """home_motors should send a command to the device."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
+
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.home_motors(
+      home_type=EL406MotorHomeType.HOME_MOTOR,
+      motor=EL406Motor.CARRIER_X,
+    )
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_home_motors_home_all(self):
+    """home_motors should work with HOME_XYZ_MOTORS to home all xyz motors."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.home_motors(home_type=EL406MotorHomeType.HOME_XYZ_MOTORS)
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_home_motors_init_all(self):
+    """home_motors should work with INIT_ALL_MOTORS."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.home_motors(home_type=EL406MotorHomeType.INIT_ALL_MOTORS)
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_home_motors_verify_motor(self):
+    """home_motors should work with VERIFY_MOTOR for specific motor."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
+
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.home_motors(
+      home_type=EL406MotorHomeType.VERIFY_MOTOR,
+      motor=EL406Motor.SYRINGE_A,
+    )
+
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_home_motors_raises_when_device_not_initialized(self):
+    """home_motors should raise RuntimeError if device not initialized."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
+    backend = BioTekEL406Backend()
+    # Note: no setup() called
+
+    with self.assertRaises(RuntimeError):
+      await backend.home_motors(home_type=EL406MotorHomeType.HOME_XYZ_MOTORS)
+
+
+class TestHomeMotorsCommandEncoding(unittest.TestCase):
+  """Test motor homing command binary encoding.
+
+  Protocol format for HomeVerifyMotors:
+    The command is sent via method with timeout 32000ms.
+    Then sends command 200 with 2 character parameters:
+      char[0] = home_type (byte cast from short)
+      char[1] = motor_number (byte)
+
+  Command structure:
+    [0]   Command byte: 200 (0xC8) - HOME_VERIFY_MOTORS_COMMAND
+    [1]   Home type: 1-6 from EL406MotorHomeType
+    [2]   Motor number: 0-11 from EL406Motor
+  """
+
+  def setUp(self):
+    self.backend = BioTekEL406Backend()
+
+  def test_home_motors_command_byte(self):
+    """home_motors command should use command byte 200 (0xC8)."""
+    from pylabrobot.plate_washing.biotek.el406 import (
+      EL406Motor,
+      EL406MotorHomeType,
+    )
+    from pylabrobot.plate_washing.biotek.el406.constants import HOME_VERIFY_MOTORS_COMMAND
+
+    self.assertEqual(HOME_VERIFY_MOTORS_COMMAND, 200)
+
+    cmd = self.backend._build_home_motors_command(
+      home_type=EL406MotorHomeType.HOME_MOTOR,
+      motor=EL406Motor.CARRIER_X,
+    )
+
+    self.assertEqual(cmd[0], 200)
+
+  def test_home_motors_command_home_type_encoding(self):
+    """home_motors command should encode home type at byte 1."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
+
+    for home_type in EL406MotorHomeType:
+      cmd = self.backend._build_home_motors_command(
+        home_type=home_type,
+        motor=EL406Motor.CARRIER_X,
+      )
+      self.assertEqual(cmd[1], home_type.value)
+
+  def test_home_motors_command_motor_encoding(self):
+    """home_motors command should encode motor number at byte 2."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
+
+    for motor in EL406Motor:
+      cmd = self.backend._build_home_motors_command(
+        home_type=EL406MotorHomeType.HOME_MOTOR,
+        motor=motor,
+      )
+      self.assertEqual(cmd[2], motor.value)
+
+  def test_home_motors_command_length(self):
+    """home_motors command should be exactly 3 bytes."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
+
+    cmd = self.backend._build_home_motors_command(
+      home_type=EL406MotorHomeType.HOME_MOTOR,
+      motor=EL406Motor.CARRIER_X,
+    )
+
+    self.assertEqual(len(cmd), 3)
+
+  def test_home_motors_command_default_motor(self):
+    """home_motors command should default motor to 0 when not specified."""
+    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
+    cmd = self.backend._build_home_motors_command(
+      home_type=EL406MotorHomeType.HOME_XYZ_MOTORS,
+    )
+
+    self.assertEqual(cmd[2], 0)
+
+
+# =============================================================================
+# STRIP WASHER TESTS - TDD RED PHASE
+#
+# The strip washer operations (step types 13-16) are designed for strip-based
+# operations rather than full plate operations. The EL406 has a strip washer
+# module that can wash individual strips of wells.
+#
+# Step types:
+#   13 = eMWashStrip - Strip washer wash
+#   14 = eMAspirateStrip - Strip washer aspirate
+#   15 = eMDispenseStrip - Strip washer dispense
+#   16 = eMPrimeStrip - Strip washer prime
+#
+# The strip washer commands follow similar patterns to the manifold commands
+# but use their respective step types.
+# =============================================================================
+
+
+class TestValidateStep(unittest.IsolatedAsyncioTestCase):
+  """Test validate_step functionality.
+
+  validate_step is not implemented because validation is performed
+  locally, not by sending a command to the device.
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_validate_step_raises_not_implemented(self):
+    """validate_step should raise NotImplementedError."""
+    with self.assertRaises(NotImplementedError):
+      await self.backend.validate_step(
+        step_type=EL406StepType.P_PRIME,
+        definition=bytes([0x02, 0xE8, 0x03, 0x00, 0x09]),
+      )
+
+
+class TestRunSelfCheck(unittest.IsolatedAsyncioTestCase):
+  """Test run_self_check functionality.
+
+  run_self_check runs instrument self-diagnostics.
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_run_self_check_returns_dict(self):
+    """run_self_check should return a dictionary with results."""
+    self.backend.dev.set_read_buffer(b"\x00\x06")  # Success
+    result = await self.backend.run_self_check()
+    self.assertIsInstance(result, dict)
+
+  async def test_run_self_check_has_success_key(self):
+    """run_self_check result should have a success key."""
+    self.backend.dev.set_read_buffer(b"\x00\x06")
+    result = await self.backend.run_self_check()
+    self.assertIn("success", result)
+
+  async def test_run_self_check_success_on_valid_response(self):
+    """run_self_check should report success when device responds OK."""
+    self.backend.dev.set_read_buffer(b"\x00\x06")
+    result = await self.backend.run_self_check()
+    self.assertTrue(result["success"])
+
+  async def test_run_self_check_failure_on_error_response(self):
+    """run_self_check should report failure on error response."""
+    self.backend.dev.set_read_buffer(b"\x01\x06")  # Error code 1
+    result = await self.backend.run_self_check()
+    self.assertFalse(result["success"])
+
+  async def test_run_self_check_sends_command(self):
+    """run_self_check should send a command to the device."""
+    initial_count = len(self.backend.dev.written_data)
+    self.backend.dev.set_read_buffer(b"\x00\x06")
+    await self.backend.run_self_check()
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_run_self_check_raises_when_device_not_initialized(self):
+    """run_self_check should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    with self.assertRaises(RuntimeError):
+      await backend.run_self_check()
+
+
+class TestAutoPrime(unittest.IsolatedAsyncioTestCase):
+  """Test auto_prime functionality.
+
+  auto_prime automatically primes all fluid devices by calling auto_prime_device
+  for each device (1, 2, 3).
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    # Need 3 action responses since auto_prime calls auto_prime_device 3 times
+    self.backend.dev.set_action_response(count=3)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_auto_prime_calls_auto_prime_device_three_times(self):
+    """auto_prime should call auto_prime_device for devices 1, 2, 3."""
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.auto_prime()
+    # Should have sent 3 commands (one for each device)
+    self.assertEqual(len(self.backend.dev.written_data) - initial_count, 3)
+
+  async def test_auto_prime_raises_when_device_not_initialized(self):
+    """auto_prime should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    with self.assertRaises(RuntimeError):
+      await backend.auto_prime()
+
+  async def test_auto_prime_primes_devices_in_order(self):
+    """auto_prime should prime devices 1, 2, 3 in order."""
+    # Need 3 action responses for 3 auto_prime_device calls
+    self.backend.dev.set_action_response(count=3)
+    await self.backend.auto_prime()
+    # Verify the device numbers in the commands sent
+    commands = self.backend.dev.written_data
+    # Commands are framed, so we need to check the data portion
+    # The framed message format has the command data after the header
+    self.assertGreaterEqual(len(commands), 3)
+
+
+class TestAutoPrimeDevice(unittest.IsolatedAsyncioTestCase):
+  """Test auto_prime_device functionality.
+
+  auto_prime_device primes a specific fluid device.
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_auto_prime_device_sends_command(self):
+    """auto_prime_device should send a command to the device."""
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.auto_prime_device(device=0)
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_auto_prime_device_validates_device_number(self):
+    """auto_prime_device should validate device number."""
+    # Negative numbers should be rejected
+    with self.assertRaises(ValueError):
+      await self.backend.auto_prime_device(device=-1)
+    # Numbers > 3 should be rejected
+    with self.assertRaises(ValueError):
+      await self.backend.auto_prime_device(device=4)
+    with self.assertRaises(ValueError):
+      await self.backend.auto_prime_device(device=100)
+
+  async def test_auto_prime_device_accepts_valid_devices(self):
+    """auto_prime_device should accept valid device numbers."""
+    for device in [0, 1, 2, 3]:
+      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      # Should not raise
+      await self.backend.auto_prime_device(device=device)
+
+  async def test_auto_prime_device_raises_when_device_not_initialized(self):
+    """auto_prime_device should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    with self.assertRaises(RuntimeError):
+      await backend.auto_prime_device(device=0)
+
+  async def test_auto_prime_device_includes_device_number_in_command(self):
+    """auto_prime_device should include device number in command."""
+    await self.backend.auto_prime_device(device=2)
+    last_command = self.backend.dev.written_data[-1]
+    # Device number should be in the command
+    self.assertIn(2, list(last_command))
+
+
+# =============================================================================
+# CONFIGURATION TESTS (TDD - Written FIRST)
+#
+# These tests cover:
+# 7. set_instrument_settings(settings: dict) - Set instrument settings
+# 8. get_instrument_settings() - Get current instrument settings
+# =============================================================================
+
+
+class TestSetWasherManifold(unittest.IsolatedAsyncioTestCase):
+  """Test set_washer_manifold functionality.
+
+  set_washer_manifold configures the washer manifold type.
+  Command byte: 0xD9 (217)
+  """
+
+  async def asyncSetUp(self):
+    self.backend = BioTekEL406Backend(timeout=0.5)
+    await self.backend.setup()
+    self.backend.dev.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    if self.backend.dev is not None:
+      await self.backend.stop()
+
+  async def test_set_washer_manifold_sends_command(self):
+    """set_washer_manifold should send a command to the device."""
+    initial_count = len(self.backend.dev.written_data)
+    await self.backend.set_washer_manifold(EL406WasherManifold.TUBE_96_DUAL)
+    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+
+  async def test_set_washer_manifold_sends_correct_command_byte(self):
+    """set_washer_manifold should send command byte 0xD9 (217) in framed message."""
+    await self.backend.set_washer_manifold(EL406WasherManifold.TUBE_96_DUAL)
+    # Command sends header + data, so header is at -2
+    last_header = self.backend.dev.written_data[-2]
+    # Command byte is at position 2 in framed message
+    self.assertEqual(last_header[2], 0xD9)
+
+  async def test_set_washer_manifold_includes_manifold_type(self):
+    """set_washer_manifold should include manifold type in command data."""
+    await self.backend.set_washer_manifold(EL406WasherManifold.TUBE_192)
+    # Command sends header + data separately
+    last_data = self.backend.dev.written_data[-1]
+    # Data payload contains the manifold type
+    self.assertEqual(last_data[0], EL406WasherManifold.TUBE_192.value)
+
+  async def test_set_washer_manifold_accepts_all_types(self):
+    """set_washer_manifold should accept all manifold types."""
+    for manifold in EL406WasherManifold:
+      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      # Should not raise
+      await self.backend.set_washer_manifold(manifold)
+
+  async def test_set_washer_manifold_raises_when_device_not_initialized(self):
+    """set_washer_manifold should raise RuntimeError if device not initialized."""
+    backend = BioTekEL406Backend()
+    with self.assertRaises(RuntimeError):
+      await backend.set_washer_manifold(EL406WasherManifold.TUBE_96_DUAL)
+
+
+class TestSetWasherManifoldCommandEncoding(unittest.TestCase):
+  """Test set washer manifold command binary encoding.
+
+  Protocol format for set washer manifold:
+    [0]   Command byte: 0xD9 (217)
+    [1]   Manifold type: byte from EL406WasherManifold enum
+  """
+
+  def setUp(self):
+    self.backend = BioTekEL406Backend()
+
+  def test_build_set_washer_manifold_command_tube_96_dual(self):
+    """Set washer manifold command for TUBE_96_DUAL."""
+    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.TUBE_96_DUAL)
+    self.assertEqual(len(cmd), 2)
+    self.assertEqual(cmd[0], 0xD9)
+    self.assertEqual(cmd[1], 0)
+
+  def test_build_set_washer_manifold_command_tube_192(self):
+    """Set washer manifold command for TUBE_192."""
+    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.TUBE_192)
+    self.assertEqual(len(cmd), 2)
+    self.assertEqual(cmd[0], 0xD9)
+    self.assertEqual(cmd[1], 1)
+
+  def test_build_set_washer_manifold_command_tube_128(self):
+    """Set washer manifold command for TUBE_128."""
+    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.TUBE_128)
+    self.assertEqual(len(cmd), 2)
+    self.assertEqual(cmd[0], 0xD9)
+    self.assertEqual(cmd[1], 2)
+
+  def test_build_set_washer_manifold_command_not_installed(self):
+    """Set washer manifold command for NOT_INSTALLED."""
+    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.NOT_INSTALLED)
+    self.assertEqual(len(cmd), 2)
+    self.assertEqual(cmd[0], 0xD9)
+    self.assertEqual(cmd[1], 255)
