@@ -9,7 +9,7 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDIDevice
+from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 
 
 class TestTestCommunication(unittest.IsolatedAsyncioTestCase):
@@ -26,27 +26,24 @@ class TestTestCommunication(unittest.IsolatedAsyncioTestCase):
   async def test_communication_success_with_ack(self):
     """Test communication should succeed when ACK is received."""
     # Manually set up the device to test the communication method
-    self.backend.dev = MockFTDIDevice(lazy_open=True)
-    self.backend.dev.open()
+    self.backend.io = MockFTDI()
 
     # _test_communication() sends two commands (TEST_COMM + INIT_STATE)
     # so we need enough responses for both
-    self.backend.dev.set_read_buffer(b"\x06" * 10)
+    self.backend.io.set_read_buffer(b"\x06" * 10)
 
     # Should not raise
     await self.backend._test_communication()
 
   async def test_communication_sends_query_command(self):
     """Test communication should send a query command."""
-    self.backend.dev = MockFTDIDevice(lazy_open=True)
-    self.backend.dev.open()
+    self.backend.io = MockFTDI()
     # _test_communication() sends two commands, need enough responses
-    self.backend.dev.set_read_buffer(b"\x06" * 10)
+    self.backend.io.set_read_buffer(b"\x06" * 10)
 
     await self.backend._test_communication()
 
-    # Verify some command was sent (actual command depends on implementation)
-    # For now just verify device is in good state
-    self.assertTrue(self.backend.dev.opened)
+    # Verify some command was sent
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
 

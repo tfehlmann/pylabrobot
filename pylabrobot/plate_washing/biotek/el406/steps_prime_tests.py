@@ -10,10 +10,10 @@ This module contains tests for prime-related step methods:
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
+from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 
 
 class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
@@ -21,20 +21,21 @@ class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)  # Multiple ACKs
+    self.backend.io.set_read_buffer(b"\x06" * 100)  # Multiple ACKs
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_peristaltic_prime_sends_correct_command(self):
     """Peristaltic prime should send correct step type and parameters."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.peristaltic_prime(volume=1000.0)
 
     # Verify a command was sent
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_peristaltic_prime_validates_flow_rate(self):
     """Peristaltic prime should validate flow rate selection."""
@@ -52,9 +53,9 @@ class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
 
   async def test_peristaltic_prime_accepts_volume_boundaries(self):
     """Peristaltic prime should accept volume at boundaries (1, 3000)."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_prime(volume=1.0)
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_prime(volume=3000.0)
 
   async def test_peristaltic_prime_validates_duration(self):
@@ -68,9 +69,9 @@ class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
 
   async def test_peristaltic_prime_accepts_duration_boundaries(self):
     """Peristaltic prime should accept duration at boundaries (1, 300)."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_prime(duration=1)
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_prime(duration=300)
 
   async def test_peristaltic_prime_rejects_both_volume_and_duration(self):
@@ -171,18 +172,19 @@ class TestEL406BackendSyringePrime(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_syringe_prime_sends_command(self):
     """syringe_prime should send a command to the device."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.syringe_prime(volume=5000.0, syringe="A", flow_rate=5)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_syringe_prime_validates_volume_too_low(self):
     """syringe_prime should reject volume below 80 uL."""
@@ -201,9 +203,9 @@ class TestEL406BackendSyringePrime(unittest.IsolatedAsyncioTestCase):
 
   async def test_syringe_prime_accepts_volume_boundaries(self):
     """syringe_prime should accept volume at boundaries (80, 9999)."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.syringe_prime(volume=80.0, syringe="A")
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.syringe_prime(volume=9999.0, syringe="A")
 
   async def test_syringe_prime_validates_syringe(self):
@@ -249,39 +251,39 @@ class TestEL406BackendSyringePrime(unittest.IsolatedAsyncioTestCase):
 
   async def test_syringe_prime_accepts_syringe_a(self):
     """syringe_prime should accept syringe A."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.syringe_prime(volume=5000.0, syringe="A")
 
   async def test_syringe_prime_accepts_syringe_b(self):
     """syringe_prime should accept syringe B."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.syringe_prime(volume=5000.0, syringe="B")
 
   async def test_syringe_prime_accepts_flow_rate_range(self):
     """syringe_prime should accept flow rates 1-5."""
     for flow_rate in range(1, 6):
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      self.backend.io.set_read_buffer(b"\x06" * 100)
       await self.backend.syringe_prime(volume=5000.0, syringe="A", flow_rate=flow_rate)
 
   async def test_syringe_prime_with_refills(self):
     """syringe_prime should accept refills parameter."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.syringe_prime(
       volume=5000.0,
       syringe="A",
       flow_rate=5,
       refills=3,
     )
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_syringe_prime_default_values(self):
     """syringe_prime should use appropriate defaults."""
     await self.backend.syringe_prime(syringe="A")
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_syringe_prime_with_submerge(self):
     """syringe_prime should accept submerge parameters."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.syringe_prime(
       volume=5000.0,
       syringe="A",
@@ -291,7 +293,7 @@ class TestEL406BackendSyringePrime(unittest.IsolatedAsyncioTestCase):
 
   async def test_syringe_prime_raises_on_timeout(self):
     """syringe_prime should raise TimeoutError when device does not respond."""
-    self.backend.dev.set_read_buffer(b"")
+    self.backend.io.set_read_buffer(b"")
     with self.assertRaises(TimeoutError):
       await self.backend.syringe_prime(volume=5000.0, syringe="A")
 
@@ -513,19 +515,20 @@ class TestEL406BackendManifoldPrime(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_manifold_prime_sends_command(self):
     """manifold_prime should send a command to the device."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.manifold_prime(volume=500.0, buffer="A", flow_rate=9)
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_manifold_prime_validates_volume(self):
     """manifold_prime should validate volume (5-999 mL)."""
@@ -568,14 +571,14 @@ class TestEL406BackendManifoldPrime(unittest.IsolatedAsyncioTestCase):
   async def test_manifold_prime_accepts_all_buffers(self):
     """manifold_prime should accept buffers A, B, C, D."""
     for buffer in ["A", "B", "C", "D", "a", "b", "c", "d"]:
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
       await self.backend.manifold_prime(volume=500.0, buffer=buffer)
 
   async def test_manifold_prime_accepts_flow_rate_range(self):
     """manifold_prime should accept flow rates 3-11."""
     for flow_rate in range(3, 12):
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
       await self.backend.manifold_prime(volume=500.0, buffer="A", flow_rate=flow_rate)
 
@@ -584,11 +587,11 @@ class TestEL406BackendManifoldPrime(unittest.IsolatedAsyncioTestCase):
     await self.backend.manifold_prime(volume=500.0, buffer="A")
 
     # Verify command was sent (flow rate 9 is default, fastest for priming)
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_manifold_prime_raises_on_timeout(self):
     """manifold_prime should raise TimeoutError when device does not respond."""
-    self.backend.dev.set_read_buffer(b"")  # No ACK response
+    self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.manifold_prime(volume=500.0, buffer="A")
 
@@ -776,19 +779,20 @@ class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_auto_clean_sends_command(self):
     """auto_clean should send a command to the device."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.auto_clean(buffer="A")
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_auto_clean_validates_buffer(self):
     """auto_clean should validate buffer selection."""
@@ -809,27 +813,27 @@ class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
   async def test_auto_clean_accepts_all_buffers(self):
     """auto_clean should accept buffers A, B, C, D."""
     for buffer in ["A", "B", "C", "D", "a", "b", "c", "d"]:
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
       await self.backend.auto_clean(buffer=buffer)
 
   async def test_auto_clean_with_duration(self):
     """auto_clean should accept duration parameter."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.auto_clean(buffer="A", duration=60.0)
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_auto_clean_default_buffer(self):
     """auto_clean should use default buffer A."""
     await self.backend.auto_clean()
 
     # Verify command was sent
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_auto_clean_raises_on_timeout(self):
     """auto_clean should raise TimeoutError when device does not respond."""
-    self.backend.dev.set_read_buffer(b"")  # No ACK response
+    self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.auto_clean(buffer="A")
 

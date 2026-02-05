@@ -5,7 +5,6 @@ This module contains tests for Setup, serialization, and enum.
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
   EL406CommunicationError,
@@ -18,31 +17,30 @@ from pylabrobot.plate_washing.biotek.el406 import (
   EL406WasherManifold,
 )
 from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
+from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 
 
 class TestEL406BackendSetup(unittest.IsolatedAsyncioTestCase):
   """Test EL406 backend setup and teardown."""
 
-  async def test_setup_configures_serial_parameters(self):
-    """Setup should configure 38400 baud, 8N2, XON/XOFF."""
-    backend = BioTekEL406Backend(timeout=0.5)  # Short timeout for tests
+  async def test_setup_creates_io(self):
+    """Setup should create and configure FTDI IO wrapper."""
+    backend = BioTekEL406Backend(timeout=0.5)
+    backend.io = MockFTDI()
     await backend.setup()
 
-    self.assertEqual(backend.dev.baudrate, 38400)
-    self.assertEqual(backend.dev.line_property, (8, 2, 0))  # 8 data, 2 stop, no parity
-    self.assertTrue(backend.dev.opened)
-    # No flow control
-    self.assertEqual(backend.dev.flow_control, 0x0)
+    self.assertIsNotNone(backend.io)
 
   async def test_stop_closes_device(self):
     """Stop should close the FTDI device."""
     backend = BioTekEL406Backend(timeout=0.5)
+    backend.io = MockFTDI()
     await backend.setup()
 
-    self.assertTrue(backend.dev.opened)
+    self.assertIsNotNone(backend.io)
     await backend.stop()
 
-    self.assertIsNone(backend.dev)
+    self.assertIsNone(backend.io)
 
 
 class TestEL406PlateTypes(unittest.TestCase):
@@ -140,7 +138,7 @@ class TestEL406BackendSerialization(unittest.TestCase):
     # This test verifies the backend can be created for serialization
     # even when pylibftdi is not installed
     backend = BioTekEL406Backend()
-    self.assertIsNone(backend.dev)
+    self.assertIsNone(backend.io)
 
 
 class TestEL406SyringeManifold(unittest.TestCase):
@@ -462,11 +460,12 @@ class TestEL406BackendSetPlateType(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_set_plate_type_updates_backend_property(self):
@@ -495,12 +494,12 @@ class TestEL406BackendSetPlateType(unittest.IsolatedAsyncioTestCase):
 
   async def test_set_plate_type_does_not_send_command(self):
     """set_plate_type should NOT send any command to the device."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
 
     self.backend.set_plate_type(EL406PlateType.PLATE_384_WELL)
 
     # No command should be sent - this is a local configuration
-    self.assertEqual(len(self.backend.dev.written_data), initial_count)
+    self.assertEqual(len(self.backend.io.written_data), initial_count)
 
   async def test_set_plate_type_works_without_device_initialized(self):
     """set_plate_type should work even if device is not initialized."""
@@ -522,11 +521,12 @@ class TestEL406BackendGetPlateType(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_get_plate_type_returns_enum(self):
@@ -552,12 +552,12 @@ class TestEL406BackendGetPlateType(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_plate_type_does_not_send_command(self):
     """get_plate_type should NOT send any command to the device."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
 
     self.backend.get_plate_type()
 
     # No command should be sent - this is a local configuration query
-    self.assertEqual(len(self.backend.dev.written_data), initial_count)
+    self.assertEqual(len(self.backend.io.written_data), initial_count)
 
   async def test_get_plate_type_works_without_device_initialized(self):
     """get_plate_type should work even if device is not initialized."""

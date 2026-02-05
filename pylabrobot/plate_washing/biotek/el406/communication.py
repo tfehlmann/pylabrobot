@@ -52,19 +52,19 @@ class EL406CommunicationMixin:
   - Low-level byte reading
 
   Requires:
-    self.dev: FTDI Device instance
+    self.io: FTDI IO wrapper instance
     self.timeout: Default timeout in seconds
     self._command_lock: asyncio.Lock for command serialization
   """
 
-  def _write_to_device(self, data: bytes) -> None:
+  async def _write_to_device(self, data: bytes) -> None:
     """Write bytes to the FTDI device, wrapping errors.
 
     Raises:
       EL406CommunicationError: If the write fails.
     """
     try:
-      self.dev.write(data)
+      await self.io.write(data)
     except Exception as e:
       raise EL406CommunicationError(
         f"Failed to write to device: {e}. Device may have disconnected.",
@@ -84,7 +84,7 @@ class EL406CommunicationMixin:
       TimeoutError: If no ACK within timeout.
     """
     while time.time() - t0 < timeout:
-      byte = self.dev.read(1)
+      byte = await self.io.read(1)
       if byte:
         if byte[0] == NAK_BYTE:
           raise RuntimeError(
@@ -109,7 +109,7 @@ class EL406CommunicationMixin:
     """
     buf = b""
     while len(buf) < count and time.time() - t0 < timeout:
-      chunk = self.dev.read(count - len(buf))
+      chunk = await self.io.read(count - len(buf))
       if chunk:
         buf += chunk
       else:
@@ -118,13 +118,13 @@ class EL406CommunicationMixin:
 
   async def _purge_buffers(self) -> None:
     """Purge the RX and TX buffers."""
-    if self.dev is None:
+    if self.io is None:
       return
 
     try:
       for _ in range(6):
-        self.dev.ftdi_fn.ftdi_usb_purge_rx_buffer()
-      self.dev.ftdi_fn.ftdi_usb_purge_tx_buffer()
+        await self.io.usb_purge_rx_buffer()
+      await self.io.usb_purge_tx_buffer()
     except Exception as e:
       raise EL406CommunicationError(
         f"Failed to purge FTDI buffers: {e}. Device may have disconnected.",
@@ -140,7 +140,7 @@ class EL406CommunicationMixin:
     Raises:
       RuntimeError: If communication test fails.
     """
-    if self.dev is None:
+    if self.io is None:
       raise RuntimeError("EL406 communication test failed: device not open")
 
     try:
@@ -174,7 +174,7 @@ class EL406CommunicationMixin:
     - Before running any step commands
     - Only once per batch of operations (not before each individual step)
     """
-    if self.dev is None:
+    if self.io is None:
       raise RuntimeError("Device not initialized - call setup() first")
 
     logger.info("Sending START_STEP to begin batch operations")
@@ -220,7 +220,7 @@ class EL406CommunicationMixin:
     Raises:
       TimeoutError: If timeout waiting for response.
     """
-    if self.dev is None:
+    if self.io is None:
       raise RuntimeError("Device not initialized")
 
     if timeout is None:
@@ -233,12 +233,12 @@ class EL406CommunicationMixin:
       header = framed_message[:11]
       data = framed_message[11:] if len(framed_message) > 11 else b""
 
-      self._write_to_device(header)
+      await self._write_to_device(header)
       logger.debug("Sent header: %s", header.hex())
 
       if data:
         await asyncio.sleep(0.001)  # Small delay between header and data
-        self._write_to_device(data)
+        await self._write_to_device(data)
         logger.debug("Sent data: %s", data.hex())
       logger.debug("Sent framed: %s", framed_message.hex())
 
@@ -289,7 +289,7 @@ class EL406CommunicationMixin:
       TimeoutError: If timeout waiting for ACK or completion.
       RuntimeError: If device rejects command (NAK).
     """
-    if self.dev is None:
+    if self.io is None:
       raise RuntimeError("Device not initialized")
 
     if timeout is None:
@@ -297,7 +297,7 @@ class EL406CommunicationMixin:
 
     async with self._command_lock:
       await self._purge_buffers()
-      self._write_to_device(framed_message)
+      await self._write_to_device(framed_message)
       logger.debug("Sent action command: %s", framed_message.hex())
 
       t0 = time.time()
@@ -349,7 +349,7 @@ class EL406CommunicationMixin:
       RuntimeError: If device not initialized or response invalid.
       TimeoutError: If timeout waiting for response.
     """
-    if self.dev is None:
+    if self.io is None:
       raise RuntimeError("Device not initialized")
 
     if timeout is None:
@@ -364,12 +364,12 @@ class EL406CommunicationMixin:
       msg_header = framed_message[:11]
       msg_data = framed_message[11:] if len(framed_message) > 11 else b""
 
-      self._write_to_device(msg_header)
+      await self._write_to_device(msg_header)
       logger.debug("Sent query header 0x%04X: %s", command, msg_header.hex())
 
       if msg_data:
         await asyncio.sleep(0.001)
-        self._write_to_device(msg_data)
+        await self._write_to_device(msg_data)
         logger.debug("Sent query data: %s", msg_data.hex())
 
       # Wait for ACK
@@ -492,7 +492,7 @@ class EL406CommunicationMixin:
       EL406DeviceError: If device reports an error during the step.
       RuntimeError: If device rejects command (NAK).
     """
-    if self.dev is None:
+    if self.io is None:
       raise RuntimeError("Device not initialized")
 
     if timeout is None:

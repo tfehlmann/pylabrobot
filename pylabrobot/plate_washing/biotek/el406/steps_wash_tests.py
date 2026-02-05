@@ -6,12 +6,12 @@ This module contains tests for wash-related step methods:
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
   EL406PlateType,
   EL406StepType,
 )
+from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 
 
 class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
@@ -19,19 +19,20 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_wash_sends_command(self):
     """Wash should send correct command."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.wash(cycles=1, dispense_volume=300.0)
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_wash_validates_cycles(self):
     """Wash should validate cycle count."""
@@ -76,7 +77,7 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
 
   async def test_wash_with_all_params(self):
     """Wash should accept all original parameters."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.wash(
       cycles=3,
       buffer="B",
@@ -89,11 +90,11 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
       aspirate_z=40,
       pre_dispense_flow_rate=7,
     )
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_wash_with_all_new_params(self):
     """Wash should accept all new parameters."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.wash(
       cycles=3,
       buffer="B",
@@ -115,7 +116,7 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
       shake_duration=10,
       shake_intensity="Fast",
     )
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_wash_validates_aspirate_delay_ms(self):
     """Wash should validate aspirate delay range."""
@@ -139,9 +140,9 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(ValueError):
       await self.backend.wash(pre_dispense_volume=10.0)  # Below 25
     # 0 should be allowed (disabled)
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.wash(pre_dispense_volume=0.0)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_wash_validates_vacuum_delay_volume(self):
     """Wash should validate vacuum delay volume range."""
@@ -823,11 +824,12 @@ class TestWashBottomWashValidation(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_bottom_wash_validates_volume(self):
@@ -844,9 +846,9 @@ class TestWashBottomWashValidation(unittest.IsolatedAsyncioTestCase):
 
   async def test_bottom_wash_sends_command(self):
     """Bottom wash should send a command successfully."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.wash(bottom_wash=True, bottom_wash_volume=200.0, bottom_wash_flow_rate=5)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
 class TestWashPreDispenseBetweenCycles(unittest.TestCase):
@@ -903,11 +905,12 @@ class TestWashPreDispenseBetweenCyclesValidation(unittest.IsolatedAsyncioTestCas
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_midcyc_validates_volume(self):
@@ -924,11 +927,11 @@ class TestWashPreDispenseBetweenCyclesValidation(unittest.IsolatedAsyncioTestCas
 
   async def test_midcyc_sends_command(self):
     """Pre-dispense between cycles should send a command successfully."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.wash(
       pre_dispense_between_cycles_volume=50.0, pre_dispense_between_cycles_flow_rate=9
     )
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
 class TestWashCaptureVectors(unittest.TestCase):
@@ -1163,11 +1166,12 @@ class TestWash384WellValidation(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_wash_format_invalid(self):
@@ -1184,9 +1188,9 @@ class TestWash384WellValidation(unittest.IsolatedAsyncioTestCase):
 
   async def test_wash_with_384_params_sends_command(self):
     """wash() should accept and send command with 384-well params."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.wash(wash_format="Sector", sectors=[2, 3, 4], cycles=1)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
 class TestWashPlateTypeDefaults(unittest.TestCase):

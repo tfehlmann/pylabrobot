@@ -6,10 +6,10 @@ This module contains tests for shake-related step methods:
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
+from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 
 
 class TestEL406BackendShake(unittest.IsolatedAsyncioTestCase):
@@ -17,19 +17,20 @@ class TestEL406BackendShake(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_shake_sends_command(self):
     """Shake should send correct command."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.shake(duration=10, intensity="Medium")
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_shake_validates_intensity(self):
     """Shake should validate intensity value."""
@@ -66,29 +67,29 @@ class TestEL406BackendShake(unittest.IsolatedAsyncioTestCase):
 
   async def test_shake_max_duration_accepted(self):
     """Shake should accept duration=3599 (59:59 max)."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.shake(duration=3599)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_shake_soak_only(self):
     """Shake with duration=0 and soak_duration>0 should work (soak only)."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.shake(duration=0, soak_duration=10)
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_shake_move_home_default_is_true(self):
     """Default move_home_first (None) should resolve to True."""
     # Just verify it doesn't raise — the builder receives move_home_first=True
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.shake(duration=10)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_shake_move_home_explicit_false(self):
     """User can explicitly set move_home_first=False."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.shake(duration=10, move_home_first=False)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
 class TestShakeCommandEncoding(unittest.TestCase):

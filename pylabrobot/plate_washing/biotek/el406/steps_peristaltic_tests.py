@@ -7,11 +7,11 @@ This module contains tests for peristaltic pump-related step methods:
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
   EL406PlateType,
 )
+from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 
 
 class TestEL406BackendPeristalticDispense(unittest.IsolatedAsyncioTestCase):
@@ -23,19 +23,20 @@ class TestEL406BackendPeristalticDispense(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_peristaltic_dispense_sends_command(self):
     """peristaltic_dispense should send a command to the device."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.peristaltic_dispense(volume=300.0, flow_rate="Medium")
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_peristaltic_dispense_validates_volume(self):
     """peristaltic_dispense should validate volume is positive."""
@@ -48,7 +49,7 @@ class TestEL406BackendPeristalticDispense(unittest.IsolatedAsyncioTestCase):
   async def test_peristaltic_dispense_accepts_various_flow_rates(self):
     """peristaltic_dispense should accept all valid flow rate strings."""
     for fr in ["Low", "Medium", "High"]:
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      self.backend.io.set_read_buffer(b"\x06" * 100)
       await self.backend.peristaltic_dispense(volume=300.0, flow_rate=fr)
 
   async def test_peristaltic_dispense_raises_when_device_not_initialized(self):
@@ -62,23 +63,23 @@ class TestEL406BackendPeristalticDispense(unittest.IsolatedAsyncioTestCase):
   async def test_peristaltic_dispense_accepts_flow_rate_range(self):
     """peristaltic_dispense should accept all valid flow rate strings."""
     for fr in ["Low", "Medium", "High"]:
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
       await self.backend.peristaltic_dispense(volume=100.0, flow_rate=fr)
 
   async def test_peristaltic_dispense_with_pre_dispense_volume(self):
     """peristaltic_dispense should accept optional pre-dispense volume."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.peristaltic_dispense(
       volume=300.0,
       flow_rate="Medium",
       pre_dispense_volume=50.0,
     )
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_peristaltic_dispense_with_offsets(self):
     """peristaltic_dispense should accept X, Y, Z offsets."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.peristaltic_dispense(
       volume=300.0,
       flow_rate="Medium",
@@ -86,7 +87,7 @@ class TestEL406BackendPeristalticDispense(unittest.IsolatedAsyncioTestCase):
       offset_y=-5,
       offset_z=336,
     )
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
 class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
@@ -298,11 +299,12 @@ class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_peristaltic_dispense_accepts_columns(self):
@@ -312,7 +314,7 @@ class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
       flow_rate="Medium",
       columns=[1, 2, 3, 4],
     )
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_peristaltic_dispense_accepts_all_columns_96well(self):
     """peristaltic_dispense should accept columns 1-12 for 96-well plate."""
@@ -321,7 +323,7 @@ class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
       flow_rate="Medium",
       columns=list(range(1, 13)),
     )
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_peristaltic_dispense_validates_column_range_96well(self):
     """peristaltic_dispense should reject column 0 and 13 for 96-well plate."""
@@ -343,7 +345,7 @@ class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
       flow_rate="Medium",
       columns=None,
     )
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_peristaltic_dispense_validates_row_range_96well(self):
     """peristaltic_dispense should reject row > 1 for 96-well plate."""
@@ -360,7 +362,7 @@ class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
       flow_rate="Medium",
       rows=[1],
     )
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_peristaltic_dispense_default_z_96well(self):
     """peristaltic_dispense should default offset_z to 336 for 96-well."""
@@ -369,7 +371,7 @@ class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
       volume=300.0,
       flow_rate="Medium",
     )
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_peristaltic_dispense_columns_and_rows(self):
     """peristaltic_dispense should accept both columns and rows."""
@@ -379,7 +381,7 @@ class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
       columns=[1, 3, 5],
       rows=[1],
     )
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
 
 class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
@@ -533,19 +535,20 @@ class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_peristaltic_purge_sends_command(self):
     """peristaltic_purge should send a command to the device."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.peristaltic_purge(volume=1000.0, flow_rate="High")
 
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_peristaltic_purge_validates_volume(self):
     """peristaltic_purge should validate volume range (1-3000 µL)."""
@@ -558,9 +561,9 @@ class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
 
   async def test_peristaltic_purge_accepts_volume_boundaries(self):
     """peristaltic_purge should accept volume at boundaries (1, 3000)."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_purge(volume=1.0)
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_purge(volume=3000.0)
 
   async def test_peristaltic_purge_validates_duration(self):
@@ -574,9 +577,9 @@ class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
 
   async def test_peristaltic_purge_accepts_duration_boundaries(self):
     """peristaltic_purge should accept duration at boundaries (1, 300)."""
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_purge(duration=1)
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.peristaltic_purge(duration=300)
 
   async def test_peristaltic_purge_rejects_both_volume_and_duration(self):
@@ -600,7 +603,7 @@ class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
   async def test_peristaltic_purge_accepts_all_flow_rates(self):
     """peristaltic_purge should accept flow rates Low, Medium, High."""
     for flow_rate in ["Low", "Medium", "High"]:
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
+      self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
       await self.backend.peristaltic_purge(volume=500.0, flow_rate=flow_rate)
 
@@ -609,11 +612,11 @@ class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
     await self.backend.peristaltic_purge(volume=1000.0)
 
     # Verify command was sent
-    self.assertGreater(len(self.backend.dev.written_data), 0)
+    self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_peristaltic_purge_raises_on_timeout(self):
     """peristaltic_purge should raise TimeoutError when device does not respond."""
-    self.backend.dev.set_read_buffer(b"")  # No ACK response
+    self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.peristaltic_purge(volume=1000.0)
 

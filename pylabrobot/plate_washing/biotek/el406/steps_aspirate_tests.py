@@ -7,10 +7,10 @@ This module contains tests for aspirate-related step methods:
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
+from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
 
 
 class TestEL406BackendAspirate(unittest.IsolatedAsyncioTestCase):
@@ -18,30 +18,31 @@ class TestEL406BackendAspirate(unittest.IsolatedAsyncioTestCase):
 
   async def asyncSetUp(self):
     self.backend = BioTekEL406Backend(timeout=0.5)
+    self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 100)
 
   async def asyncTearDown(self):
-    if self.backend.dev is not None:
+    if self.backend.io is not None:
       await self.backend.stop()
 
   async def test_aspirate_sends_command(self):
     """Aspirate should send correct command."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.aspirate()
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_aspirate_with_travel_rate(self):
     """Aspirate should accept string travel rate."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.aspirate(travel_rate="5")
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_aspirate_with_cell_wash_rate(self):
     """Aspirate should accept cell wash travel rate."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.aspirate(travel_rate="2 CW")
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_aspirate_validates_travel_rate(self):
     """Aspirate should reject invalid travel rate strings."""
@@ -92,9 +93,9 @@ class TestEL406BackendAspirate(unittest.IsolatedAsyncioTestCase):
 
   async def test_aspirate_vacuum_filtration(self):
     """Aspirate with vacuum filtration should send command."""
-    initial_count = len(self.backend.dev.written_data)
+    initial_count = len(self.backend.io.written_data)
     await self.backend.aspirate(vacuum_filtration=True, vacuum_time_sec=30)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
+    self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
 class TestAspirateCommandEncoding(unittest.TestCase):

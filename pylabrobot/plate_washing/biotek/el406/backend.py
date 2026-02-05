@@ -25,13 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-try:
-  from pylibftdi import Device
-
-  USE_FTDI = True
-except ImportError:
-  USE_FTDI = False
-
+from pylabrobot.io.ftdi import FTDI
 from pylabrobot.plate_washing.backend import PlateWasherBackend
 
 from .actions import EL406ActionsMixin
@@ -79,17 +73,20 @@ class BioTekEL406Backend(
     self,
     timeout: float = DEFAULT_READ_TIMEOUT,
     plate_type: EL406PlateType = EL406PlateType.PLATE_96_WELL,
+    device_id: str | None = None,
   ) -> None:
     """Initialize the EL406 backend.
 
     Args:
       timeout: Default timeout for operations in seconds.
       plate_type: Plate type to use for operations.
+      device_id: FTDI device serial number for explicit connection.
     """
     super().__init__()
     self.timeout = timeout
     self.plate_type = plate_type
-    self.dev = None  # Will be set in setup()
+    self._device_id = device_id
+    self.io: FTDI | None = None
     self._command_lock = asyncio.Lock()  # Protect against concurrent commands
 
   async def setup(self) -> None:
@@ -100,6 +97,9 @@ class BioTekEL406Backend(
     - 8 data bits, 2 stop bits, no parity (8N2)
     - No flow control (disabled)
 
+    If ``self.io`` is already set (e.g. injected mock for testing),
+    it is used as-is and ``setup()`` is not called on it again.
+
     Raises:
       RuntimeError: If pylibftdi is not installed or communication fails.
     """
@@ -107,43 +107,27 @@ class BioTekEL406Backend(
     logger.info("  Timeout: %.1f seconds", self.timeout)
     logger.info("  Plate type: %s", self.plate_type.name if self.plate_type else "not set")
 
-    if not USE_FTDI:
-      raise RuntimeError(
-        "pylibftdi is not installed. Run `pip install pylibftdi` to use the EL406 backend."
-      )
-
-    # Open FTDI device
-    logger.debug("Opening FTDI device...")
-    try:
-      self.dev = Device(lazy_open=True)
-      self.dev.open()
-    except Exception as e:
-      raise EL406CommunicationError(
-        f"Failed to open FTDI device: {e}. Check USB connection and that no other program has the device open.",
-        operation="open",
-        original_error=e,
-      ) from e
-    logger.info("  FTDI device opened successfully")
+    if self.io is None:
+      self.io = FTDI(device_id=self._device_id)
+      await self.io.setup()
 
     # Configure serial parameters
     logger.debug("Configuring serial parameters...")
     try:
-      self.dev.baudrate = 38400
-      self.dev.ftdi_fn.ftdi_set_line_property(8, 2, 0)  # 8 data bits, 2 stop bits, no parity
+      await self.io.set_baudrate(38400)
+      await self.io.set_line_property(8, 2, 0)  # 8 data bits, 2 stop bits, no parity
       logger.info("  Serial: 38400 baud, 8N2")
 
-      # Flow control: NONE
       SIO_DISABLE_FLOW_CTRL = 0x0
-      self.dev.ftdi_fn.ftdi_setflowctrl(SIO_DISABLE_FLOW_CTRL)
+      await self.io.set_flowctrl(SIO_DISABLE_FLOW_CTRL)
       logger.info("  Flow control: NONE")
 
-      # Enable RTS and DTR
-      self.dev.ftdi_fn.ftdi_setrts(1)
-      self.dev.ftdi_fn.ftdi_setdtr(1)
+      await self.io.set_rts(True)
+      await self.io.set_dtr(True)
       logger.debug("  RTS and DTR enabled")
     except Exception as e:
-      self.dev.close()
-      self.dev = None
+      await self.io.stop()
+      self.io = None
       raise EL406CommunicationError(
         f"Failed to configure FTDI device: {e}",
         operation="configure",
@@ -168,9 +152,9 @@ class BioTekEL406Backend(
   async def stop(self) -> None:
     """Stop communication with the EL406."""
     logger.info("BioTekEL406Backend stopping")
-    if self.dev is not None:
-      self.dev.close()
-      self.dev = None
+    if self.io is not None:
+      await self.io.stop()
+      self.io = None
 
   def set_plate_type(self, plate_type: EL406PlateType | int) -> None:
     """Set the current plate type."""
@@ -188,5 +172,6 @@ class BioTekEL406Backend(
       **super().serialize(),
       "timeout": self.timeout,
       "plate_type": self.plate_type.value,
+      "device_id": self._device_id,
     }
 
