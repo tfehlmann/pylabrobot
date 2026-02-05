@@ -9,15 +9,6 @@ Protocol Details:
 - ACK byte: 0x06
 - Commands are binary with little-endian encoding
 - Read timeout: 15000ms, Write timeout: 5000ms
-
-Binary Command Structure:
-  [0]     Step type byte
-  [1-2]   Volume (ushort, little-endian)
-  [3]     Valve byte (A=0, B=1, etc)
-  [4]     Flow rate
-  [5]     Offset X (sbyte)
-  [6-7]   Offset Z (short, little-endian)
-  ... additional parameters
 """
 
 from __future__ import annotations
@@ -66,7 +57,7 @@ class BioTekEL406Backend(
     ... )
     >>> await washer.setup()
     >>> await backend.peristaltic_prime(volume=300.0, flow_rate="High")
-    >>> await washer.wash(cycles=3)
+    >>> await backend.manifold_wash(cycles=3)
   """
 
   def __init__(

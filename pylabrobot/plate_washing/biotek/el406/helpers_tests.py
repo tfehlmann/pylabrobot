@@ -9,7 +9,7 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+from pylabrobot.plate_washing.biotek.el406.helpers import encode_column_mask
 
 
 class TestHelperFunctions(unittest.TestCase):
@@ -63,7 +63,7 @@ class TestHelperFunctions(unittest.TestCase):
     self.assertEqual(cmd[6], 206)
 
 
-class TestWellMaskEncoding(unittest.TestCase):
+class TestColumnMaskEncoding(unittest.TestCase):
   """Test well mask encoding helper function.
 
   Well mask encodes 48 well selections into 6 bytes (48 bits).
@@ -72,103 +72,103 @@ class TestWellMaskEncoding(unittest.TestCase):
   - Bytes are in little-endian order
   """
 
-  def test_encode_well_mask_none_returns_all_ones(self):
-    """encode_well_mask(None) should return all 1s (all wells selected)."""
+  def test_encode_column_mask_none_returns_all_ones(self):
+    """encode_column_mask(None) should return all 1s (all wells selected)."""
 
 
-    mask = encode_well_mask(None)
+    mask = encode_column_mask(None)
 
     self.assertEqual(len(mask), 6)
     # All 48 bits set = 6 bytes of 0xFF
     self.assertEqual(mask, bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]))
 
-  def test_encode_well_mask_empty_list_returns_all_zeros(self):
-    """encode_well_mask([]) should return all 0s (no wells selected)."""
+  def test_encode_column_mask_empty_list_returns_all_zeros(self):
+    """encode_column_mask([]) should return all 0s (no wells selected)."""
 
 
-    mask = encode_well_mask([])
+    mask = encode_column_mask([])
 
     self.assertEqual(len(mask), 6)
     self.assertEqual(mask, bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_single_well_0(self):
-    """encode_well_mask([0]) should set bit 0 only."""
+  def test_encode_column_mask_single_well_0(self):
+    """encode_column_mask([0]) should set bit 0 only."""
 
 
-    mask = encode_well_mask([0])
+    mask = encode_column_mask([0])
 
     # Well 0 = bit 0 = 0b00000001 = 0x01 in byte 0
     self.assertEqual(mask[0], 0x01)
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_single_well_7(self):
-    """encode_well_mask([7]) should set bit 7 only."""
+  def test_encode_column_mask_single_well_7(self):
+    """encode_column_mask([7]) should set bit 7 only."""
 
 
-    mask = encode_well_mask([7])
+    mask = encode_column_mask([7])
 
     # Well 7 = bit 7 = 0b10000000 = 0x80 in byte 0
     self.assertEqual(mask[0], 0x80)
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_single_well_8(self):
-    """encode_well_mask([8]) should set bit 0 in byte 1."""
+  def test_encode_column_mask_single_well_8(self):
+    """encode_column_mask([8]) should set bit 0 in byte 1."""
 
 
-    mask = encode_well_mask([8])
+    mask = encode_column_mask([8])
 
     # Well 8 = bit 8 = bit 0 of byte 1 = 0x01
     self.assertEqual(mask[0], 0x00)
     self.assertEqual(mask[1], 0x01)
     self.assertEqual(mask[2:], bytes([0x00, 0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_single_well_47(self):
-    """encode_well_mask([47]) should set bit 7 in byte 5."""
+  def test_encode_column_mask_single_well_47(self):
+    """encode_column_mask([47]) should set bit 7 in byte 5."""
 
 
-    mask = encode_well_mask([47])
+    mask = encode_column_mask([47])
 
     # Well 47 = bit 47 = bit 7 of byte 5 = 0x80
     self.assertEqual(mask[:5], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
     self.assertEqual(mask[5], 0x80)
 
-  def test_encode_well_mask_multiple_wells(self):
-    """encode_well_mask with multiple wells should set multiple bits."""
+  def test_encode_column_mask_multiple_wells(self):
+    """encode_column_mask with multiple wells should set multiple bits."""
 
 
     # Wells 0, 1, 2, 3 = bits 0-3 in byte 0 = 0b00001111 = 0x0F
-    mask = encode_well_mask([0, 1, 2, 3])
+    mask = encode_column_mask([0, 1, 2, 3])
 
     self.assertEqual(mask[0], 0x0F)
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_wells_in_different_bytes(self):
-    """encode_well_mask with wells spanning multiple bytes."""
+  def test_encode_column_mask_wells_in_different_bytes(self):
+    """encode_column_mask with wells spanning multiple bytes."""
 
 
     # Wells 0 (byte 0, bit 0), 8 (byte 1, bit 0), 16 (byte 2, bit 0)
-    mask = encode_well_mask([0, 8, 16])
+    mask = encode_column_mask([0, 8, 16])
 
     self.assertEqual(mask[0], 0x01)
     self.assertEqual(mask[1], 0x01)
     self.assertEqual(mask[2], 0x01)
     self.assertEqual(mask[3:], bytes([0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_all_48_wells(self):
-    """encode_well_mask with all 48 wells should return all 1s."""
+  def test_encode_column_mask_all_48_wells(self):
+    """encode_column_mask with all 48 wells should return all 1s."""
 
 
     all_wells = list(range(48))
-    mask = encode_well_mask(all_wells)
+    mask = encode_column_mask(all_wells)
 
     self.assertEqual(mask, bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]))
 
-  def test_encode_well_mask_first_row_96_plate(self):
-    """encode_well_mask for first row of 96-well plate (wells 0-11)."""
+  def test_encode_column_mask_first_row_96_plate(self):
+    """encode_column_mask for first row of 96-well plate (wells 0-11)."""
 
 
     # For 48-well selection, first 12 wells would be wells 0-11
-    mask = encode_well_mask(list(range(12)))
+    mask = encode_column_mask(list(range(12)))
 
     # Wells 0-7 = byte 0 = 0xFF
     # Wells 8-11 = bits 0-3 of byte 1 = 0x0F
@@ -176,40 +176,40 @@ class TestWellMaskEncoding(unittest.TestCase):
     self.assertEqual(mask[1], 0x0F)
     self.assertEqual(mask[2:], bytes([0x00, 0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_out_of_range_raises(self):
-    """encode_well_mask should raise ValueError for well index >= 48."""
+  def test_encode_column_mask_out_of_range_raises(self):
+    """encode_column_mask should raise ValueError for well index >= 48."""
 
 
     with self.assertRaises(ValueError) as ctx:
-      encode_well_mask([48])
+      encode_column_mask([48])
 
     self.assertIn("48", str(ctx.exception))
 
-  def test_encode_well_mask_negative_raises(self):
-    """encode_well_mask should raise ValueError for negative well index."""
+  def test_encode_column_mask_negative_raises(self):
+    """encode_column_mask should raise ValueError for negative well index."""
 
 
     with self.assertRaises(ValueError) as ctx:
-      encode_well_mask([-1])
+      encode_column_mask([-1])
 
     self.assertIn("-1", str(ctx.exception))
 
-  def test_encode_well_mask_duplicate_wells_handled(self):
-    """encode_well_mask should handle duplicate well indices."""
+  def test_encode_column_mask_duplicate_wells_handled(self):
+    """encode_column_mask should handle duplicate well indices."""
 
 
     # Duplicates should just set the same bit twice (no effect)
-    mask = encode_well_mask([0, 0, 0])
+    mask = encode_column_mask([0, 0, 0])
 
     self.assertEqual(mask[0], 0x01)
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
 
-  def test_encode_well_mask_unsorted_wells(self):
-    """encode_well_mask should handle unsorted well indices."""
+  def test_encode_column_mask_unsorted_wells(self):
+    """encode_column_mask should handle unsorted well indices."""
 
 
     # Order shouldn't matter
-    mask = encode_well_mask([3, 0, 2, 1])
+    mask = encode_column_mask([3, 0, 2, 1])
 
     self.assertEqual(mask[0], 0x0F)
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))

@@ -26,7 +26,6 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
   MAX_SHAKE_DURATION = 3599  # 59:59 max (mm:ss format, mm max=59)
   MAX_SOAK_DURATION = 3599  # 59:59 max (mm:ss format, mm max=59)
-  AUTO_HOME_THRESHOLD = 60  # GUI forces move-home when total > 60s
 
   async def shake(
     self,
@@ -98,38 +97,21 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
   ) -> bytes:
     """Build shake command bytes.
 
-    Protocol format for shake/soak (12 bytes wire format):
-
-    Field mapping:
-      - move_home_first (bool) -> byte[1]: 0x01 if True, 0x00 if False
-      - shake_enabled (bool) - controls whether shake_duration is encoded
-      - shake duration ("mm:ss") -> bytes[2-3]: shake duration (16-bit LE total seconds)
-      - frequency -> byte[4]: (Slow=0x02, Medium=0x03, Fast=0x04)
-      - soak duration ("mm:ss") -> bytes[6-7]: soak duration (16-bit LE total seconds)
-
-    Example encodings (wire format with plate type prefix, 0x04=96-well):
-      shake=30s, medium:              04 01 1e 00 03 00 00 00 00 00 00 00
-      shake=60s, slow:                04 01 3c 00 02 00 00 00 00 00 00 00
-      shake=30s, fast:                04 01 1e 00 04 00 00 00 00 00 00 00
-      shake=30s + soak=30s:           04 01 1e 00 03 00 1e 00 00 00 00 00
-      shake_enabled=False:            04 00 00 00 03 00 00 00 00 00 00 00
-
     Byte structure (12 bytes):
-      [0]      Plate type (EL406PlateType enum value, e.g. 0x04=96-well)
+      [0]      Plate type
       [1]      move_home_first: 0x00 or 0x01
-      [2-3]    Shake duration in TOTAL SECONDS (16-bit little-endian)
-      [4]      Frequency/intensity: 0x01=Variable, 0x02=Slow, 0x03=Medium, 0x04=Fast
-      [5]      Reserved: always 0x00
-      [6-7]    Soak duration in TOTAL SECONDS (16-bit little-endian)
-      [8-11]   Padding/reserved: 4 bytes (0x00)
+      [2-3]    Shake duration in total seconds (16-bit LE)
+      [4]      Intensity: 0x01=Variable, 0x02=Slow, 0x03=Medium, 0x04=Fast
+      [5]      Reserved: 0x00
+      [6-7]    Soak duration in total seconds (16-bit LE)
+      [8-11]   Padding (4 bytes)
 
     Args:
-      shake_duration: Shake duration in seconds (encoded in bytes[2-3] only if shake_enabled=True).
-      soak_duration: Soak duration in seconds (encoded in bytes[6-7]).
-      intensity: Shake intensity - "Variable" (0x01), "Slow" (0x02), "Medium" (0x03), "Fast" (0x04).
-      shake_enabled: Whether shake is enabled. When False, shake_duration is NOT encoded (bytes[2-3]=0x0000).
+      shake_duration: Shake duration in seconds.
+      soak_duration: Soak duration in seconds.
+      intensity: Shake intensity ("Variable", "Slow", "Medium", "Fast").
+      shake_enabled: Whether shake is enabled. When False, shake_duration is not encoded.
       move_home_first: Move carrier to home position before shaking (default True).
-                       Encoded directly as byte[1] (0x01 if True, 0x00 if False).
 
     Returns:
       Command bytes (12 bytes).
@@ -151,8 +133,6 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     # Map intensity to byte value
     intensity_byte = INTENSITY_TO_BYTE.get(intensity, 0x03)
 
-    # byte[1] = move_home_first (independent of shake_enabled)
-    # Note: soak-only with move_home_first=True sends 0x01
     byte0 = 0x01 if move_home_first else 0x00
 
     return bytes(

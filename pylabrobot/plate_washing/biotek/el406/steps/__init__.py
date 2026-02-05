@@ -24,7 +24,7 @@ class EL406StepsMixin(
   This class composes all per-subsystem step mixins:
   - Peristaltic: peristaltic_prime, peristaltic_dispense, peristaltic_purge
   - Syringe: syringe_dispense, syringe_prime
-  - Manifold: aspirate, dispense, wash, wash_structured, manifold_prime, auto_clean
+  - Manifold: manifold_aspirate, manifold_dispense, manifold_wash, manifold_prime, manifold_auto_clean
   - Shake: shake
 
   Requires:

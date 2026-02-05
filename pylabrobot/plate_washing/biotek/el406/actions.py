@@ -89,7 +89,7 @@ class EL406ActionsMixin:
     await self._send_action_command(framed_command, timeout=LONG_READ_TIMEOUT)
     logger.info("Instrument reset complete")
 
-  async def perform_end_of_batch(self) -> None:
+  async def _perform_end_of_batch(self) -> None:
     """Perform end-of-batch activities - sends completion marker.
 
     NOTE: This command (140) is just a completion marker and does NOT:
@@ -136,7 +136,7 @@ class EL406ActionsMixin:
 
     # Step 3: Send end-of-batch marker
     logger.info("  Sending end-of-batch marker...")
-    await self.perform_end_of_batch()
+    await self._perform_end_of_batch()
 
     logger.info("Post-protocol cleanup complete")
 
@@ -144,8 +144,8 @@ class EL406ActionsMixin:
     """Control the vacuum/peristaltic pump on or off.
 
     This sends command 299 (LeaveVacuumPumpOn) to control the pump state.
-    CRITICAL: After syringe_prime or other pump operations, you MUST call
-    this with enabled=False to stop the pump.
+    After syringe_prime or other pump operations, call this with
+    enabled=False to stop the pump.
 
     Args:
       enabled: True to turn pump ON, False to turn pump OFF.

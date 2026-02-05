@@ -29,72 +29,72 @@ class TestEL406BackendAspirate(unittest.IsolatedAsyncioTestCase):
   async def test_aspirate_sends_command(self):
     """Aspirate should send correct command."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.aspirate()
+    await self.backend.manifold_aspirate()
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_aspirate_with_travel_rate(self):
     """Aspirate should accept string travel rate."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.aspirate(travel_rate="5")
+    await self.backend.manifold_aspirate(travel_rate="5")
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_aspirate_with_cell_wash_rate(self):
     """Aspirate should accept cell wash travel rate."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.aspirate(travel_rate="2 CW")
+    await self.backend.manifold_aspirate(travel_rate="2 CW")
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_aspirate_validates_travel_rate(self):
     """Aspirate should reject invalid travel rate strings."""
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(travel_rate="10")
+      await self.backend.manifold_aspirate(travel_rate="10")
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(travel_rate="5 CW")
+      await self.backend.manifold_aspirate(travel_rate="5 CW")
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(travel_rate="bad")
+      await self.backend.manifold_aspirate(travel_rate="bad")
 
   async def test_aspirate_validates_delay_ms(self):
     """Aspirate delay must be 0-5000 ms."""
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(delay_ms=5001)
+      await self.backend.manifold_aspirate(delay_ms=5001)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(delay_ms=-1)
+      await self.backend.manifold_aspirate(delay_ms=-1)
 
   async def test_aspirate_validates_vacuum_time(self):
     """Vacuum filtration time must be 5-999 seconds."""
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(vacuum_filtration=True, vacuum_time_sec=4)
+      await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time_sec=4)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(vacuum_filtration=True, vacuum_time_sec=1000)
+      await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time_sec=1000)
 
   async def test_aspirate_validates_offsets(self):
     """Aspirate should validate X/Y/Z offset ranges."""
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(offset_x=61)
+      await self.backend.manifold_aspirate(offset_x=61)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(offset_x=-61)
+      await self.backend.manifold_aspirate(offset_x=-61)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(offset_y=41)
+      await self.backend.manifold_aspirate(offset_y=41)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(offset_y=-41)
+      await self.backend.manifold_aspirate(offset_y=-41)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(offset_z=0)
+      await self.backend.manifold_aspirate(offset_z=0)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(offset_z=211)
+      await self.backend.manifold_aspirate(offset_z=211)
 
   async def test_aspirate_validates_secondary_offsets(self):
     """Secondary aspirate offsets should be validated when enabled."""
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(secondary_aspirate=True, secondary_x=61)
+      await self.backend.manifold_aspirate(secondary_aspirate=True, secondary_x=61)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(secondary_aspirate=True, secondary_y=-41)
+      await self.backend.manifold_aspirate(secondary_aspirate=True, secondary_y=-41)
     with self.assertRaises(ValueError):
-      await self.backend.aspirate(secondary_aspirate=True, secondary_z=0)
+      await self.backend.manifold_aspirate(secondary_aspirate=True, secondary_z=0)
 
   async def test_aspirate_vacuum_filtration(self):
     """Aspirate with vacuum filtration should send command."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.aspirate(vacuum_filtration=True, vacuum_time_sec=30)
+    await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time_sec=30)
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
@@ -114,7 +114,7 @@ class TestAspirateCommandEncoding(unittest.TestCase):
     [11]    secondary_y (signed byte)
     [12-13] secondary_z LE
     [14-15] reserved
-    [16-17] well_mask
+    [16-17] column_mask
     [18-21] padding
   """
 
@@ -204,12 +204,11 @@ class TestAspirateCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[12], 45)
     self.assertEqual(cmd[13], 0)
 
-  def test_aspirate_command_well_mask(self):
-    """Well mask at bytes 16-17."""
-    # Select only columns 0,1,2
-    cmd = self.backend._build_aspirate_command(well_mask=[0, 1, 2])
-    self.assertEqual(cmd[16], 0x07)  # bits 0,1,2
-    self.assertEqual(cmd[17], 0x00)
+  def test_aspirate_command_column_mask_all(self):
+    """Column mask at bytes 16-17 is always all-selected for manifold aspirate."""
+    cmd = self.backend._build_aspirate_command()
+    self.assertEqual(cmd[16], 0xFF)  # all 12 columns
+    self.assertEqual(cmd[17], 0x0F)
 
   def test_aspirate_command_length(self):
     """Aspirate command should be exactly 22 bytes."""

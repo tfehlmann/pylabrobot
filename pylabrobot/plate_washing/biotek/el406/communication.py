@@ -164,10 +164,10 @@ class EL406CommunicationMixin:
   async def start_batch(self) -> None:
     """Send START_STEP command to begin a batch of step operations.
 
-    The LHC software sends START_STEP (0x8D) once at the beginning of a protocol,
-    before executing any step commands. This puts the device in "ready to execute
-    steps" mode. Must be called once before running step commands like prime,
-    dispense, aspirate, shake, etc.
+    Use this function at the beginning of a protocol, before executing any step
+    commands. This puts the device in "ready to execute steps" mode. Must be
+    called once before running step commands like prime, dispense, aspirate,
+    shake, etc.
 
     This should be called:
     - After setup() completes
@@ -229,7 +229,7 @@ class EL406CommunicationMixin:
     async with self._command_lock:
       await self._purge_buffers()
 
-      # Send header and data separately like LHC software does
+      # Send header and data separately
       header = framed_message[:11]
       data = framed_message[11:] if len(framed_message) > 11 else b""
 
@@ -247,7 +247,6 @@ class EL406CommunicationMixin:
       result = bytes([ACK_BYTE])
 
       # Fresh timestamp after ACK — header + data share a single timeout budget.
-      # START_STEP needs ~2s after ACK before sending response.
       t0 = time.time()
       resp_header = await self._read_exact_bytes(11, timeout, time.time())
 
@@ -426,9 +425,9 @@ class EL406CommunicationMixin:
 
     # Data layout (after ACK+header at offset 12):
     #   bytes 12-13: validity (little-endian, must be 0)
-    #   bytes 14-15: state enum aa (little-endian)
+    #   bytes 14-15: state (little-endian)
     #   bytes 16-19: timestamp/counter
-    #   byte 20:     status code (ac enum)
+    #   byte 20:     status code
     validity = poll_response[12] | (poll_response[13] << 8)
     state = poll_response[14] | (poll_response[15] << 8)
     status = poll_response[20]
@@ -469,8 +468,7 @@ class EL406CommunicationMixin:
     """Send a step command and poll for completion.
 
     Step commands (prime, dispense, aspirate, shake, etc.) require polling
-    for completion. The LHC software sends STATUS_POLL (0x92) repeatedly
-    until the operation completes.
+    for completion using STATUS_POLL (0x92) until the operation completes.
 
     Protocol flow:
     1. Wait for device to be ready (not RUNNING)
@@ -508,7 +506,7 @@ class EL406CommunicationMixin:
     response = await self._send_framed_command(framed_message, timeout=5.0)
     logger.debug("Step command sent, got initial response: %s", response.hex())
 
-    # 3. Initial delay before polling (500ms, matches LHC timing)
+    # 3. Initial delay before polling
     await asyncio.sleep(0.5)
 
     # 4. Poll for completion

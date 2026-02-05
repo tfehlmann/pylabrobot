@@ -790,17 +790,17 @@ class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
   async def test_auto_clean_sends_command(self):
     """auto_clean should send a command to the device."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.auto_clean(buffer="A")
+    await self.backend.manifold_auto_clean(buffer="A")
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_auto_clean_validates_buffer(self):
     """auto_clean should validate buffer selection."""
     with self.assertRaises(ValueError):
-      await self.backend.auto_clean(buffer="Z")
+      await self.backend.manifold_auto_clean(buffer="Z")
 
     with self.assertRaises(ValueError):
-      await self.backend.auto_clean(buffer="E")
+      await self.backend.manifold_auto_clean(buffer="E")
 
   async def test_auto_clean_raises_when_device_not_initialized(self):
     """auto_clean should raise RuntimeError if device not initialized."""
@@ -808,25 +808,25 @@ class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
     # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
-      await backend.auto_clean(buffer="A")
+      await backend.manifold_auto_clean(buffer="A")
 
   async def test_auto_clean_accepts_all_buffers(self):
     """auto_clean should accept buffers A, B, C, D."""
     for buffer in ["A", "B", "C", "D", "a", "b", "c", "d"]:
       self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
-      await self.backend.auto_clean(buffer=buffer)
+      await self.backend.manifold_auto_clean(buffer=buffer)
 
   async def test_auto_clean_with_duration(self):
     """auto_clean should accept duration parameter."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.auto_clean(buffer="A", duration=60.0)
+    await self.backend.manifold_auto_clean(buffer="A", duration=60.0)
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_auto_clean_default_buffer(self):
     """auto_clean should use default buffer A."""
-    await self.backend.auto_clean()
+    await self.backend.manifold_auto_clean()
 
     # Verify command was sent
     self.assertGreater(len(self.backend.io.written_data), 0)
@@ -835,12 +835,12 @@ class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
     """auto_clean should raise TimeoutError when device does not respond."""
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
-      await self.backend.auto_clean(buffer="A")
+      await self.backend.manifold_auto_clean(buffer="A")
 
   async def test_auto_clean_validates_negative_duration(self):
     """auto_clean should raise ValueError for negative duration."""
     with self.assertRaises(ValueError):
-      await self.backend.auto_clean(buffer="A", duration=-10.0)
+      await self.backend.manifold_auto_clean(buffer="A", duration=-10.0)
 
 
 class TestAutoCleanCommandEncoding(unittest.TestCase):

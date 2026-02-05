@@ -405,21 +405,21 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def setUp(self):
     self.backend = BioTekEL406Backend()
 
-  def test_peristaltic_dispense_command_with_well_mask_length(self):
+  def test_peristaltic_dispense_command_with_column_mask_length(self):
     """Command with well mask should be 24 bytes."""
     cmd = self.backend._build_peristaltic_dispense_command(
       volume=300.0,
       flow_rate=5,
-      well_mask=[0, 1, 2, 3],
+      column_mask=[0, 1, 2, 3],
     )
     self.assertEqual(len(cmd), 24)
 
-  def test_peristaltic_dispense_command_well_mask_encoding(self):
+  def test_peristaltic_dispense_command_column_mask_encoding(self):
     """Command should correctly encode well mask at bytes 12-17."""
     cmd = self.backend._build_peristaltic_dispense_command(
       volume=300.0,
       flow_rate=5,
-      well_mask=[0, 1, 2, 3],
+      column_mask=[0, 1, 2, 3],
     )
 
     # Wells 0-3 = bits 0-3 of byte 12 = 0x0F
@@ -435,12 +435,12 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
     )
     self.assertEqual(cmd[19], 2)
 
-  def test_peristaltic_dispense_command_none_well_mask_all_wells(self):
-    """Command with None well_mask should encode all wells (0xFF * 6)."""
+  def test_peristaltic_dispense_command_none_column_mask_all_wells(self):
+    """Command with None column_mask should encode all wells (0xFF * 6)."""
     cmd = self.backend._build_peristaltic_dispense_command(
       volume=300.0,
       flow_rate=5,
-      well_mask=None,
+      column_mask=None,
     )
     self.assertEqual(cmd[12:18], bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]))
 
@@ -460,12 +460,12 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
     )
     self.assertEqual(cmd[19], 1)
 
-  def test_peristaltic_dispense_command_empty_well_mask(self):
-    """Command with empty well_mask should encode no wells (0x00 * 6)."""
+  def test_peristaltic_dispense_command_empty_column_mask(self):
+    """Command with empty column_mask should encode no wells (0x00 * 6)."""
     cmd = self.backend._build_peristaltic_dispense_command(
       volume=300.0,
       flow_rate=5,
-      well_mask=[],
+      column_mask=[],
     )
     self.assertEqual(cmd[12:18], bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
 
@@ -481,13 +481,13 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
     )
     self.assertEqual(cmd[18], 0x0C)
 
-  def test_peristaltic_dispense_command_complex_well_mask(self):
+  def test_peristaltic_dispense_command_complex_column_mask(self):
     """Command with complex well mask spanning multiple bytes."""
     # Wells 0, 8, 16, 24, 32, 40 = bit 0 of each of the 6 bytes
     cmd = self.backend._build_peristaltic_dispense_command(
       volume=300.0,
       flow_rate=5,
-      well_mask=[0, 8, 16, 24, 32, 40],
+      column_mask=[0, 8, 16, 24, 32, 40],
     )
 
     self.assertEqual(cmd[12], 0x01)
@@ -498,13 +498,13 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
     self.assertEqual(cmd[17], 0x01)
 
   def test_peristaltic_dispense_command_both_masks(self):
-    """Command with well_mask and rows."""
+    """Command with column_mask and rows."""
     # Use 1536-well plate type which supports 4 row groups
     self.backend.plate_type = EL406PlateType.PLATE_1536_WELL
     cmd = self.backend._build_peristaltic_dispense_command(
       volume=500.0,
       flow_rate=7,
-      well_mask=[0, 47],  # First and last wells
+      column_mask=[0, 47],  # First and last wells
       rows=[1, 2, 3, 4],  # All rows selected
       pump=2,
     )

@@ -14,10 +14,10 @@ from ..constants import (
   SYRINGE_PRIME_COMMAND,
 )
 from ..helpers import (
-  columns_to_well_mask,
+  columns_to_column_mask,
+  encode_column_mask,
   encode_signed_byte,
   encode_volume_16bit,
-  encode_well_mask,
   plate_type_max_columns,
   syringe_to_byte,
   validate_offset_xy,
@@ -88,10 +88,9 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     validate_offset_z(offset_z, "offset_z")
     validate_pump_delay(pump_delay)
 
-    # Convert 1-indexed columns to 0-indexed well indices
-    # Use plate type to determine max columns for well mask validation
+    # Convert 1-indexed columns to 0-indexed column indices
     plate_wells = {12: 96, 24: 384, 48: 1536}.get(plate_type_max_columns(self.plate_type), 96)
-    well_indices = columns_to_well_mask(columns, plate_wells=plate_wells)
+    column_indices = columns_to_column_mask(columns, plate_wells=plate_wells)
 
     logger.info(
       "Syringe dispense: %.1f uL from syringe %s, flow rate %d",
@@ -111,7 +110,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       pre_dispense=pre_dispense,
       pre_dispense_volume=pre_dispense_volume,
       num_pre_dispenses=num_pre_dispenses,
-      well_mask=well_indices,
+      column_mask=column_indices,
     )
     framed_command = build_framed_message(SYRINGE_DISPENSE_COMMAND, data)
     await self._send_step_command(framed_command)
@@ -189,14 +188,9 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     pre_dispense: bool = False,
     pre_dispense_volume: float = 0.0,
     num_pre_dispenses: int = 2,
-    well_mask: list[int] | None = None,
-    _bottle_override: int | None = None,
+    column_mask: list[int] | None = None,
   ) -> bytes:
     """Build syringe dispense command bytes.
-
-    Protocol format for syringe dispense (26 bytes):
-    Example Syringe A: 04 00 64 00 02 00 00 50 01 00 00 00 00 02 ff ff ff ff ff ff 00 00 00 00 00 00
-    Example Syringe B: 04 01 64 00 02 00 00 50 01 00 00 00 00 02 ff ff ff ff ff ff 02 00 00 00 00 00
 
     Wire format (26 bytes):
       [0]     Plate type (EL406PlateType enum value, e.g. 0x04=96-well)
@@ -209,10 +203,9 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       [9-10]  Pump delay: 2 bytes, little-endian, in ms
       [11-12] Pre-dispense volume: 2 bytes, little-endian (0 if pre_dispense=False)
       [13]    Number of pre-dispenses (default 2)
-      [14-19] Well mask: 6 bytes (48 bits packed)
-      [20]    Bottle selection: (EnumSyringeBottle value - 1)
-              A -> eSyrA1=1 -> 0, B -> eSyrB1=3 -> 2, Both -> eSyrA1B1=5 -> 4
-      [21-25] Column mask or padding: 5 bytes (0 if column selection disabled)
+      [14-19] Column mask: 6 bytes (48 bits packed)
+      [20]    Bottle selection (A→0, B→2, Both→4)
+      [21-25] Padding (5 bytes)
 
     Args:
       volume: Dispense volume in microliters.
@@ -225,9 +218,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       pre_dispense: Whether to enable pre-dispense mode.
       pre_dispense_volume: Pre-dispense volume in µL/tube (only used if pre_dispense=True).
       num_pre_dispenses: Number of pre-dispenses (default 2).
-      well_mask: List of well indices (0-47) or None for all wells.
-      _bottle_override: Internal: override bottle byte for testing.
-                        EnumSyringeBottle value (1-5), encoded as value-1.
+      column_mask: List of column indices (0-47) or None for all columns.
 
     Returns:
       Command bytes (26 bytes).
@@ -246,17 +237,12 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     pre_disp_vol_low = pre_disp_vol_int & 0xFF
     pre_disp_vol_high = (pre_disp_vol_int >> 8) & 0xFF
 
-    # Encode well mask (6 bytes)
-    well_mask_bytes = encode_well_mask(well_mask)
+    # Encode column mask (6 bytes)
+    column_mask_bytes = encode_column_mask(column_mask)
 
-    # Bottle selection based on syringe
-    # EnumSyringeBottle: eUnused=0, eSyrA1=1, eSyrA2=2, eSyrB1=3, eSyrB2=4, eSyrA1B1=5
-    # Wire encoding is (EnumSyringeBottle value - 1)
-    if _bottle_override is not None:
-      bottle_byte = (_bottle_override - 1) & 0xFF
-    else:
-      _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2, "BOTH": 4}  # eSyrA1-1, eSyrB1-1, eSyrA1B1-1
-      bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
+    # Bottle selection based on syringe: A→0, B→2, Both→4
+    _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2, "BOTH": 4}
+    bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
 
     return (
       bytes(
@@ -277,7 +263,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
           num_pre_dispenses,  # Number of pre-dispenses (default 2)
         ]
       )
-      + well_mask_bytes
+      + column_mask_bytes
       + bytes(
         [
           bottle_byte,  # Bottle selection
@@ -285,7 +271,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
           0,
           0,
           0,
-          0,  # Column mask or padding (5 bytes)
+          0,  # Padding (5 bytes)
         ]
       )
     )
@@ -299,7 +285,6 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     pump_delay: int = 0,
     submerge_tips: bool = True,
     submerge_duration: int = 0,
-    _bottle_override: int | None = None,
   ) -> bytes:
     """Build syringe prime command bytes.
 
@@ -312,7 +297,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       [6-7]  Pump delay: 2 bytes, little-endian, in ms
       [8]    Submerge tips (0 or 1) — "Submerge tips in fluid after prime"
       [9-10] Submerge duration in minutes (LE uint16). 0 if submerge_tips=False.
-      [11]   Bottle: derived from syringe (A->0, B->2) by default
+      [11]   Bottle: derived from syringe (A->0, B->2)
       [12]   Padding
 
     Args:
@@ -324,8 +309,6 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       submerge_tips: Submerge tips in fluid after prime (default True).
       submerge_duration: Submerge duration in minutes (0-1439). Only encoded
                          when submerge_tips=True.
-      _bottle_override: Internal: override bottle byte for testing.
-                        EnumSyringeBottle value (1-4), encoded as value-1.
 
     Returns:
       Command bytes (13 bytes).
@@ -342,13 +325,9 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     sub_low = sub_total & 0xFF
     sub_high = (sub_total >> 8) & 0xFF
 
-    # Bottle selection: encoded as (EnumSyringeBottle value - 1)
-    # A -> eSyrA1=1 -> 0, B -> eSyrB1=3 -> 2
-    if _bottle_override is not None:
-      bottle_byte = (_bottle_override - 1) & 0xFF
-    else:
-      _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2}
-      bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
+    # Bottle selection: A→0, B→2
+    _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2}
+    bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
 
     return bytes(
       [

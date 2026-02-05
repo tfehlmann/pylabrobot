@@ -246,34 +246,33 @@ def encode_signed_byte(value: int) -> int:
 
 
 
-def encode_well_mask(wells: list[int] | None) -> bytes:
-  """Encode list of well indices to 6-byte (48-bit) well mask.
+def encode_column_mask(columns: list[int] | None) -> bytes:
+  """Encode list of column indices to 6-byte (48-bit) column mask.
 
-  The well mask allows selective operations on specific wells.
-  Each bit represents one well: 0 = skip, 1 = operate on well.
+  Each bit represents one column: 0 = skip, 1 = operate on column.
 
   Args:
-    wells: List of well indices (0-47) to select, or None for all wells.
-      If None, returns all 1s (all wells selected).
-      If empty list, returns all 0s (no wells selected).
+    columns: List of column indices (0-47) to select, or None for all columns.
+      If None, returns all 1s (all columns selected).
+      If empty list, returns all 0s (no columns selected).
 
   Returns:
-    6 bytes representing the 48-bit well mask in little-endian order.
+    6 bytes representing the 48-bit column mask in little-endian order.
 
   Raises:
-    ValueError: If any well index is out of range (not 0-47).
+    ValueError: If any column index is out of range (not 0-47).
   """
-  if wells is None:
+  if columns is None:
     return bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
 
-  for well in wells:
-    if well < 0 or well > 47:
-      raise ValueError(f"Well index {well} out of range. Must be 0-47 for 48-well selection.")
+  for col in columns:
+    if col < 0 or col > 47:
+      raise ValueError(f"Column index {col} out of range. Must be 0-47.")
 
   mask = [0] * 6
-  for well in wells:
-    byte_index = well // 8
-    bit_index = well % 8
+  for col in columns:
+    byte_index = col // 8
+    bit_index = col % 8
     mask[byte_index] |= 1 << bit_index
 
   return bytes(mask)
@@ -282,8 +281,7 @@ def encode_well_mask(wells: list[int] | None) -> bytes:
 def cassette_to_byte(cassette: str) -> int:
   """Convert cassette type string to byte value.
 
-  Maps to EnumCassetteType:
-    eAny=0, e1ul=1, e5ul=2, e10ul=3
+  Cassette type (Any: 0, 1uL: 1, 5uL: 2, 10uL: 3).
 
   Args:
     cassette: Cassette type ("Any", "1uL", "5uL", "10uL").
@@ -345,19 +343,19 @@ def encode_quadrant_mask_inverted(
   return mask & 0xFF
 
 
-def columns_to_well_mask(columns: list[int] | None, plate_wells: int = 96) -> list[int] | None:
-  """Convert 1-indexed column numbers to 0-indexed well indices.
+def columns_to_column_mask(columns: list[int] | None, plate_wells: int = 96) -> list[int] | None:
+  """Convert 1-indexed column numbers to 0-indexed column indices.
 
-  For a 96-well plate, columns 1-12 map to well indices 0-11.
-  For a 384-well plate, columns 1-24 map to well indices 0-23.
-  For a 1536-well plate, columns 1-48 map to well indices 0-47.
+  For a 96-well plate, columns 1-12 map to indices 0-11.
+  For a 384-well plate, columns 1-24 map to indices 0-23.
+  For a 1536-well plate, columns 1-48 map to indices 0-47.
 
   Args:
     columns: List of column numbers (1-based), or None for all columns.
     plate_wells: Plate format (96, 384, 1536). Determines max columns.
 
   Returns:
-    List of 0-indexed well indices, or None if columns is None.
+    List of 0-indexed column indices, or None if columns is None.
 
   Raises:
     ValueError: If column numbers are out of range.
@@ -375,19 +373,8 @@ def columns_to_well_mask(columns: list[int] | None, plate_wells: int = 96) -> li
 
 
 def plate_type_max_columns(plate_type) -> int:
-  """Return the maximum number of columns for a plate type.
-
-  96-well variants: 12 columns.
-  384-well variants: 24 columns.
-  1536-well variants: 48 columns.
-  """
-  from .enums import EL406PlateType
-
-  if plate_type in (EL406PlateType.PLATE_1536_WELL, EL406PlateType.PLATE_1536_FLANGE):
-    return 48
-  if plate_type in (EL406PlateType.PLATE_384_WELL, EL406PlateType.PLATE_384_PCR):
-    return 24
-  return 12
+  """Return the maximum number of columns for a plate type."""
+  return PLATE_TYPE_DEFAULTS[plate_type]["cols"]
 
 
 def plate_type_max_rows(plate_type) -> int:
@@ -397,33 +384,24 @@ def plate_type_max_rows(plate_type) -> int:
   384-well: 2 row groups.
   1536-well: 4 row groups.
   """
-  from .enums import EL406PlateType
-
-  if plate_type in (EL406PlateType.PLATE_1536_WELL, EL406PlateType.PLATE_1536_FLANGE):
-    return 4
-  if plate_type in (EL406PlateType.PLATE_384_WELL, EL406PlateType.PLATE_384_PCR):
-    return 2
-  return 1
+  cols = PLATE_TYPE_DEFAULTS[plate_type]["cols"]
+  return {12: 1, 24: 2, 48: 4}[cols]
 
 
 def plate_type_default_z(plate_type) -> int:
-  """Return the default dispenser Z height (field c) for a plate type.
-
-  This is the peristaltic/syringe dispenser Z height from CPlateTypes.cs
-  (constant name: unDefaultDispenserHeight). Per-plate-type values from
-  the EL406 instrument record set.
-  """
+  """Return the default dispenser Z height for a plate type."""
   return PLATE_TYPE_DEFAULTS[plate_type]["dispenser_height"]
+
+
+TRAVEL_RATE_TO_BYTE: dict[str, int] = {
+  "1": 1, "2": 2, "3": 3, "4": 4, "5": 5,
+  "1 CW": 7, "2 CW": 8, "3 CW": 9, "4 CW": 10, "6 CW": 6,
+}
+VALID_TRAVEL_RATES = set(TRAVEL_RATE_TO_BYTE)
 
 
 def travel_rate_to_byte(rate: str) -> int:
   """Convert travel rate string to wire byte value.
-
-  Travel rate collection (10 entries):
-    Normal rates: "1"→1, "2"→2, "3"→3, "4"→4, "5"→5
-    Cell wash rates: "1 CW"→7, "2 CW"→8, "3 CW"→9, "4 CW"→10, "6 CW"→6
-
-  Note: "5 CW" does NOT exist in the collection.
 
   Args:
     rate: Travel rate string code.
@@ -434,27 +412,12 @@ def travel_rate_to_byte(rate: str) -> int:
   Raises:
     ValueError: If rate is not a valid travel rate code.
   """
-  mapping = {
-    "1": 1,
-    "2": 2,
-    "3": 3,
-    "4": 4,
-    "5": 5,
-    "1 CW": 7,
-    "2 CW": 8,
-    "3 CW": 9,
-    "4 CW": 10,
-    "6 CW": 6,
-  }
-  if rate not in mapping:
-    valid = sorted(mapping.keys())
+  if rate not in TRAVEL_RATE_TO_BYTE:
+    valid = sorted(TRAVEL_RATE_TO_BYTE.keys())
     raise ValueError(
       f"Invalid travel rate '{rate}'. Must be one of: {', '.join(repr(r) for r in valid)}"
     )
-  return mapping[rate]
-
-
-VALID_TRAVEL_RATES = {"1", "2", "3", "4", "5", "1 CW", "2 CW", "3 CW", "4 CW", "6 CW"}
+  return TRAVEL_RATE_TO_BYTE[rate]
 
 INTENSITY_TO_BYTE: dict[str, int] = {
   "Variable": 0x01,
@@ -464,59 +427,42 @@ INTENSITY_TO_BYTE: dict[str, int] = {
 }
 
 
-# =========================================================================
-# Plate type defaults from CPlateTypes.cs
-# =========================================================================
-# Plate type defaults (EL406 instrument record set):
-#   dispenser_height — peristaltic/syringe Z
-#   manifold_dispense_z — manifold dispense Z
-#   manifold_aspirate_z — manifold aspirate Z
-#   rows, cols — well count = rows * cols
-#
-# Plate-type-aware defaults:
-#   - dispense_volume: 300 if well_count == 96, else 100
-#   - manifold_dispense_z: per plate type
-#   - manifold_aspirate_z: per plate type
-#   - secondary_z: same as aspirate_z
-#   - dispenser_height: per plate type (peristaltic/syringe Z default)
-#
-# Note: A second set of plate records (variables q-ac) exists for MultiFloFX
-# instruments where d=c. Those are NOT used for the EL406.
+# Plate type defaults for the EL406 instrument.
 PLATE_TYPE_DEFAULTS: dict[EL406PlateType, dict[str, int]] = {
   EL406PlateType.PLATE_1536_WELL: {
     "dispenser_height": 250,
     "dispense_z": 94,
     "aspirate_z": 42,
-    "rows": 48,
-    "cols": 32,
+    "rows": 32,
+    "cols": 48,
   },
   EL406PlateType.PLATE_384_WELL: {
     "dispenser_height": 333,
     "dispense_z": 120,
     "aspirate_z": 22,
-    "rows": 24,
-    "cols": 16,
+    "rows": 16,
+    "cols": 24,
   },
   EL406PlateType.PLATE_384_PCR: {
     "dispenser_height": 230,
     "dispense_z": 83,
     "aspirate_z": 2,
-    "rows": 24,
-    "cols": 16,
+    "rows": 16,
+    "cols": 24,
   },
   EL406PlateType.PLATE_96_WELL: {
     "dispenser_height": 336,
     "dispense_z": 121,
     "aspirate_z": 29,
-    "rows": 12,
-    "cols": 8,
+    "rows": 8,
+    "cols": 12,
   },
   EL406PlateType.PLATE_1536_FLANGE: {
     "dispenser_height": 196,
     "dispense_z": 93,
     "aspirate_z": 13,
-    "rows": 48,
-    "cols": 32,
+    "rows": 32,
+    "cols": 48,
   },
 }
 
@@ -531,9 +477,8 @@ def get_plate_type_wash_defaults(
   Z values are plate-type-specific defaults for dispense and aspirate.
   """
   pt = PLATE_TYPE_DEFAULTS[plate_type]
-  well_count = pt["rows"] * pt["cols"]
   return {
-    "dispense_volume": 300.0 if well_count == 96 else 100.0,
+    "dispense_volume": 300.0 if pt["cols"] == 12 else 100.0,
     "dispense_z": pt["dispense_z"],
     "aspirate_z": pt["aspirate_z"],
   }

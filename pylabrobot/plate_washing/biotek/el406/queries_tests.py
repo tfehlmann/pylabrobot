@@ -530,7 +530,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
     await self.backend.get_sensor_enabled(EL406Sensor.VACUUM)
 
-    # Header and data are sent as separate writes (matching LHC wire behavior)
+    # Header and data are sent as separate writes
     header = self.backend.io.written_data[-2]
     # Command byte is at position 2 in the 11-byte header
     self.assertEqual(header[2], 0xD2)
@@ -543,7 +543,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
     await self.backend.get_sensor_enabled(EL406Sensor.WASTE)
 
-    # Header and data are sent as separate writes (matching LHC wire behavior)
+    # Header and data are sent as separate writes
     header = self.backend.io.written_data[-2]
     data = self.backend.io.written_data[-1]
     full_command = header + data

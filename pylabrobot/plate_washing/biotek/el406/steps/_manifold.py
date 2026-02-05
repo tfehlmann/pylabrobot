@@ -1,12 +1,13 @@
 """EL406 manifold step methods.
 
-Provides aspirate, dispense, wash, manifold_prime,
-and auto_clean operations plus their corresponding command builders.
+Provides manifold_aspirate, manifold_dispense, manifold_wash, manifold_prime,
+and manifold_auto_clean operations plus their corresponding command builders.
 """
 
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from ..constants import (
   MANIFOLD_ASPIRATE_COMMAND,
@@ -42,6 +43,14 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   """Mixin for manifold step operations."""
 
   @staticmethod
+  def _validate_manifold_xy(x: int, y: int, label: str) -> None:
+    """Validate manifold X/Y offsets (X: -60..60, Y: -40..40)."""
+    if not -60 <= x <= 60:
+      raise ValueError(f"{label} X offset must be -60..60, got {x}")
+    if not -40 <= y <= 40:
+      raise ValueError(f"{label} Y offset must be -40..40, got {y}")
+
+  @staticmethod
   def _validate_aspirate_mode_params(
     vacuum_filtration: bool,
     travel_rate: str,
@@ -63,24 +72,19 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       raise ValueError(f"Vacuum filtration time must be 5-999 seconds, got {vacuum_time_sec}")
     return (vacuum_time_sec, travel_rate_to_byte("3"))
 
-  @staticmethod
+  @classmethod
   def _validate_aspirate_offsets(
+    cls,
     offset_x: int, offset_y: int, offset_z: int,
     secondary_aspirate: bool,
     secondary_x: int, secondary_y: int, secondary_z: int,
   ) -> None:
     """Validate aspirate XYZ offset ranges (primary and secondary)."""
-    if not -60 <= offset_x <= 60:
-      raise ValueError(f"Aspirate X offset must be -60..60, got {offset_x}")
-    if not -40 <= offset_y <= 40:
-      raise ValueError(f"Aspirate Y offset must be -40..40, got {offset_y}")
+    cls._validate_manifold_xy(offset_x, offset_y, "Aspirate")
     if not 1 <= offset_z <= 210:
       raise ValueError(f"Aspirate Z offset must be 1-210, got {offset_z}")
     if secondary_aspirate:
-      if not -60 <= secondary_x <= 60:
-        raise ValueError(f"Secondary X offset must be -60..60, got {secondary_x}")
-      if not -40 <= secondary_y <= 40:
-        raise ValueError(f"Secondary Y offset must be -40..40, got {secondary_y}")
+      cls._validate_manifold_xy(secondary_x, secondary_y, "Secondary")
       if not 1 <= secondary_z <= 210:
         raise ValueError(f"Secondary Z offset must be 1-210, got {secondary_z}")
 
@@ -168,10 +172,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
         f"Flow rates 1-2 (cell wash) require vacuum_delay_volume > 0, "
         f"got flow_rate={flow_rate} with vacuum_delay_volume={vacuum_delay_volume}"
       )
-    if not -60 <= offset_x <= 60:
-      raise ValueError(f"Manifold dispense X offset must be -60..60, got {offset_x}")
-    if not -40 <= offset_y <= 40:
-      raise ValueError(f"Manifold dispense Y offset must be -40..40, got {offset_y}")
+    self._validate_manifold_xy(offset_x, offset_y, "Manifold dispense")
     if not 1 <= offset_z <= 210:
       raise ValueError(f"Manifold dispense Z offset must be 1-210, got {offset_z}")
     self._validate_dispense_extras(pre_dispense_volume, pre_dispense_flow_rate, vacuum_delay_volume)
@@ -215,7 +216,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     aspirate_delay_ms: int,
     aspirate_x: int,
     aspirate_y: int,
-    wash_format: str,
+    wash_format: Literal["Plate", "Sector"],
     sector_mask: int,
   ) -> None:
     """Validate core wash dispense/aspirate parameters."""
@@ -268,8 +269,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       raise ValueError(f"Wash shake duration must be 0-3599 seconds, got {shake_duration}")
     validate_intensity(shake_intensity)
 
-  @staticmethod
+  @classmethod
   def _validate_wash_secondary_aspirates(
+    cls,
     secondary_aspirate: bool,
     secondary_z: int,
     secondary_x: int,
@@ -282,16 +284,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     """Validate secondary and final-secondary aspirate offsets."""
     if secondary_aspirate:
       validate_offset_z(secondary_z, "Wash secondary aspirate Z")
-      if not -60 <= secondary_x <= 60:
-        raise ValueError(f"Secondary X offset must be -60..60, got {secondary_x}")
-      if not -40 <= secondary_y <= 40:
-        raise ValueError(f"Secondary Y offset must be -40..40, got {secondary_y}")
+      cls._validate_manifold_xy(secondary_x, secondary_y, "Secondary")
     if final_secondary_aspirate:
       validate_offset_z(final_secondary_z, "Final secondary aspirate Z")
-      if not -60 <= final_secondary_x <= 60:
-        raise ValueError(f"Final secondary X offset must be -60..60, got {final_secondary_x}")
-      if not -40 <= final_secondary_y <= 40:
-        raise ValueError(f"Final secondary Y offset must be -40..40, got {final_secondary_y}")
+      cls._validate_manifold_xy(final_secondary_x, final_secondary_y, "Final secondary")
 
   @staticmethod
   def _validate_wash_optional_features(
@@ -351,7 +347,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     bottom_wash_flow_rate: int,
     pre_dispense_between_cycles_volume: float,
     pre_dispense_between_cycles_flow_rate: int,
-    wash_format: str,
+    wash_format: Literal["Plate", "Sector"],
     sector_mask: int,
   ) -> tuple[float, int, int, int, int, int]:
     """Validate wash parameters and resolve plate-type defaults.
@@ -385,7 +381,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     )
     return (dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z, sector_mask)
 
-  async def aspirate(
+  async def manifold_aspirate(
     self,
     vacuum_filtration: bool = False,
     travel_rate: str = "3",
@@ -398,7 +394,6 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     secondary_x: int = 0,
     secondary_y: int = 0,
     secondary_z: int | None = None,
-    well_mask: list[int] | None = None,
   ) -> None:
     """Aspirate liquid from all wells via the wash manifold.
 
@@ -426,8 +421,6 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       secondary_y: Secondary aspirate Y offset (-40 to +40).
       secondary_z: Secondary aspirate Z offset (1-210). Default None
         (plate-type-aware, same as offset_z default).
-      well_mask: List of well indices (0-based, 0-11 for 96-well) or None for all wells.
-        TODO: Not visible in the GUI for manifold aspirate. Consider removing.
 
     Raises:
       ValueError: If parameters are invalid.
@@ -464,12 +457,11 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       secondary_x=secondary_x,
       secondary_y=secondary_y,
       secondary_z=secondary_z,
-      well_mask=well_mask,
     )
     framed_command = build_framed_message(MANIFOLD_ASPIRATE_COMMAND, data)
     await self._send_step_command(framed_command)
 
-  async def dispense(
+  async def manifold_dispense(
     self,
     volume: float,
     buffer: str = "A",
@@ -536,7 +528,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     framed_command = build_framed_message(MANIFOLD_DISPENSE_COMMAND, data)
     await self._send_step_command(framed_command)
 
-  async def wash(
+  async def manifold_wash(
     self,
     cycles: int = 3,
     buffer: str = "A",
@@ -574,7 +566,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     bottom_wash_flow_rate: int = 5,
     pre_dispense_between_cycles_volume: float = 0.0,
     pre_dispense_between_cycles_flow_rate: int = 9,
-    wash_format: str = "Plate",
+    wash_format: Literal["Plate", "Sector"] = "Plate",
     sectors: list[int] | None = None,
     move_home_first: bool = False,
   ) -> None:
@@ -607,7 +599,6 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       pre_dispense_flow_rate: Pre-dispense flow rate (3-11). Default 9.
         Controls how fast the pre-dispense is delivered.
       aspirate_delay_ms: Post-aspirate delay in milliseconds (0-5000). Default 0.
-        Encoded at wire [48-49] as 16-bit LE (spans Asp1[19] and Asp2[0]).
       aspirate_x: Aspirate X offset in steps (-60 to +60). Default 0.
       aspirate_y: Aspirate Y offset in steps (-40 to +40). Default 0.
       final_aspirate: Enable final aspirate after last cycle. Default True.
@@ -628,20 +619,19 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       shake_intensity: Shake intensity ("Variable", "Slow", "Medium", "Fast").
         Default "Medium".
       secondary_aspirate: Enable secondary aspirate for primary (between-cycle)
-        aspirate. Default False. Encoded at Asp2[6].
+        aspirate. Default False.
       secondary_z: Z offset for secondary aspirate in 0.1mm units (1-210).
         Default None (plate-type-aware, same as aspirate_z default).
       secondary_x: Secondary aspirate X offset (-60 to +60). Default 0.
       secondary_y: Secondary aspirate Y offset (-40 to +40). Default 0.
       final_secondary_aspirate: Enable secondary aspirate for final aspirate.
-        Default False. Encoded at Asp1[10].
+        Default False.
       final_secondary_z: Z offset for final secondary aspirate (1-210).
         Default None (plate-type-aware, same as aspirate_z default).
-        Encoded at Asp1[8-9].
       final_secondary_x: X offset for final secondary aspirate (-60 to +60).
-        Default 0. Encoded at Asp1[11].
+        Default 0.
       final_secondary_y: Y offset for final secondary aspirate (-40 to +40).
-        Default 0. Encoded at Asp1[12].
+        Default 0.
       bottom_wash: Enable bottom wash. Default False. Encoded in header[1].
       bottom_wash_volume: Bottom wash volume in uL (25-3000). Default 0.0.
       bottom_wash_flow_rate: Bottom wash flow rate (3-11). Default 5.
@@ -867,7 +857,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     prime_timeout = self.timeout + (submerge_duration * 60) + 30
     await self._send_step_command(framed_command, timeout=prime_timeout)
 
-  async def auto_clean(
+  async def manifold_auto_clean(
     self,
     buffer: str = "A",
     duration: int = 1,
@@ -965,12 +955,12 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     # Vacuum delay volume (16-bit LE, 0 = disabled)
     vac_delay_int = int(vacuum_delay_volume) if vacuum_delay_volume > 0 else 0
 
-    # Primary secondary aspirate (Asp2)
+    # Primary secondary aspirate
     sec_mode_byte = 0x01 if secondary_aspirate else 0x00
     sec_x_byte = encode_signed_byte(secondary_x) if secondary_aspirate else 0x00
     sec_y_byte = encode_signed_byte(secondary_y) if secondary_aspirate else 0x00
 
-    # Final secondary aspirate (Asp1)
+    # Final secondary aspirate
     final_sec_mode_byte = 0x01 if final_secondary_aspirate else 0x00
     final_sec_x_byte = (
       encode_signed_byte(final_secondary_x) if final_secondary_aspirate else 0x00
@@ -1090,14 +1080,14 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     bottom_wash_flow_rate: int = 5,
     pre_dispense_between_cycles_volume: float = 0.0,
     pre_dispense_between_cycles_flow_rate: int = 9,
-    wash_format: str = "Plate",
+    wash_format: Literal["Plate", "Sector"] = "Plate",
     sector_mask: int = 0x0F,
     move_home_first: bool = False,
   ) -> bytes:
     """Build 102-byte MANIFOLD_WASH (0xA4) command payload.
 
-    Structure: header(7) + dispense1(22) + aspirate1(20) + aspirate2(19)
-               + dispense2(22) + final(12) = 102 bytes.
+    Structure: header(7) + dispense1(22) + final_aspirate(20) + primary_aspirate(19)
+               + dispense2(22) + shake_soak(12) = 102 bytes.
 
     Header [0-6]:
       [0] plate_type (from self.plate_type.value)
@@ -1108,10 +1098,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       [6] wash cycles count
 
     Four coordinate sets for aspirate positions:
-    - Primary: aspirate_x/y/z (between-cycle aspirate, wire Asp2 [49-67])
-    - Primary secondary: secondary_x/y/z (wire Asp2[6-10])
-    - Final: final_aspirate_x/y/z (post-cycle aspirate, wire Asp1 [29-48])
-    - Final secondary: final_secondary_x/y/z (wire Asp1[8-12])
+    - Primary: aspirate_x/y/z (between-cycle aspirate, wire [49-67])
+    - Primary secondary: secondary_x/y/z (wire [55-61])
+    - Final: final_aspirate_x/y/z (post-cycle aspirate, wire [29-48])
+    - Final secondary: final_secondary_x/y/z (wire [37-41])
 
     Returns:
       102-byte command payload.
@@ -1190,7 +1180,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       ]
     )
 
-    # Aspirate section 1 [29-48] (20 bytes) -- "final aspirate"
+    # Final aspirate section [29-48] (20 bytes)
     asp1 = bytes(
       [
         aspirate_travel_rate,  # [0] Travel rate (propagated)
@@ -1211,7 +1201,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       ]
     )
 
-    # Aspirate section 2 [49-67] (19 bytes) -- "primary aspirate"
+    # Primary aspirate section [49-67] (19 bytes)
     asp2 = bytes(
       [
         v["asp_delay_high"],  # [0] aspirate_delay_ms high byte
@@ -1285,7 +1275,6 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     secondary_x: int = 0,
     secondary_y: int = 0,
     secondary_z: int = 30,
-    well_mask: list[int] | None = None,
   ) -> bytes:
     """Build aspirate command bytes.
 
@@ -1302,7 +1291,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       [11]    secondary_y: signed byte
       [12-13] secondary_z: short LE
       [14-15] reserved: 0x0000
-      [16-17] well_mask: 2 bytes (12-bit for 96-well, 0xFF 0x0F = all 12 columns)
+      [16-17] column mask: 2 bytes (all columns selected: 0xFF 0x0F)
       [18-21] padding: 4 bytes 0x00
 
     Args:
@@ -1316,20 +1305,12 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       secondary_x: Secondary X offset (signed byte).
       secondary_y: Secondary Y offset (signed byte).
       secondary_z: Secondary Z offset (unsigned short).
-      well_mask: List of well indices (0-based) or None for all wells.
 
     Returns:
       Command bytes (22 bytes).
     """
-    # Well mask encoding: 12-bit for 96-well plate (columns 0-11)
-    if well_mask is None:
-      well_mask_bytes = bytes([0xFF, 0x0F])
-    else:
-      mask = 0
-      for well in well_mask:
-        if 0 <= well < 16:
-          mask |= 1 << well
-      well_mask_bytes = bytes([mask & 0xFF, (mask >> 8) & 0xFF])
+    # Column mask: always all columns selected for manifold aspirate
+    column_mask_bytes = bytes([0xFF, 0x0F])
 
     return (
       bytes(
@@ -1352,9 +1333,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
           0,  # [14-15] reserved
         ]
       )
-      + well_mask_bytes
+      + column_mask_bytes
       + bytes([0, 0, 0, 0])
-    )  # [16-17] well mask + [18-21] padding
+    )  # [16-17] column mask + [18-21] padding
 
   def _build_dispense_command(
     self,

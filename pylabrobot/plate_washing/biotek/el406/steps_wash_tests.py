@@ -30,55 +30,55 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
   async def test_wash_sends_command(self):
     """Wash should send correct command."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.wash(cycles=1, dispense_volume=300.0)
+    await self.backend.manifold_wash(cycles=1, dispense_volume=300.0)
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_wash_validates_cycles(self):
     """Wash should validate cycle count."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(cycles=0)  # Zero cycles
+      await self.backend.manifold_wash(cycles=0)  # Zero cycles
 
   async def test_wash_validates_buffer(self):
     """Wash should validate buffer selection."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(buffer="Z")
+      await self.backend.manifold_wash(buffer="Z")
 
   async def test_wash_validates_dispense_flow_rate(self):
     """Wash should validate dispense flow rate range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(dispense_flow_rate=0)
+      await self.backend.manifold_wash(dispense_flow_rate=0)
     with self.assertRaises(ValueError):
-      await self.backend.wash(dispense_flow_rate=10)
+      await self.backend.manifold_wash(dispense_flow_rate=10)
 
   async def test_wash_validates_travel_rate(self):
     """Wash should validate aspirate travel rate range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(aspirate_travel_rate=0)
+      await self.backend.manifold_wash(aspirate_travel_rate=0)
     with self.assertRaises(ValueError):
-      await self.backend.wash(aspirate_travel_rate=10)
+      await self.backend.manifold_wash(aspirate_travel_rate=10)
 
   async def test_wash_validates_pre_dispense_flow_rate(self):
     """Wash should validate pre-dispense flow rate range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(pre_dispense_flow_rate=0)
+      await self.backend.manifold_wash(pre_dispense_flow_rate=0)
     with self.assertRaises(ValueError):
-      await self.backend.wash(pre_dispense_flow_rate=10)
+      await self.backend.manifold_wash(pre_dispense_flow_rate=10)
 
   async def test_wash_validates_dispense_x(self):
     """Wash should validate dispense X offset range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(dispense_x=-200)
+      await self.backend.manifold_wash(dispense_x=-200)
 
   async def test_wash_validates_dispense_y(self):
     """Wash should validate dispense Y offset range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(dispense_y=200)
+      await self.backend.manifold_wash(dispense_y=200)
 
   async def test_wash_with_all_params(self):
     """Wash should accept all original parameters."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.wash(
+    await self.backend.manifold_wash(
       cycles=3,
       buffer="B",
       dispense_volume=200.0,
@@ -95,7 +95,7 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
   async def test_wash_with_all_new_params(self):
     """Wash should accept all new parameters."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.wash(
+    await self.backend.manifold_wash(
       cycles=3,
       buffer="B",
       dispense_volume=200.0,
@@ -121,54 +121,54 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
   async def test_wash_validates_aspirate_delay_ms(self):
     """Wash should validate aspirate delay range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(aspirate_delay_ms=-1)
+      await self.backend.manifold_wash(aspirate_delay_ms=-1)
     with self.assertRaises(ValueError):
-      await self.backend.wash(aspirate_delay_ms=70000)
+      await self.backend.manifold_wash(aspirate_delay_ms=70000)
 
   async def test_wash_validates_aspirate_x(self):
     """Wash should validate aspirate X offset range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(aspirate_x=-200)
+      await self.backend.manifold_wash(aspirate_x=-200)
 
   async def test_wash_validates_aspirate_y(self):
     """Wash should validate aspirate Y offset range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(aspirate_y=200)
+      await self.backend.manifold_wash(aspirate_y=200)
 
   async def test_wash_validates_pre_dispense_volume(self):
     """Wash should validate pre-dispense volume (0 or 25-3000)."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(pre_dispense_volume=10.0)  # Below 25
+      await self.backend.manifold_wash(pre_dispense_volume=10.0)  # Below 25
     # 0 should be allowed (disabled)
     initial_count = len(self.backend.io.written_data)
-    await self.backend.wash(pre_dispense_volume=0.0)
+    await self.backend.manifold_wash(pre_dispense_volume=0.0)
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_wash_validates_vacuum_delay_volume(self):
     """Wash should validate vacuum delay volume range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(vacuum_delay_volume=-1.0)
+      await self.backend.manifold_wash(vacuum_delay_volume=-1.0)
     with self.assertRaises(ValueError):
-      await self.backend.wash(vacuum_delay_volume=4000.0)
+      await self.backend.manifold_wash(vacuum_delay_volume=4000.0)
 
   async def test_wash_validates_soak_duration(self):
     """Wash should validate soak duration range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(soak_duration=-1)
+      await self.backend.manifold_wash(soak_duration=-1)
     with self.assertRaises(ValueError):
-      await self.backend.wash(soak_duration=4000)
+      await self.backend.manifold_wash(soak_duration=4000)
 
   async def test_wash_validates_shake_duration(self):
     """Wash should validate shake duration range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(shake_duration=-1)
+      await self.backend.manifold_wash(shake_duration=-1)
     with self.assertRaises(ValueError):
-      await self.backend.wash(shake_duration=4000)
+      await self.backend.manifold_wash(shake_duration=4000)
 
   async def test_wash_validates_shake_intensity(self):
     """Wash should validate shake intensity string."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(shake_intensity="InvalidIntensity")
+      await self.backend.manifold_wash(shake_intensity="InvalidIntensity")
 
 
 class TestWashCompositeCommandEncoding(unittest.TestCase):
@@ -256,7 +256,7 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
 
   def test_composite_command_default_matches_reference(self):
     """Default parameters should produce bytes matching reference capture."""
-    lhc_bytes = bytes(
+    expected_bytes = bytes(
       [
         0x04,
         0x00,
@@ -363,7 +363,7 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
       ]
     )
     cmd = self.backend._build_wash_composite_command()
-    self.assertEqual(cmd, lhc_bytes)
+    self.assertEqual(cmd, expected_bytes)
 
   def test_composite_command_final_aspirate_flag(self):
     """Header byte [2] should reflect final_aspirate flag."""
@@ -595,7 +595,7 @@ class TestWashSecondaryAspirate(unittest.TestCase):
 
   def test_secondary_aspirate_default_preserves_reference(self):
     """Default output with secondary_aspirate=False must still match reference."""
-    lhc_bytes = bytes(
+    expected_bytes = bytes(
       [
         0x04,
         0x00,
@@ -702,7 +702,7 @@ class TestWashSecondaryAspirate(unittest.TestCase):
       ]
     )
     cmd = self.backend._build_wash_composite_command()
-    self.assertEqual(cmd, lhc_bytes)
+    self.assertEqual(cmd, expected_bytes)
 
   def test_secondary_aspirate_still_102_bytes(self):
     """Command is 102 bytes with secondary aspirate enabled."""
@@ -835,19 +835,19 @@ class TestWashBottomWashValidation(unittest.IsolatedAsyncioTestCase):
   async def test_bottom_wash_validates_volume(self):
     """Bottom wash should validate volume range (25-3000)."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(bottom_wash=True, bottom_wash_volume=10.0)
+      await self.backend.manifold_wash(bottom_wash=True, bottom_wash_volume=10.0)
     with self.assertRaises(ValueError):
-      await self.backend.wash(bottom_wash=True, bottom_wash_volume=0.0)
+      await self.backend.manifold_wash(bottom_wash=True, bottom_wash_volume=0.0)
 
   async def test_bottom_wash_validates_flow_rate(self):
     """Bottom wash should validate flow rate range."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(bottom_wash=True, bottom_wash_volume=200.0, bottom_wash_flow_rate=0)
+      await self.backend.manifold_wash(bottom_wash=True, bottom_wash_volume=200.0, bottom_wash_flow_rate=0)
 
   async def test_bottom_wash_sends_command(self):
     """Bottom wash should send a command successfully."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.wash(bottom_wash=True, bottom_wash_volume=200.0, bottom_wash_flow_rate=5)
+    await self.backend.manifold_wash(bottom_wash=True, bottom_wash_volume=200.0, bottom_wash_flow_rate=5)
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
@@ -916,19 +916,19 @@ class TestWashPreDispenseBetweenCyclesValidation(unittest.IsolatedAsyncioTestCas
   async def test_midcyc_validates_volume(self):
     """Pre-dispense between cycles should validate volume (0 or 25-3000)."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(pre_dispense_between_cycles_volume=10.0)
+      await self.backend.manifold_wash(pre_dispense_between_cycles_volume=10.0)
 
   async def test_midcyc_validates_flow_rate(self):
     """Pre-dispense between cycles should validate flow rate."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(
+      await self.backend.manifold_wash(
         pre_dispense_between_cycles_volume=50.0, pre_dispense_between_cycles_flow_rate=0
       )
 
   async def test_midcyc_sends_command(self):
     """Pre-dispense between cycles should send a command successfully."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.wash(
+    await self.backend.manifold_wash(
       pre_dispense_between_cycles_volume=50.0, pre_dispense_between_cycles_flow_rate=9
     )
     self.assertGreater(len(self.backend.io.written_data), initial_count)
@@ -936,16 +936,13 @@ class TestWashPreDispenseBetweenCyclesValidation(unittest.IsolatedAsyncioTestCas
 
 class TestWashCaptureVectors(unittest.TestCase):
   """Byte-exact match against reference captures from real EL406 hardware.
-
-  Each test builds a command with the same parameters as a LHC protocol and
-  asserts exact match against the MANIFOLD_WASH bytes extracted from captures.
   """
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
 
-  def test_baseline_tobias_test1(self):
-    """Baseline wash: 15 cycles, 300uL, flow 7, Z=121, travel 3, asp Z=29."""
+  def test_baseline(self):
+    """Baseline wash: 3 cycles, flow 7, Z=121, travel 3, asp Z=29."""
     expected = bytes.fromhex(
       "040001000f0003412c01070000790000000900000000000000000000000300001d000000001d"
       "0000000000000000000000000300001d000000001d000000000000000000412c010700007900"
@@ -975,10 +972,7 @@ class TestWashCaptureVectors(unittest.TestCase):
     self.assertEqual(cmd, expected)
 
   def test_final_secondary_aspirate_capture(self):
-    """Final secondary aspirate — mode byte at Asp1[5], Z at Asp1[8-9].
-
-    LHC wire capture from tobias-test4 Step 11: wash(cycles=2, buffer='A',
-    final_secondary_aspirate=True, final_secondary_z=40).
+    """Final secondary aspirate.
     """
     expected = bytes.fromhex(
       "040001000f0002412c010700007900000009000000000000000000000003"
@@ -1177,19 +1171,19 @@ class TestWash384WellValidation(unittest.IsolatedAsyncioTestCase):
   async def test_wash_format_invalid(self):
     """wash() should reject invalid wash_format values."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(wash_format="Invalid")
+      await self.backend.manifold_wash(wash_format="Invalid")
 
   async def test_sectors_invalid(self):
     """wash() should reject out-of-range sector/quadrant values."""
     with self.assertRaises(ValueError):
-      await self.backend.wash(sectors=[0])  # Must be 1-4
+      await self.backend.manifold_wash(sectors=[0])  # Must be 1-4
     with self.assertRaises(ValueError):
-      await self.backend.wash(sectors=[5])  # Must be 1-4
+      await self.backend.manifold_wash(sectors=[5])  # Must be 1-4
 
   async def test_wash_with_384_params_sends_command(self):
     """wash() should accept and send command with 384-well params."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.wash(wash_format="Sector", sectors=[2, 3, 4], cycles=1)
+    await self.backend.manifold_wash(wash_format="Sector", sectors=[2, 3, 4], cycles=1)
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 

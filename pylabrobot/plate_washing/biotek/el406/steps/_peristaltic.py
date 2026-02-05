@@ -16,11 +16,11 @@ from ..constants import (
 )
 from ..helpers import (
   cassette_to_byte,
-  columns_to_well_mask,
+  columns_to_column_mask,
+  encode_column_mask,
   encode_quadrant_mask_inverted,
   encode_signed_byte,
   encode_volume_16bit,
-  encode_well_mask,
   plate_type_default_z,
   plate_type_max_columns,
   plate_type_max_rows,
@@ -57,7 +57,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
           raise ValueError(f"Row {row} out of range for plate type (1-{max_rows}).")
 
     plate_wells = {12: 96, 24: 384, 48: 1536}.get(max_cols, 96)
-    return columns_to_well_mask(columns, plate_wells=plate_wells)
+    return columns_to_column_mask(columns, plate_wells=plate_wells)
 
   def _validate_peristaltic_dispense_params(
     self,
@@ -213,7 +213,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       offset_z=offset_z,
       pre_dispense_volume=pre_dispense_volume,
       num_pre_dispenses=num_pre_dispenses,
-      well_mask=well_indices,
+      column_mask=well_indices,
       rows=rows,
       pump=1,
     )
@@ -305,8 +305,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       [3-4]   Duration in seconds (LE) — 0x0000 when using volume mode
       [5]     Flow rate enum (0=Low, 1=Medium, 2=High)
       [6]     Reverse/submerge (0 or 1)
-      [7]     Cassette type (EnumCassetteType: eAny=0, e1ul=1, e5ul=2, e10ul=3)
-      [8]     Pump (EnumPeriPump: ePrimary=1, eSecondary=2)
+      [7]     Cassette type (Any: 0, 1uL: 1, 5uL: 2, 10uL: 3)
+      [8]     Pump (Primary: 1, Secondary: 2)
       [9-10]  Padding (0x0000)
 
     Args:
@@ -351,7 +351,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     offset_z: int = 336,
     pre_dispense_volume: float = 0.0,
     num_pre_dispenses: int = 2,
-    well_mask: list[int] | None = None,
+    column_mask: list[int] | None = None,
     rows: list[int] | None = None,
     pump: int = 1,
   ) -> bytes:
@@ -363,15 +363,15 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       [0]     Plate type (EL406PlateType enum value, e.g. 0x04=96-well)
       [1-2]   Volume (LE)
       [3]     Flow rate (0=Low, 1=Med, 2=High)
-      [4]     Cassette type (EnumCassetteType)
+      [4]     Cassette type (Any: 0, 1uL: 1, 5uL: 2, 10uL: 3)
       [5]     Offset X (signed byte)
       [6]     Offset Y (signed byte)
       [7-8]   Offset Z (LE)
       [9-10]  Pre-dispense volume (LE, 0 if disabled)
       [11]    Num pre-dispenses
-      [12-17] Well mask (48 bits packed, normal: 1=selected)
-      [18]    Quadrant/row mask (4 bits packed, INVERTED: 0=selected, 1=deselected)
-      [19]    Pump (EnumPeriPump: ePrimary=1, eSecondary=2)
+      [12-17] Column mask (48 bits packed, normal: 1=selected)
+      [18]    Row mask (4 bits packed, INVERTED: 0=selected, 1=deselected)
+      [19]    Pump (Primary: 1, Secondary: 2)
       [20-23] Padding
 
     Args:
@@ -383,7 +383,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       offset_z: Z offset (0.1mm units).
       pre_dispense_volume: Pre-dispense volume in µL.
       num_pre_dispenses: Number of pre-dispenses (default 2).
-      well_mask: List of well indices (0-47) or None for all wells.
+      column_mask: List of column indices (0-47) or None for all columns.
       rows: List of row numbers (1-4) or None for all rows.
       pump: Pump (1=Primary, 2=Secondary).
 
@@ -399,8 +399,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     num_row_groups = plate_type_max_rows(self.plate_type)
     row_mask_byte = encode_quadrant_mask_inverted(rows, num_row_groups=num_row_groups)
 
-    # Encode well mask (6 bytes)
-    well_mask_bytes = encode_well_mask(well_mask)
+    # Encode column mask (6 bytes)
+    column_mask_bytes = encode_column_mask(column_mask)
 
     return (
       bytes(
@@ -419,7 +419,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
           num_pre_dispenses,  # Number of pre-dispenses
         ]
       )
-      + well_mask_bytes
+      + column_mask_bytes
       + bytes(
         [
           row_mask_byte,  # Row mask (inverted: 0=selected)
