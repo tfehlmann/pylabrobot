@@ -130,9 +130,3 @@ class TestPlateTypeValidation(unittest.TestCase):
     with self.assertRaises((ValueError, TypeError)):
       validate_plate_type([1, 2, 3])
 
-  def test_validate_plate_type_raises_for_invalid_via_set(self):
-    """set_plate_type should raise ValueError for invalid input."""
-    with self.assertRaises(ValueError):
-      validate_plate_type(999)
-    with self.assertRaises((ValueError, TypeError)):
-      validate_plate_type("invalid")

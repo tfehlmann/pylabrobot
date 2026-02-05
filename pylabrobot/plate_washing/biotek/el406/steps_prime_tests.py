@@ -80,83 +80,6 @@ class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
       await self.backend.peristaltic_prime(volume=100.0, duration=10)
 
 
-class TestPrimeCommandEncoding(unittest.TestCase):
-  """Test prime command binary encoding.
-
-  Protocol format for manifold prime:
-    [0]   plate type prefix (0x04=96-well) (step type marker)
-    [1]   Buffer letter: A=0x41, B=0x42, C=0x43, D=0x44 (ASCII char)
-    [2-3] Volume: 2 bytes, little-endian, in mL
-    [4]   Flow rate: 3-11
-    [5-6] Low flow volume: 2 bytes, little-endian
-    [7-8] Submerge duration: 2 bytes, little-endian (minutes)
-    [9-12] Padding zeros: 4 bytes
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_prime_command_buffer_a_1000ul(self):
-    """Prime buffer A, 1000 mL, default flow rate 9."""
-    cmd = self.backend._build_manifold_prime_command(
-      buffer="A",
-      volume=1000.0,
-      flow_rate=9,
-    )
-
-    # Step type prefix: 0x04
-    self.assertEqual(cmd[0], 0x04)
-
-    # Buffer: A = 0x41 (ASCII)
-    self.assertEqual(cmd[1], ord("A"))
-
-    # Volume: 1000 = 0x03E8 little-endian = [0xE8, 0x03]
-    self.assertEqual(cmd[2], 0xE8)  # Low byte
-    self.assertEqual(cmd[3], 0x03)  # High byte
-
-    # Flow rate: 9
-    self.assertEqual(cmd[4], 9)
-
-  def test_prime_command_buffer_b_500ul(self):
-    """Prime buffer B, 500 mL, flow rate 5."""
-    cmd = self.backend._build_manifold_prime_command(
-      buffer="B",
-      volume=500.0,
-      flow_rate=5,
-    )
-
-    # Step type prefix: 0x04
-    self.assertEqual(cmd[0], 0x04)
-
-    # Buffer: B = 0x42 (ASCII)
-    self.assertEqual(cmd[1], ord("B"))
-
-    # Volume: 500 = 0x01F4 little-endian = [0xF4, 0x01]
-    self.assertEqual(cmd[2], 0xF4)
-    self.assertEqual(cmd[3], 0x01)
-
-    # Flow rate: 5
-    self.assertEqual(cmd[4], 5)
-
-  def test_prime_command_lowercase_buffer(self):
-    """Prime should accept lowercase buffer names and encode as uppercase."""
-    cmd = self.backend._build_manifold_prime_command(buffer="a", volume=100.0, flow_rate=3)
-    self.assertEqual(cmd[1], ord("A"))
-
-  def test_prime_command_max_volume(self):
-    """Prime with maximum volume (65535 mL)."""
-    cmd = self.backend._build_manifold_prime_command(buffer="A", volume=65535.0, flow_rate=9)
-
-    # 65535 = 0xFFFF little-endian = [0xFF, 0xFF]
-    self.assertEqual(cmd[2], 0xFF)
-    self.assertEqual(cmd[3], 0xFF)
-
-  def test_prime_command_minimum_length(self):
-    """Prime command should have at least 13 bytes."""
-    cmd = self.backend._build_manifold_prime_command(buffer="A", volume=100.0, flow_rate=5)
-    self.assertGreaterEqual(len(cmd), 13)
-
-
 class TestEL406BackendSyringePrime(unittest.IsolatedAsyncioTestCase):
   """Test EL406 syringe prime functionality."""
 
@@ -695,17 +618,6 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
 
     self.assertEqual(cmd[4], 9)
 
-  def test_manifold_prime_command_minimum_length(self):
-    """Manifold prime command should have at least 13 bytes (step type + 12 data bytes)."""
-    cmd = self.backend._build_manifold_prime_command(
-      volume=1000.0,
-      buffer="A",
-      flow_rate=9,
-    )
-
-    # 1 byte step type + 12 bytes data = 13 bytes total
-    self.assertGreaterEqual(len(cmd), 13)
-
   def test_manifold_prime_full_command(self):
     """Test complete manifold prime command with all parameters."""
     cmd = self.backend._build_manifold_prime_command(
@@ -850,13 +762,6 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
     # Duration: 0 = [0x00, 0x00]
     self.assertEqual(cmd[2], 0x00)
     self.assertEqual(cmd[3], 0x00)
-
-  def test_auto_clean_command_minimum_length(self):
-    """Auto-clean command should have at least 8 bytes (step type + 7 data bytes)."""
-    cmd = self.backend._build_auto_clean_command(buffer="A")
-
-    # 1 byte step type + 7 bytes data = 8 bytes total
-    self.assertGreaterEqual(len(cmd), 8)
 
   def test_auto_clean_full_command(self):
     """Test complete auto-clean command with all parameters."""

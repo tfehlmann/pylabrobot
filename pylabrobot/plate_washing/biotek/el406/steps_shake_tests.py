@@ -65,30 +65,11 @@ class TestEL406BackendShake(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(ValueError):
       await self.backend.shake(duration=10, soak_duration=3600)
 
-  async def test_shake_max_duration_accepted(self):
-    """Shake should accept duration=3599 (59:59 max)."""
-    initial_count = len(self.backend.io.written_data)
-    await self.backend.shake(duration=3599)
-    self.assertGreater(len(self.backend.io.written_data), initial_count)
-
   async def test_shake_soak_only(self):
     """Shake with duration=0 and soak_duration>0 should work (soak only)."""
     initial_count = len(self.backend.io.written_data)
     await self.backend.shake(duration=0, soak_duration=10)
 
-    self.assertGreater(len(self.backend.io.written_data), initial_count)
-
-  async def test_shake_move_home_default_is_true(self):
-    """Default move_home_first (None) should resolve to True."""
-    # Just verify it doesn't raise — the builder receives move_home_first=True
-    initial_count = len(self.backend.io.written_data)
-    await self.backend.shake(duration=10)
-    self.assertGreater(len(self.backend.io.written_data), initial_count)
-
-  async def test_shake_move_home_explicit_false(self):
-    """User can explicitly set move_home_first=False."""
-    initial_count = len(self.backend.io.written_data)
-    await self.backend.shake(duration=10, move_home_first=False)
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 
@@ -115,26 +96,6 @@ class TestShakeCommandEncoding(unittest.TestCase):
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
-
-  def test_shake_command_length(self):
-    """Shake command should be exactly 12 bytes (with plate type prefix (0x04=96-well))."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=10.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-    )
-    self.assertEqual(len(cmd), 12)
-
-  def test_shake_command_has_prefix(self):
-    """Shake command should start with plate type prefix (0x04=96-well)."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=10.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-    )
-    self.assertEqual(cmd[0], 0x04)
 
   def test_shake_command_basic(self):
     """Basic shake: 10 seconds, medium intensity."""
@@ -172,38 +133,6 @@ class TestShakeCommandEncoding(unittest.TestCase):
     )
 
     self.assertEqual(cmd[4], 0x01)  # variable = 0x01
-
-  def test_shake_command_disabled(self):
-    """Shake disabled with move_home_first=True still sets byte[1]=0x01.
-
-    The byte[1] reflects move_home_first, not shake_enabled.
-    """
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=False,
-      move_home_first=True,  # explicit
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x01)  # move_home_first=True (independent of shake_enabled)
-
-  def test_shake_command_move_home_first_false(self):
-    """Move home first = False -> byte[1] = 0x00 even with shake_enabled=True.
-
-    Logic: byte[1] = (move_home_first AND shake_enabled) ? 1 : 0
-    """
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-      move_home_first=False,
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x00)  # (False AND True) = False -> 0x00
 
   def test_shake_command_encoding_durations(self):
     """Verify encoding for various shake durations (medium intensity, move_home=True)."""

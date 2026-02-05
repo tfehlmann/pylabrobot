@@ -513,21 +513,6 @@ class TestGetSyringeBoxInfo(unittest.IsolatedAsyncioTestCase):
     if self.backend.io is not None:
       await self.backend.stop()
 
-  async def test_get_syringe_box_info_returns_dict(self):
-    """get_syringe_box_info should return a dictionary."""
-    # Mock response: [box_type=1, box_size=50, ACK]
-    self.backend.io.set_read_buffer(b"\x01\x32\x06")
-    result = await self.backend.get_syringe_box_info()
-    self.assertIsInstance(result, dict)
-
-  async def test_get_syringe_box_info_has_required_keys(self):
-    """get_syringe_box_info result should have box_type, box_size, and installed keys."""
-    self.backend.io.set_read_buffer(b"\x01\x32\x06")
-    result = await self.backend.get_syringe_box_info()
-    self.assertIn("box_type", result)
-    self.assertIn("box_size", result)
-    self.assertIn("installed", result)
-
   async def test_get_syringe_box_info_parses_response_correctly(self):
     """get_syringe_box_info should correctly parse box_type and box_size."""
     # Mock response: [box_type=2, box_size=100, ACK]
@@ -574,12 +559,6 @@ class TestGetPeristalticInstalled(unittest.IsolatedAsyncioTestCase):
   async def asyncTearDown(self):
     if self.backend.io is not None:
       await self.backend.stop()
-
-  async def test_get_peristaltic_installed_returns_bool(self):
-    """get_peristaltic_installed should return a boolean."""
-    self.backend.io.set_read_buffer(b"\x01\x06")
-    result = await self.backend.get_peristaltic_installed(selector=0)
-    self.assertIsInstance(result, bool)
 
   async def test_get_peristaltic_installed_true_when_installed(self):
     """get_peristaltic_installed should return True when pump is installed."""
