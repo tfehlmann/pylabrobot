@@ -18,7 +18,7 @@ from ..helpers import (
   encode_column_mask,
   encode_signed_byte,
   encode_volume_16bit,
-  plate_type_max_columns,
+  plate_type_well_count,
   syringe_to_byte,
   validate_offset_xy,
   validate_offset_z,
@@ -89,8 +89,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     validate_pump_delay(pump_delay)
 
     # Convert 1-indexed columns to 0-indexed column indices
-    plate_wells = {12: 96, 24: 384, 48: 1536}.get(plate_type_max_columns(self.plate_type), 96)
-    column_indices = columns_to_column_mask(columns, plate_wells=plate_wells)
+    column_indices = columns_to_column_mask(columns, plate_wells=plate_type_well_count(self.plate_type))
 
     logger.info(
       "Syringe dispense: %.1f uL from syringe %s, flow rate %d",

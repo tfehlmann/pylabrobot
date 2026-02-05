@@ -388,6 +388,12 @@ def plate_type_max_rows(plate_type) -> int:
   return {12: 1, 24: 2, 48: 4}[cols]
 
 
+def plate_type_well_count(plate_type) -> int:
+  """Return the well count for a plate type (96, 384, or 1536)."""
+  cols = PLATE_TYPE_DEFAULTS[plate_type]["cols"]
+  return {12: 96, 24: 384, 48: 1536}[cols]
+
+
 def plate_type_default_z(plate_type) -> int:
   """Return the default dispenser Z height for a plate type."""
   return PLATE_TYPE_DEFAULTS[plate_type]["dispenser_height"]

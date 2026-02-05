@@ -24,6 +24,7 @@ from ..helpers import (
   plate_type_default_z,
   plate_type_max_columns,
   plate_type_max_rows,
+  plate_type_well_count,
   validate_peristaltic_flow_rate,
   validate_volume,
 )
@@ -56,8 +57,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
         if row < 1 or row > max_rows:
           raise ValueError(f"Row {row} out of range for plate type (1-{max_rows}).")
 
-    plate_wells = {12: 96, 24: 384, 48: 1536}.get(max_cols, 96)
-    return columns_to_column_mask(columns, plate_wells=plate_wells)
+    return columns_to_column_mask(columns, plate_wells=plate_type_well_count(self.plate_type))
 
   def _validate_peristaltic_dispense_params(
     self,

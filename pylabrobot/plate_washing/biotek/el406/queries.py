@@ -43,43 +43,41 @@ class EL406QueriesMixin:
     self._send_framed_query: Async method for sending framed queries
   """
 
-  async def get_washer_manifold(self) -> EL406WasherManifold:
-    """Query the installed washer manifold type."""
-    logger.info("Querying washer manifold type")
-    response_data = await self._send_framed_query(GET_WASHER_MANIFOLD_COMMAND)
-    logger.debug("Washer manifold response data: %s", response_data.hex())
-    manifold_byte = response_data[2] if len(response_data) > 2 else response_data[0]
+  @staticmethod
+  def _extract_payload_byte(response_data: bytes) -> int:
+    """Extract the first payload byte, handling optional 2-byte header prefix."""
+    return response_data[2] if len(response_data) > 2 else response_data[0]
+
+  async def _query_enum(self, command: int, enum_cls: type, label: str):
+    """Send a framed query and parse the response byte as an *enum_cls* member."""
+    logger.info("Querying %s", label)
+    response_data = await self._send_framed_query(command)
+    logger.debug("%s response data: %s", label.capitalize(), response_data.hex())
+    value_byte = self._extract_payload_byte(response_data)
 
     try:
-      manifold = EL406WasherManifold(manifold_byte)
+      result = enum_cls(value_byte)
     except ValueError:
-      logger.warning("Unknown washer manifold type: %d (0x%02X)", manifold_byte, manifold_byte)
+      logger.warning("Unknown %s: %d (0x%02X)", label, value_byte, value_byte)
       raise ValueError(
-        f"Unknown washer manifold type: {manifold_byte} (0x{manifold_byte:02X}). "
-        f"Valid types: {[m.name for m in EL406WasherManifold]}"
+        f"Unknown {label}: {value_byte} (0x{value_byte:02X}). "
+        f"Valid types: {[m.name for m in enum_cls]}"
       ) from None
 
-    logger.info("Washer manifold installed: %s (0x%02X)", manifold.name, manifold.value)
-    return manifold
+    logger.info("%s: %s (0x%02X)", label.capitalize(), result.name, result.value)
+    return result
+
+  async def get_washer_manifold(self) -> EL406WasherManifold:
+    """Query the installed washer manifold type."""
+    return await self._query_enum(
+      GET_WASHER_MANIFOLD_COMMAND, EL406WasherManifold, "washer manifold type"
+    )
 
   async def get_syringe_manifold(self) -> EL406SyringeManifold:
     """Query the installed syringe manifold type."""
-    logger.info("Querying syringe manifold type")
-    response_data = await self._send_framed_query(GET_SYRINGE_MANIFOLD_COMMAND)
-    logger.debug("Syringe manifold response data: %s", response_data.hex())
-    manifold_byte = response_data[2] if len(response_data) > 2 else response_data[0]
-
-    try:
-      manifold = EL406SyringeManifold(manifold_byte)
-    except ValueError:
-      logger.warning("Unknown syringe manifold type: %d (0x%02X)", manifold_byte, manifold_byte)
-      raise ValueError(
-        f"Unknown syringe manifold type: {manifold_byte} (0x{manifold_byte:02X}). "
-        f"Valid types: {[m.name for m in EL406SyringeManifold]}"
-      ) from None
-
-    logger.info("Syringe manifold installed: %s (0x%02X)", manifold.name, manifold.value)
-    return manifold
+    return await self._query_enum(
+      GET_SYRINGE_MANIFOLD_COMMAND, EL406SyringeManifold, "syringe manifold type"
+    )
 
   async def get_serial_number(self) -> str:
     """Query the product serial number."""
@@ -94,8 +92,7 @@ class EL406QueriesMixin:
     logger.info("Querying sensor enabled status: %s", sensor.name)
     response_data = await self._send_framed_query(GET_SENSOR_ENABLED_COMMAND, bytes([sensor.value]))
     logger.debug("Sensor enabled response data: %s", response_data.hex())
-    enabled_byte = response_data[2] if len(response_data) > 2 else response_data[0]
-    enabled = bool(enabled_byte)
+    enabled = bool(self._extract_payload_byte(response_data))
     logger.info("Sensor %s enabled: %s", sensor.name, enabled)
     return enabled
 
@@ -105,7 +102,7 @@ class EL406QueriesMixin:
     response_data = await self._send_framed_query(GET_SYRINGE_BOX_INFO_COMMAND)
     logger.debug("Syringe box info response data: %s", response_data.hex())
 
-    box_type = response_data[2] if len(response_data) > 2 else response_data[0]
+    box_type = self._extract_payload_byte(response_data)
     box_size = (
       response_data[3]
       if len(response_data) > 3
@@ -131,8 +128,7 @@ class EL406QueriesMixin:
     response_data = await self._send_framed_query(GET_PERISTALTIC_INSTALLED_COMMAND, bytes([selector]))
     logger.debug("Peristaltic installed response data: %s", response_data.hex())
 
-    installed_byte = response_data[2] if len(response_data) > 2 else response_data[0]
-    installed = bool(installed_byte)
+    installed = bool(self._extract_payload_byte(response_data))
 
     logger.info("Peristaltic pump %d installed: %s", selector, installed)
     return installed
@@ -163,7 +159,7 @@ class EL406QueriesMixin:
     logger.info("Running instrument self-check")
     response_data = await self._send_framed_query(RUN_SELF_CHECK_COMMAND, timeout=LONG_READ_TIMEOUT)
     logger.debug("Self-check response data: %s", response_data.hex())
-    error_code = response_data[2] if len(response_data) > 2 else response_data[0]
+    error_code = self._extract_payload_byte(response_data)
     success = error_code == 0
 
     result = {

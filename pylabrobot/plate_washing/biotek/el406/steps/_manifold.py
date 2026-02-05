@@ -349,12 +349,11 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     pre_dispense_between_cycles_flow_rate: int,
     wash_format: Literal["Plate", "Sector"],
     sector_mask: int,
-  ) -> tuple[float, int, int, int, int, int]:
+  ) -> tuple[float, int, int, int, int]:
     """Validate wash parameters and resolve plate-type defaults.
 
     Returns:
-      (dispense_volume, dispense_z, aspirate_z, secondary_z,
-       final_secondary_z, sector_mask)
+      (dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z)
     """
     dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z = (
       self._resolve_wash_defaults(
@@ -379,7 +378,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       bottom_wash, bottom_wash_volume, bottom_wash_flow_rate,
       pre_dispense_between_cycles_volume, pre_dispense_between_cycles_flow_rate,
     )
-    return (dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z, sector_mask)
+    return (dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z)
 
   async def manifold_aspirate(
     self,
@@ -663,7 +662,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       sector_mask = 0x0F
 
     (dispense_volume, dispense_z, aspirate_z, secondary_z,
-     final_secondary_z, sector_mask) = self._validate_wash_params(
+     final_secondary_z) = self._validate_wash_params(
       cycles=cycles,
       buffer=buffer,
       dispense_volume=dispense_volume,
@@ -933,17 +932,11 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Returns a dict of named byte values used by the section builders in
     ``_build_wash_composite_command``.
     """
-    pt_defaults = get_plate_type_wash_defaults(self.plate_type)
-    if dispense_volume is None:
-      dispense_volume = pt_defaults["dispense_volume"]
-    if dispense_z is None:
-      dispense_z = pt_defaults["dispense_z"]
-    if aspirate_z is None:
-      aspirate_z = pt_defaults["aspirate_z"]
-    if secondary_z is None:
-      secondary_z = pt_defaults["aspirate_z"]
-    if final_secondary_z is None:
-      final_secondary_z = pt_defaults["aspirate_z"]
+    dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z = (
+      self._resolve_wash_defaults(
+        dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z,
+      )
+    )
 
     vol_low = int(dispense_volume) & 0xFF
     vol_high = (int(dispense_volume) >> 8) & 0xFF
