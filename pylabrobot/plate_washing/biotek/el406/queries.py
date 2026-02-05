@@ -6,7 +6,9 @@ BioTek EL406 plate washer.
 
 from __future__ import annotations
 
+import enum
 import logging
+from typing import TypeVar
 
 from .constants import (
   GET_PERISTALTIC_INSTALLED_COMMAND,
@@ -48,7 +50,9 @@ class EL406QueriesMixin:
     """Extract the first payload byte, handling optional 2-byte header prefix."""
     return response_data[2] if len(response_data) > 2 else response_data[0]
 
-  async def _query_enum(self, command: int, enum_cls: type, label: str):
+  _E = TypeVar("_E", bound=enum.Enum)
+
+  async def _query_enum(self, command: int, enum_cls: type[_E], label: str) -> _E:
     """Send a framed query and parse the response byte as an *enum_cls* member."""
     logger.info("Querying %s", label)
     response_data = await self._send_framed_query(command)
