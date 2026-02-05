@@ -72,61 +72,6 @@ class TestEL406BackendAbort(unittest.IsolatedAsyncioTestCase):
       await backend.abort()
 
 
-class TestAbortCommandEncoding(unittest.TestCase):
-  """Test abort command binary encoding.
-
-  Protocol format for abort:
-    Command byte: 137 (0x89)
-    The step type parameter may be included in the command.
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_build_abort_command_basic(self):
-    """Abort command should start with byte 137 (0x89)."""
-    cmd = self.backend._build_abort_command()
-
-    self.assertEqual(cmd[0], 0x89)
-
-  def test_build_abort_command_with_step_type(self):
-    """Abort command with step type should include step type byte."""
-    cmd = self.backend._build_abort_command(step_type=EL406StepType.M_WASH)
-
-    self.assertEqual(cmd[0], 0x89)
-    # Step type should be included (M_WASH = 6)
-    self.assertEqual(cmd[1], EL406StepType.M_WASH.value)
-
-  def test_build_abort_command_default_step_type_zero(self):
-    """Abort command without step type should use 0 (abort current)."""
-    cmd = self.backend._build_abort_command()
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0x89)  # Command byte
-    self.assertEqual(cmd[1], 0)  # Default step type = 0 (abort current)
-
-  def test_build_abort_command_step_type_aspirate(self):
-    """Abort with M_ASPIRATE step type."""
-    cmd = self.backend._build_abort_command(step_type=EL406StepType.M_ASPIRATE)
-
-    self.assertEqual(cmd[0], 0x89)
-    self.assertEqual(cmd[1], EL406StepType.M_ASPIRATE.value)
-
-  def test_build_abort_command_step_type_dispense(self):
-    """Abort with M_DISPENSE step type."""
-    cmd = self.backend._build_abort_command(step_type=EL406StepType.M_DISPENSE)
-
-    self.assertEqual(cmd[0], 0x89)
-    self.assertEqual(cmd[1], EL406StepType.M_DISPENSE.value)
-
-  def test_build_abort_command_all_step_types(self):
-    """Abort command should work with all valid step types."""
-    for step_type in EL406StepType:
-      cmd = self.backend._build_abort_command(step_type=step_type)
-      self.assertEqual(cmd[0], 0x89)
-      self.assertEqual(cmd[1], step_type.value)
-
-
 class TestEL406BackendPause(unittest.IsolatedAsyncioTestCase):
   """Test EL406 pause functionality.
 
@@ -185,24 +130,6 @@ class TestEL406BackendPause(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(resume_cmd[2], 0x8B)
 
 
-class TestPauseCommandEncoding(unittest.TestCase):
-  """Test pause command binary encoding.
-
-  Protocol format for pause:
-    Command byte: 138 (0x8A)
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_build_pause_command(self):
-    """Pause command should be byte 138 (0x8A)."""
-    cmd = self.backend._build_pause_command()
-
-    self.assertEqual(len(cmd), 1)
-    self.assertEqual(cmd[0], 0x8A)
-
-
 class TestEL406BackendResume(unittest.IsolatedAsyncioTestCase):
   """Test EL406 resume functionality.
 
@@ -247,24 +174,6 @@ class TestEL406BackendResume(unittest.IsolatedAsyncioTestCase):
     self.backend.dev.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.resume()
-
-
-class TestResumeCommandEncoding(unittest.TestCase):
-  """Test resume command binary encoding.
-
-  Protocol format for resume:
-    Command byte: 139 (0x8B)
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_build_resume_command(self):
-    """Resume command should be byte 139 (0x8B)."""
-    cmd = self.backend._build_resume_command()
-
-    self.assertEqual(len(cmd), 1)
-    self.assertEqual(cmd[0], 0x8B)
 
 
 class TestEL406BackendReset(unittest.IsolatedAsyncioTestCase):
@@ -312,24 +221,6 @@ class TestEL406BackendReset(unittest.IsolatedAsyncioTestCase):
     self.backend.dev.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.reset()
-
-
-class TestResetCommandEncoding(unittest.TestCase):
-  """Test reset command binary encoding.
-
-  Protocol format for reset:
-    Command byte: 112 (0x70)
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_build_reset_command(self):
-    """Reset command should be byte 112 (0x70)."""
-    cmd = self.backend._build_reset_command()
-
-    self.assertEqual(len(cmd), 1)
-    self.assertEqual(cmd[0], 0x70)
 
 
 class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
@@ -398,127 +289,6 @@ class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
 
     with self.assertRaises(RuntimeError):
       await backend.home_motors(home_type=EL406MotorHomeType.HOME_XYZ_MOTORS)
-
-
-class TestHomeMotorsCommandEncoding(unittest.TestCase):
-  """Test motor homing command binary encoding.
-
-  Protocol format for HomeVerifyMotors:
-    The command is sent via method with timeout 32000ms.
-    Then sends command 200 with 2 character parameters:
-      char[0] = home_type (byte cast from short)
-      char[1] = motor_number (byte)
-
-  Command structure:
-    [0]   Command byte: 200 (0xC8) - HOME_VERIFY_MOTORS_COMMAND
-    [1]   Home type: 1-6 from EL406MotorHomeType
-    [2]   Motor number: 0-11 from EL406Motor
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_home_motors_command_byte(self):
-    """home_motors command should use command byte 200 (0xC8)."""
-    from pylabrobot.plate_washing.biotek.el406 import (
-      EL406Motor,
-      EL406MotorHomeType,
-    )
-    from pylabrobot.plate_washing.biotek.el406.constants import HOME_VERIFY_MOTORS_COMMAND
-
-    self.assertEqual(HOME_VERIFY_MOTORS_COMMAND, 200)
-
-    cmd = self.backend._build_home_motors_command(
-      home_type=EL406MotorHomeType.HOME_MOTOR,
-      motor=EL406Motor.CARRIER_X,
-    )
-
-    self.assertEqual(cmd[0], 200)
-
-  def test_home_motors_command_home_type_encoding(self):
-    """home_motors command should encode home type at byte 1."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
-
-    for home_type in EL406MotorHomeType:
-      cmd = self.backend._build_home_motors_command(
-        home_type=home_type,
-        motor=EL406Motor.CARRIER_X,
-      )
-      self.assertEqual(cmd[1], home_type.value)
-
-  def test_home_motors_command_motor_encoding(self):
-    """home_motors command should encode motor number at byte 2."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
-
-    for motor in EL406Motor:
-      cmd = self.backend._build_home_motors_command(
-        home_type=EL406MotorHomeType.HOME_MOTOR,
-        motor=motor,
-      )
-      self.assertEqual(cmd[2], motor.value)
-
-  def test_home_motors_command_length(self):
-    """home_motors command should be exactly 3 bytes."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
-
-    cmd = self.backend._build_home_motors_command(
-      home_type=EL406MotorHomeType.HOME_MOTOR,
-      motor=EL406Motor.CARRIER_X,
-    )
-
-    self.assertEqual(len(cmd), 3)
-
-  def test_home_motors_command_default_motor(self):
-    """home_motors command should default motor to 0 when not specified."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
-
-    cmd = self.backend._build_home_motors_command(
-      home_type=EL406MotorHomeType.HOME_XYZ_MOTORS,
-    )
-
-    self.assertEqual(cmd[2], 0)
-
-
-# =============================================================================
-# STRIP WASHER TESTS - TDD RED PHASE
-#
-# The strip washer operations (step types 13-16) are designed for strip-based
-# operations rather than full plate operations. The EL406 has a strip washer
-# module that can wash individual strips of wells.
-#
-# Step types:
-#   13 = eMWashStrip - Strip washer wash
-#   14 = eMAspirateStrip - Strip washer aspirate
-#   15 = eMDispenseStrip - Strip washer dispense
-#   16 = eMPrimeStrip - Strip washer prime
-#
-# The strip washer commands follow similar patterns to the manifold commands
-# but use their respective step types.
-# =============================================================================
-
-
-class TestValidateStep(unittest.IsolatedAsyncioTestCase):
-  """Test validate_step functionality.
-
-  validate_step is not implemented because validation is performed
-  locally, not by sending a command to the device.
-  """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    await self.backend.setup()
-
-  async def asyncTearDown(self):
-    if self.backend.dev is not None:
-      await self.backend.stop()
-
-  async def test_validate_step_raises_not_implemented(self):
-    """validate_step should raise NotImplementedError."""
-    with self.assertRaises(NotImplementedError):
-      await self.backend.validate_step(
-        step_type=EL406StepType.P_PRIME,
-        definition=bytes([0x02, 0xE8, 0x03, 0x00, 0x09]),
-      )
 
 
 class TestRunSelfCheck(unittest.IsolatedAsyncioTestCase):
@@ -669,15 +439,6 @@ class TestAutoPrimeDevice(unittest.IsolatedAsyncioTestCase):
     self.assertIn(2, list(last_command))
 
 
-# =============================================================================
-# CONFIGURATION TESTS (TDD - Written FIRST)
-#
-# These tests cover:
-# 7. set_instrument_settings(settings: dict) - Set instrument settings
-# 8. get_instrument_settings() - Get current instrument settings
-# =============================================================================
-
-
 class TestSetWasherManifold(unittest.IsolatedAsyncioTestCase):
   """Test set_washer_manifold functionality.
 
@@ -730,41 +491,3 @@ class TestSetWasherManifold(unittest.IsolatedAsyncioTestCase):
       await backend.set_washer_manifold(EL406WasherManifold.TUBE_96_DUAL)
 
 
-class TestSetWasherManifoldCommandEncoding(unittest.TestCase):
-  """Test set washer manifold command binary encoding.
-
-  Protocol format for set washer manifold:
-    [0]   Command byte: 0xD9 (217)
-    [1]   Manifold type: byte from EL406WasherManifold enum
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_build_set_washer_manifold_command_tube_96_dual(self):
-    """Set washer manifold command for TUBE_96_DUAL."""
-    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.TUBE_96_DUAL)
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD9)
-    self.assertEqual(cmd[1], 0)
-
-  def test_build_set_washer_manifold_command_tube_192(self):
-    """Set washer manifold command for TUBE_192."""
-    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.TUBE_192)
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD9)
-    self.assertEqual(cmd[1], 1)
-
-  def test_build_set_washer_manifold_command_tube_128(self):
-    """Set washer manifold command for TUBE_128."""
-    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.TUBE_128)
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD9)
-    self.assertEqual(cmd[1], 2)
-
-  def test_build_set_washer_manifold_command_not_installed(self):
-    """Set washer manifold command for NOT_INSTALLED."""
-    cmd = self.backend._build_set_washer_manifold_command(EL406WasherManifold.NOT_INSTALLED)
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD9)
-    self.assertEqual(cmd[1], 255)

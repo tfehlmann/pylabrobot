@@ -19,7 +19,7 @@ from .constants import (
   VALID_INTENSITIES,
   VALID_SYRINGES,
 )
-from .enums import EL406PlateType, EL406Quadrant
+from .enums import EL406PlateType
 
 
 def validate_buffer(buffer: str) -> None:
@@ -149,12 +149,6 @@ def validate_travel_rate(rate: int) -> None:
   """Validate travel rate (1-9)."""
   if not 1 <= rate <= 9:
     raise ValueError(f"travel_rate must be 1-9, got {rate}")
-
-
-def validate_duration_seconds(seconds: float, name: str = "duration") -> None:
-  """Validate a duration in seconds (must be >= 0)."""
-  if seconds < 0:
-    raise ValueError(f"{name} must be >= 0, got {seconds}")
 
 
 def validate_intensity(intensity: str) -> None:
@@ -451,29 +445,6 @@ def plate_type_default_z(plate_type) -> int:
   return PLATE_TYPE_DEFAULTS[plate_type]["dispenser_height"]
 
 
-def encode_submerge_time(hours: int, minutes: int) -> tuple[int, int]:
-  """Encode submerge time as little-endian uint16.
-
-  Encoding: total_minutes = hours * 60 + minutes.
-
-  Args:
-    hours: Hours (0+).
-    minutes: Minutes (0-59).
-
-  Returns:
-    Tuple of (low_byte, high_byte) for the uint16 LE encoding.
-
-  Raises:
-    ValueError: If time values are negative or total exceeds uint16.
-  """
-  if hours < 0 or minutes < 0:
-    raise ValueError(f"Time values must be non-negative: hours={hours}, minutes={minutes}")
-  total = hours * 60 + minutes
-  if total > 65535:
-    raise ValueError(f"Total minutes {total} exceeds uint16 max (65535)")
-  return (total & 0xFF, (total >> 8) & 0xFF)
-
-
 def travel_rate_to_byte(rate: str) -> int:
   """Convert travel rate string to wire byte value.
 
@@ -513,8 +484,6 @@ def travel_rate_to_byte(rate: str) -> int:
 
 
 VALID_TRAVEL_RATES = {"1", "2", "3", "4", "5", "1 CW", "2 CW", "3 CW", "4 CW", "6 CW"}
-NORMAL_TRAVEL_RATES = {"1", "2", "3", "4", "5"}
-CELL_WASH_TRAVEL_RATES = {"1 CW", "2 CW", "3 CW", "4 CW", "6 CW"}
 
 
 # =========================================================================
@@ -592,34 +561,3 @@ def get_plate_type_wash_defaults(
   }
 
 
-def encode_quadrant_mask(
-  quadrants: list[int | EL406Quadrant] | None,
-) -> bytes:
-  """Encode list of quadrant indices to 1-byte (4-bit) quadrant mask.
-
-  The quadrant mask allows operations on specific plate quadrants.
-  Bits 0-3 represent quadrants 1-4; bits 4-7 are unused.
-
-  Args:
-    quadrants: List of quadrant indices (0-3) or EL406Quadrant values,
-      or None for all quadrants.
-      If None, returns 0x0F (all 4 quadrants selected).
-      If empty list, returns 0x00 (no quadrants selected).
-
-  Returns:
-    1 byte representing the 4-bit quadrant mask.
-
-  Raises:
-    ValueError: If any quadrant index is out of range (not 0-3).
-  """
-  if quadrants is None:
-    return bytes([0x0F])
-
-  mask = 0
-  for quadrant in quadrants:
-    q_val = quadrant.value if isinstance(quadrant, EL406Quadrant) else quadrant
-    if q_val < 0 or q_val > 3:
-      raise ValueError(f"Quadrant index {q_val} out of range. Must be 0-3.")
-    mask |= 1 << q_val
-
-  return bytes([mask])

@@ -101,20 +101,3 @@ class EL406MotorHomeType(enum.IntEnum):
   VERIFY_XYZ_MOTORS = 6  # Verify all XYZ motor positions
 
 
-class EL406Quadrant(enum.IntEnum):
-  """Quadrant identifiers for partial plate operations.
-
-  The EL406 supports operating on specific quadrants of a plate.
-  A 96-well plate can be divided into 4 quadrants (each 48 wells).
-
-  Values represent bit positions in the quadrant mask byte:
-    - Bit 0: Quadrant 1 (top-left)
-    - Bit 1: Quadrant 2 (top-right)
-    - Bit 2: Quadrant 3 (bottom-left)
-    - Bit 3: Quadrant 4 (bottom-right)
-  """
-
-  QUADRANT_1 = 0  # Top-left quadrant
-  QUADRANT_2 = 1  # Top-right quadrant
-  QUADRANT_3 = 2  # Bottom-left quadrant
-  QUADRANT_4 = 3  # Bottom-right quadrant

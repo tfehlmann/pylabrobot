@@ -9,8 +9,6 @@ from __future__ import annotations
 # Protocol constants
 ACK_BYTE = 0x06
 NAK_BYTE = 0x15  # Negative acknowledgment - device rejected command
-XON = 0x11
-XOFF = 0x13
 
 # Control commands
 ABORT_COMMAND = 0x89  # Command 137
@@ -47,7 +45,6 @@ VACUUM_PUMP_CONTROL_COMMAND = 299  # 0x12B - LeaveVacuumPumpOn()
 
 # Peristaltic pump commands
 PERISTALTIC_DISPENSE_COMMAND = 143  # without ao flag
-PERISTALTIC_DISPENSE_COMMAND_AO = 375  # with ao flag
 PERISTALTIC_PRIME_COMMAND = 144
 PERISTALTIC_PURGE_COMMAND = 145
 
@@ -65,7 +62,6 @@ MANIFOLD_AUTO_CLEAN_COMMAND = 168  # 0xA8
 
 # Timeout constants
 DEFAULT_READ_TIMEOUT = 15.0  # seconds
-DEFAULT_WRITE_TIMEOUT = 5.0  # seconds
 LONG_READ_TIMEOUT = 120.0  # seconds, for long operations (wash cycles can take >30s)
 
 # Message framing constants

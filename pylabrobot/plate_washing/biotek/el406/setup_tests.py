@@ -139,26 +139,6 @@ class TestEL406BackendSerialization(unittest.TestCase):
     self.assertIsNone(backend.dev)
 
 
-# =============================================================================
-# PROTOCOL ENCODING TESTS (TDD - Written FIRST)
-#
-# These tests verify the exact byte sequences for EL406 commands based on
-# the protocol documentation in EL406_INTERFACE_NOTES.md
-#
-# Binary Command Structure:
-#   [0]     Step type byte
-#   [1-2]   Volume (ushort, little-endian)
-#   [3]     Valve byte (A=0, B=1, etc)
-#   [4]     Flow rate
-#   [5]     Offset X (sbyte)
-#   [6-7]   Offset Z (short, little-endian)
-#   ... additional parameters
-#
-# Step Types:
-#   P_PRIME = 2, M_WASH = 6, M_ASPIRATE = 7, M_DISPENSE = 8, SHAKE_SOAK = 11
-# =============================================================================
-
-
 class TestEL406SyringeManifold(unittest.TestCase):
   """Test EL406 syringe manifold enumeration."""
 
@@ -351,28 +331,6 @@ class TestEL406MotorHomeType(unittest.TestCase):
     from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
 
     self.assertEqual(EL406MotorHomeType.VERIFY_XYZ_MOTORS.value, 6)
-
-
-class TestEL406QuadrantEnum(unittest.TestCase):
-  """Test EL406Quadrant enumeration."""
-
-  def test_quadrant_enum_exists(self):
-    """EL406Quadrant enum should exist."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Quadrant
-
-    self.assertTrue(hasattr(EL406Quadrant, "QUADRANT_1"))
-    self.assertTrue(hasattr(EL406Quadrant, "QUADRANT_2"))
-    self.assertTrue(hasattr(EL406Quadrant, "QUADRANT_3"))
-    self.assertTrue(hasattr(EL406Quadrant, "QUADRANT_4"))
-
-  def test_quadrant_values(self):
-    """EL406Quadrant should have correct values 0-3."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Quadrant
-
-    self.assertEqual(EL406Quadrant.QUADRANT_1.value, 0)
-    self.assertEqual(EL406Quadrant.QUADRANT_2.value, 1)
-    self.assertEqual(EL406Quadrant.QUADRANT_3.value, 2)
-    self.assertEqual(EL406Quadrant.QUADRANT_4.value, 3)
 
 
 class TestPlateTypeConfiguration(unittest.TestCase):

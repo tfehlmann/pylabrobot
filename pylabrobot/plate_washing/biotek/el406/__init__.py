@@ -14,7 +14,6 @@ from .enums import (
   EL406Motor,
   EL406MotorHomeType,
   EL406PlateType,
-  EL406Quadrant,
   EL406Sensor,
   EL406StepType,
   EL406SyringeManifold,
@@ -24,7 +23,6 @@ from .errors import EL406CommunicationError, EL406DeviceError
 from .helpers import (
   buffer_to_byte,
   encode_duration_mmss,
-  encode_quadrant_mask,
   encode_signed_byte,
   encode_volume_16bit,
   encode_well_mask,

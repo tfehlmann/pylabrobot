@@ -439,32 +439,3 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       )
     )
 
-  def _build_peristaltic_purge_command(
-    self,
-    volume: float,
-    flow_rate: int = 2,
-    duration: int = 0,
-    reverse: bool = True,
-    cassette: str = "Any",
-    pump: int = 1,
-  ) -> bytes:
-    """Build peristaltic purge command bytes.
-
-    Purge uses the same data format as prime.
-    The data payload is identical — only the framing command code differs
-    (PERISTALTIC_PURGE_COMMAND=145 vs PERISTALTIC_PRIME_COMMAND=144).
-
-    This method returns the same bytes as _build_peristaltic_prime_command
-    but is kept for backward compatibility with tests that call it directly.
-
-    Returns:
-      Command bytes (11 bytes).
-    """
-    return self._build_peristaltic_prime_command(
-      volume=volume,
-      duration=duration,
-      flow_rate=flow_rate,
-      reverse=reverse,
-      cassette=cassette,
-      pump=pump,
-    )

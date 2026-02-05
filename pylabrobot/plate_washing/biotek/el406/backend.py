@@ -37,14 +37,11 @@ from pylabrobot.plate_washing.backend import PlateWasherBackend
 from .actions import EL406ActionsMixin
 from .communication import EL406CommunicationMixin
 from .constants import (
-  ACK_BYTE,
   DEFAULT_READ_TIMEOUT,
-  TEST_COMM_COMMAND,
 )
-from .enums import EL406PlateType, EL406StepType
+from .enums import EL406PlateType
 from .errors import EL406CommunicationError
 from .helpers import validate_plate_type
-from .protocol import build_framed_message
 from .queries import EL406QueriesMixin
 from .steps import EL406StepsMixin
 
@@ -185,18 +182,6 @@ class BioTekEL406Backend(
     """Get the current plate type."""
     return self.plate_type
 
-  async def prime(
-    self,
-    buffer: str = "A",
-    volume: float = 1000.0,
-  ) -> None:
-    """Prime the fluid lines (generic interface).
-
-    Delegates to ``manifold_prime()`` which supports buffer selection.
-    For peristaltic-specific priming (no buffer), use ``peristaltic_prime()`` directly.
-    """
-    await self.manifold_prime(volume=volume, buffer=buffer)
-
   def serialize(self) -> dict:
     """Serialize backend configuration."""
     return {
@@ -205,29 +190,3 @@ class BioTekEL406Backend(
       "plate_type": self.plate_type.value,
     }
 
-  def get_com_port(self) -> str:
-    """Get the current COM port or device identifier."""
-    if self.dev is None:
-      return ""
-    return "FTDI USB Device"
-
-  async def test_port(self, port: str) -> bool:
-    """Test communication on a specific port."""
-    logger.info("Testing communication on port: %s", port)
-    try:
-      framed_command = build_framed_message(TEST_COMM_COMMAND)
-      response = await self._send_framed_command(framed_command, timeout=5.0)
-      return ACK_BYTE in response
-    except (TimeoutError, RuntimeError):
-      return False
-
-  async def validate_step(
-    self,
-    step_type: EL406StepType,
-    definition: bytes,
-  ) -> bool:
-    """Validate a step definition before execution."""
-    raise NotImplementedError(
-      "Step validation is performed locally, not by device command. "
-      "Use operation-specific validation (e.g., prime(), wash()) which validate parameters."
-    )

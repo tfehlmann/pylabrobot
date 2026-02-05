@@ -248,18 +248,3 @@ def get_error_message(code: int) -> str:
   return ERROR_CODES.get(code, f"Unknown error code: 0x{code:04X} ({code})")
 
 
-def format_error(code: int, additional_info: str = "") -> str:
-  """
-  Format an error code with its message and optional additional info.
-
-  Args:
-      code: The error code.
-      additional_info: Optional additional context about the error.
-
-  Returns:
-      A formatted error string.
-  """
-  message = get_error_message(code)
-  if additional_info:
-    return f"Error 0x{code:04X}: {message} ({additional_info})"
-  return f"Error 0x{code:04X}: {message}"

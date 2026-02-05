@@ -143,34 +143,6 @@ class TestEL406BackendGetWasherManifold(unittest.IsolatedAsyncioTestCase):
     self.assertIn("Unknown", str(ctx.exception))
 
 
-class TestGetWasherManifoldCommandEncoding(unittest.TestCase):
-  """Test get washer manifold command binary encoding.
-
-  Protocol format for get washer manifold:
-    Command byte: 216 (0xD8)
-
-  Response format:
-    [0] Manifold type byte
-    [1] ACK (0x06)
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_get_washer_manifold_command_constant_defined(self):
-    """GET_WASHER_MANIFOLD_COMMAND constant should be 216 (0xD8)."""
-    from pylabrobot.plate_washing.biotek.el406.constants import GET_WASHER_MANIFOLD_COMMAND
-
-    self.assertEqual(GET_WASHER_MANIFOLD_COMMAND, 0xD8)
-
-  def test_build_get_washer_manifold_command(self):
-    """Get washer manifold command should be byte 216 (0xD8)."""
-    cmd = self.backend._build_get_washer_manifold_command()
-
-    self.assertEqual(len(cmd), 1)
-    self.assertEqual(cmd[0], 0xD8)
-
-
 class TestEL406BackendGetSyringeManifold(unittest.IsolatedAsyncioTestCase):
   """Test EL406 get syringe manifold query.
 
@@ -346,42 +318,6 @@ class TestEL406BackendGetSyringeManifold(unittest.IsolatedAsyncioTestCase):
     self.assertIn("Unknown", str(ctx.exception))
 
 
-class TestGetSyringeManifoldCommandEncoding(unittest.TestCase):
-  """Test get syringe manifold command binary encoding.
-
-  Protocol format for get syringe manifold:
-    Command byte: 187 (0xBB)
-
-  Response format:
-    [0] Manifold type byte
-    [1] ACK (0x06)
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_get_syringe_manifold_command_constant_defined(self):
-    """GET_SYRINGE_MANIFOLD_COMMAND constant should be 187 (0xBB)."""
-    from pylabrobot.plate_washing.biotek.el406.constants import GET_SYRINGE_MANIFOLD_COMMAND
-
-    self.assertEqual(GET_SYRINGE_MANIFOLD_COMMAND, 0xBB)
-
-  def test_build_get_syringe_manifold_command(self):
-    """Get syringe manifold command should be byte 187 (0xBB)."""
-    cmd = self.backend._build_get_syringe_manifold_command()
-
-    self.assertEqual(len(cmd), 1)
-    self.assertEqual(cmd[0], 0xBB)
-
-
-# =============================================================================
-# GET SERIAL NUMBER TESTS (TDD - Written FIRST)
-#
-# GetInstSerialNumber() - Command: 256 (0x0100) - 16-bit command!
-# Returns serial number as ASCII string followed by ACK
-# =============================================================================
-
-
 class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
   """Test EL406 get serial number query.
 
@@ -470,61 +406,6 @@ class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
     result = await self.backend.get_serial_number()
 
     self.assertEqual(result, "")
-
-
-class TestGetSerialNumberCommandEncoding(unittest.TestCase):
-  """Test get serial number command binary encoding.
-
-  Protocol format for get serial number:
-    Command: 256 (0x0100) - 16-bit command sent as [0x00, 0x01] little-endian
-
-  Response format:
-    [0..N-1] ASCII bytes of serial number
-    [N] ACK (0x06)
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_get_serial_number_command_constants_defined(self):
-    """GET_SERIAL_NUMBER_COMMAND constants should form 256 (0x0100)."""
-    from pylabrobot.plate_washing.biotek.el406.constants import (
-      GET_SERIAL_NUMBER_COMMAND_HIGH,
-      GET_SERIAL_NUMBER_COMMAND_LOW,
-    )
-
-    self.assertEqual(GET_SERIAL_NUMBER_COMMAND_LOW, 0x00)
-    self.assertEqual(GET_SERIAL_NUMBER_COMMAND_HIGH, 0x01)
-    # Together they form 256 (0x0100) in little-endian
-    combined = GET_SERIAL_NUMBER_COMMAND_LOW | (GET_SERIAL_NUMBER_COMMAND_HIGH << 8)
-    self.assertEqual(combined, 256)
-
-  def test_build_get_serial_number_command(self):
-    """Get serial number command should be 2 bytes [0x00, 0x01] (256 little-endian)."""
-    cmd = self.backend._build_get_serial_number_command()
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0x00)  # Low byte
-    self.assertEqual(cmd[1], 0x01)  # High byte
-
-
-# =============================================================================
-# GET SENSOR ENABLED TESTS (TDD - Written FIRST)
-#
-# GetSensorEnabled(byte p_bySensor, out bool p_bEnabled)
-# Command byte: 210 (0xD2)
-# Response: [enabled_byte][ACK_byte]
-#   - enabled_byte: 0 = disabled, 1 = enabled
-#
-# EnumSensor values:
-#   eVacuum = 0    - Vacuum sensor
-#   eWaste = 1     - Waste container sensor
-#   eFluid = 2     - Fluid level sensor
-#   eFlow = 3      - Flow sensor
-#   eFilterVac = 4 - Filter vacuum sensor
-#   ePlate = 5     - Plate presence sensor
-#   eNumSensors = 6 (sentinel, not used)
-# =============================================================================
 
 
 class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
@@ -706,118 +587,6 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
     with self.assertRaises(TimeoutError):
       await self.backend.get_sensor_enabled(EL406Sensor.VACUUM)
-
-
-class TestGetSensorEnabledCommandEncoding(unittest.TestCase):
-  """Test get sensor enabled command binary encoding.
-
-  Protocol format for get sensor enabled:
-    Command byte: 210 (0xD2)
-    Parameter: sensor type byte (0-5)
-
-  Response format:
-    [0] Enabled byte: 0 = disabled, 1 = enabled
-    [1] ACK (0x06)
-  """
-
-  def setUp(self):
-    self.backend = BioTekEL406Backend()
-
-  def test_get_sensor_enabled_command_constant_defined(self):
-    """GET_SENSOR_ENABLED_COMMAND constant should be 210 (0xD2)."""
-    from pylabrobot.plate_washing.biotek.el406.constants import GET_SENSOR_ENABLED_COMMAND
-
-    self.assertEqual(GET_SENSOR_ENABLED_COMMAND, 0xD2)
-
-  def test_build_get_sensor_enabled_command_vacuum(self):
-    """Get sensor enabled command for VACUUM should be [0xD2, 0x00]."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
-
-    cmd = self.backend._build_get_sensor_enabled_command(EL406Sensor.VACUUM)
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD2)
-    self.assertEqual(cmd[1], 0x00)
-
-  def test_build_get_sensor_enabled_command_waste(self):
-    """Get sensor enabled command for WASTE should be [0xD2, 0x01]."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
-
-    cmd = self.backend._build_get_sensor_enabled_command(EL406Sensor.WASTE)
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD2)
-    self.assertEqual(cmd[1], 0x01)
-
-  def test_build_get_sensor_enabled_command_fluid(self):
-    """Get sensor enabled command for FLUID should be [0xD2, 0x02]."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
-
-    cmd = self.backend._build_get_sensor_enabled_command(EL406Sensor.FLUID)
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD2)
-    self.assertEqual(cmd[1], 0x02)
-
-  def test_build_get_sensor_enabled_command_flow(self):
-    """Get sensor enabled command for FLOW should be [0xD2, 0x03]."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
-
-    cmd = self.backend._build_get_sensor_enabled_command(EL406Sensor.FLOW)
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD2)
-    self.assertEqual(cmd[1], 0x03)
-
-  def test_build_get_sensor_enabled_command_filter_vac(self):
-    """Get sensor enabled command for FILTER_VAC should be [0xD2, 0x04]."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
-
-    cmd = self.backend._build_get_sensor_enabled_command(EL406Sensor.FILTER_VAC)
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD2)
-    self.assertEqual(cmd[1], 0x04)
-
-  def test_build_get_sensor_enabled_command_plate(self):
-    """Get sensor enabled command for PLATE should be [0xD2, 0x05]."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
-
-    cmd = self.backend._build_get_sensor_enabled_command(EL406Sensor.PLATE)
-
-    self.assertEqual(len(cmd), 2)
-    self.assertEqual(cmd[0], 0xD2)
-    self.assertEqual(cmd[1], 0x05)
-
-  def test_build_get_sensor_enabled_command_all_sensors(self):
-    """Get sensor enabled command should work for all sensor types."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
-
-    for sensor in EL406Sensor:
-      cmd = self.backend._build_get_sensor_enabled_command(sensor)
-      self.assertEqual(len(cmd), 2)
-      self.assertEqual(cmd[0], 0xD2)
-      self.assertEqual(cmd[1], sensor.value)
-
-
-# =============================================================================
-# PERISTALTIC DISPENSE TESTS (TDD - Written FIRST)
-#
-# ePDispense (P_DISPENSE = 1) is the peristaltic pump dispense operation.
-# Unlike M_DISPENSE (manifold dispense), this uses the peristaltic pump system.
-#
-# Command structure:
-#   [0]   Step type: 0x01 (P_DISPENSE)
-#   [1-2] Volume: 2 bytes, little-endian, in uL
-#   [3]   Buffer valve: A=0, B=1, C=2, D=3
-#   [4]   Cassette type
-#   [5]   Offset X: signed byte
-#   [6]   Offset Y: signed byte
-#   [7-8] Offset Z: 2 bytes, little-endian
-#   [9-10] Prime volume: 2 bytes, little-endian
-#   [11]  Flow rate: 1-9
-#   ... additional well/quadrant selection bytes
-# =============================================================================
 
 
 class TestGetSyringeBoxInfo(unittest.IsolatedAsyncioTestCase):
@@ -1028,11 +797,3 @@ class TestGetInstrumentSettings(unittest.IsolatedAsyncioTestCase):
       await backend.get_instrument_settings()
 
 
-# =============================================================================
-# HARDWARE QUERIES TESTS (TDD - Written FIRST)
-#
-# These tests cover:
-# 9. set_washer_manifold(manifold: EL406WasherManifold) - Set washer manifold type
-# 10. get_syringe_box_info() - Get syringe box info
-# 11. get_peristaltic_installed(selector: int) - Check if peristaltic pump installed
-# =============================================================================
