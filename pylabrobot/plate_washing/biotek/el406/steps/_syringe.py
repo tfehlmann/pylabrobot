@@ -251,19 +251,12 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
     # Bottle selection based on syringe
     # EnumSyringeBottle: eUnused=0, eSyrA1=1, eSyrA2=2, eSyrB1=3, eSyrB2=4, eSyrA1B1=5
+    # Wire encoding is (EnumSyringeBottle value - 1)
     if _bottle_override is not None:
       bottle_byte = (_bottle_override - 1) & 0xFF
     else:
-      syringe_upper = syringe.upper() if isinstance(syringe, str) else syringe
-      if syringe_upper == "A":
-        bottle = 1  # eSyrA1
-      elif syringe_upper == "B":
-        bottle = 3  # eSyrB1
-      elif syringe_upper == "BOTH":
-        bottle = 5  # eSyrA1B1
-      else:
-        bottle = 1  # default to eSyrA1
-      bottle_byte = (bottle - 1) & 0xFF
+      _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2, "BOTH": 4}  # eSyrA1-1, eSyrB1-1, eSyrA1B1-1
+      bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
 
     return (
       bytes(
@@ -350,17 +343,12 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     sub_high = (sub_total >> 8) & 0xFF
 
     # Bottle selection: encoded as (EnumSyringeBottle value - 1)
-    # Default: A -> eSyrA1=1 -> 0, B -> eSyrB1=3 -> 2
+    # A -> eSyrA1=1 -> 0, B -> eSyrB1=3 -> 2
     if _bottle_override is not None:
       bottle_byte = (_bottle_override - 1) & 0xFF
     else:
-      syringe_upper = syringe.upper() if isinstance(syringe, str) else syringe
-      if syringe_upper == "A":
-        bottle_byte = 0  # eSyrA1=1 → 1-1=0
-      elif syringe_upper == "B":
-        bottle_byte = 2  # eSyrB1=3 → 3-1=2
-      else:
-        bottle_byte = 0
+      _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2}
+      bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
 
     return bytes(
       [

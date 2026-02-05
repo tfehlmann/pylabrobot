@@ -105,11 +105,11 @@ def validate_plate_type(plate_type: EL406PlateType | int) -> EL406PlateType:
     except ValueError:
       valid_values = [f"{pt.value} ({pt.name})" for pt in EL406PlateType]
       raise ValueError(
-        f"Invalid plate type value: {plate_type}. " f"Valid values are: {', '.join(valid_values)}"
+        f"Invalid plate type value: {plate_type}. Valid values are: {', '.join(valid_values)}"
       ) from None
 
   raise TypeError(
-    f"Invalid plate type type: {type(plate_type).__name__}. " f"Expected EL406PlateType or int."
+    f"Invalid plate type type: {type(plate_type).__name__}. Expected EL406PlateType or int."
   )
 
 
@@ -177,7 +177,7 @@ def validate_syringe_volume(volume: float) -> None:
   """Validate syringe volume (80-9999 uL)."""
   if not SYRINGE_MIN_VOLUME <= volume <= SYRINGE_MAX_VOLUME:
     raise ValueError(
-      f"Syringe volume must be {SYRINGE_MIN_VOLUME}-{SYRINGE_MAX_VOLUME} uL, " f"got {volume}"
+      f"Syringe volume must be {SYRINGE_MIN_VOLUME}-{SYRINGE_MAX_VOLUME} uL, got {volume}"
     )
 
 
@@ -194,7 +194,7 @@ def validate_submerge_duration(duration: int) -> None:
   """
   if not 0 <= duration <= SYRINGE_MAX_SUBMERGE_DURATION:
     raise ValueError(
-      f"Submerge duration must be 0-{SYRINGE_MAX_SUBMERGE_DURATION} minutes, " f"got {duration}"
+      f"Submerge duration must be 0-{SYRINGE_MAX_SUBMERGE_DURATION} minutes, got {duration}"
     )
 
 
@@ -484,6 +484,13 @@ def travel_rate_to_byte(rate: str) -> int:
 
 
 VALID_TRAVEL_RATES = {"1", "2", "3", "4", "5", "1 CW", "2 CW", "3 CW", "4 CW", "6 CW"}
+
+INTENSITY_TO_BYTE: dict[str, int] = {
+  "Variable": 0x01,
+  "Slow": 0x02,
+  "Medium": 0x03,
+  "Fast": 0x04,
+}
 
 
 # =========================================================================

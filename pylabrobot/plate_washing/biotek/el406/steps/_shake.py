@@ -12,6 +12,7 @@ from ..constants import (
   SHAKE_SOAK_COMMAND,
 )
 from ..helpers import (
+  INTENSITY_TO_BYTE,
   validate_intensity,
 )
 from ..protocol import build_framed_message
@@ -100,8 +101,8 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     Protocol format for shake/soak (12 bytes wire format):
 
     Field mapping:
-      - move_home_first (bool) - combined with shake_enabled for byte[1]
-      - shake_enabled (bool) - combined with move_home_first for byte[1]
+      - move_home_first (bool) -> byte[1]: 0x01 if True, 0x00 if False
+      - shake_enabled (bool) - controls whether shake_duration is encoded
       - shake duration ("mm:ss") -> bytes[2-3]: shake duration (16-bit LE total seconds)
       - frequency -> byte[4]: (Slow=0x02, Medium=0x03, Fast=0x04)
       - soak duration ("mm:ss") -> bytes[6-7]: soak duration (16-bit LE total seconds)
@@ -115,7 +116,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
     Byte structure (12 bytes):
       [0]      Plate type (EL406PlateType enum value, e.g. 0x04=96-well)
-      [1]      (move_home_first AND shake_enabled): 0x00 or 0x01
+      [1]      move_home_first: 0x00 or 0x01
       [2-3]    Shake duration in TOTAL SECONDS (16-bit little-endian)
       [4]      Frequency/intensity: 0x01=Variable, 0x02=Slow, 0x03=Medium, 0x04=Fast
       [5]      Reserved: always 0x00
@@ -128,7 +129,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
       intensity: Shake intensity - "Variable" (0x01), "Slow" (0x02), "Medium" (0x03), "Fast" (0x04).
       shake_enabled: Whether shake is enabled. When False, shake_duration is NOT encoded (bytes[2-3]=0x0000).
       move_home_first: Move carrier to home position before shaking (default True).
-                       byte[1] = 1 only if BOTH move_home_first AND shake_enabled are true.
+                       Encoded directly as byte[1] (0x01 if True, 0x00 if False).
 
     Returns:
       Command bytes (12 bytes).
@@ -148,8 +149,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     soak_high = (soak_total_seconds >> 8) & 0xFF
 
     # Map intensity to byte value
-    intensity_map = {"Slow": 0x02, "Medium": 0x03, "Fast": 0x04, "Variable": 0x01}
-    intensity_byte = intensity_map.get(intensity, 0x03)
+    intensity_byte = INTENSITY_TO_BYTE.get(intensity, 0x03)
 
     # byte[1] = move_home_first (independent of shake_enabled)
     # Note: soak-only with move_home_first=True sends 0x01
@@ -158,7 +158,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     return bytes(
       [
         self.plate_type.value,  # byte[0]: Plate type prefix
-        byte0,  # byte[1]: (move_home_first AND shake_enabled)
+        byte0,  # byte[1]: move_home_first
         shake_low,  # byte[2]: Shake duration (low byte)
         shake_high,  # byte[3]: Shake duration (high byte)
         intensity_byte,  # byte[4]: Frequency/intensity

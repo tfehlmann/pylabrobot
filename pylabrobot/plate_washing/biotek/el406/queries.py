@@ -9,11 +9,9 @@ from __future__ import annotations
 import logging
 
 from .constants import (
-  GET_PERISTALTIC_INSTALLED_COMMAND_HIGH,
-  GET_PERISTALTIC_INSTALLED_COMMAND_LOW,
+  GET_PERISTALTIC_INSTALLED_COMMAND,
   GET_SENSOR_ENABLED_COMMAND,
-  GET_SERIAL_NUMBER_COMMAND_HIGH,
-  GET_SERIAL_NUMBER_COMMAND_LOW,
+  GET_SERIAL_NUMBER_COMMAND,
   GET_SYRINGE_BOX_INFO_COMMAND,
   GET_SYRINGE_MANIFOLD_COMMAND,
   GET_WASHER_MANIFOLD_COMMAND,
@@ -86,8 +84,7 @@ class EL406QueriesMixin:
   async def get_serial_number(self) -> str:
     """Query the product serial number."""
     logger.info("Querying product serial number")
-    command_code = (GET_SERIAL_NUMBER_COMMAND_HIGH << 8) | GET_SERIAL_NUMBER_COMMAND_LOW
-    response_data = await self._send_framed_query(command_code)
+    response_data = await self._send_framed_query(GET_SERIAL_NUMBER_COMMAND)
     serial_number = response_data[2:].decode("ascii", errors="ignore").strip().rstrip("\x00")
     logger.info("Product serial number: %s", serial_number)
     return serial_number
@@ -131,10 +128,7 @@ class EL406QueriesMixin:
       raise ValueError(f"Invalid selector {selector}. Must be 0 (primary) or 1 (secondary).")
 
     logger.info("Querying peristaltic pump installed: selector=%d", selector)
-    command_code = (
-      GET_PERISTALTIC_INSTALLED_COMMAND_HIGH << 8
-    ) | GET_PERISTALTIC_INSTALLED_COMMAND_LOW
-    response_data = await self._send_framed_query(command_code, bytes([selector]))
+    response_data = await self._send_framed_query(GET_PERISTALTIC_INSTALLED_COMMAND, bytes([selector]))
     logger.debug("Peristaltic installed response data: %s", response_data.hex())
 
     installed_byte = response_data[2] if len(response_data) > 2 else response_data[0]

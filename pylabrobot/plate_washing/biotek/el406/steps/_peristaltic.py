@@ -32,6 +32,8 @@ from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
+PERISTALTIC_FLOW_RATE_MAP: dict[str, int] = {"Low": 0, "Medium": 1, "High": 2}
+
 
 class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
   """Mixin for peristaltic pump step operations."""
@@ -90,10 +92,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
     well_indices = self._validate_peristaltic_well_selection(columns, rows)
 
-    flow_rate_map = {"Low": 0, "Medium": 1, "High": 2}
-    flow_rate_enum = flow_rate_map[flow_rate]
-
-    return (offset_z, flow_rate_enum, well_indices)
+    return (offset_z, PERISTALTIC_FLOW_RATE_MAP[flow_rate], well_indices)
 
   async def peristaltic_prime(
     self,
@@ -137,9 +136,6 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
     validate_peristaltic_flow_rate(flow_rate)
 
-    flow_rate_map = {"Low": 0, "Medium": 1, "High": 2}
-    flow_rate_enum = flow_rate_map[flow_rate]
-
     logger.info(
       "Peristaltic prime: %.1f uL, flow rate %s, cassette %s", prime_volume, flow_rate, cassette
     )
@@ -147,7 +143,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     data = self._build_peristaltic_prime_command(
       volume=prime_volume,
       duration=prime_duration,
-      flow_rate=flow_rate_enum,
+      flow_rate=PERISTALTIC_FLOW_RATE_MAP[flow_rate],
       reverse=True,
       cassette=cassette,
       pump=1,
@@ -265,9 +261,6 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
     validate_peristaltic_flow_rate(flow_rate)
 
-    flow_rate_map = {"Low": 0, "Medium": 1, "High": 2}
-    flow_rate_enum = flow_rate_map[flow_rate]
-
     logger.info(
       "Peristaltic purge: %.1f uL, flow rate %s, cassette %s",
       purge_volume,
@@ -279,7 +272,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     data = self._build_peristaltic_prime_command(
       volume=purge_volume,
       duration=purge_duration,
-      flow_rate=flow_rate_enum,
+      flow_rate=PERISTALTIC_FLOW_RATE_MAP[flow_rate],
       reverse=True,
       cassette=cassette,
       pump=1,

@@ -525,24 +525,21 @@ class EL406CommunicationMixin:
       poll = await self._poll_device_state()
       logger.debug("Poll #%d: %d bytes", poll_count, len(poll.raw_response))
 
-      if poll.state == STATE_RUNNING:
-        logger.debug("Step in progress (state=Running), continuing poll...")
-        continue
-      elif poll.state in (STATE_INITIAL, STATE_STOPPED):
+      if poll.state in (STATE_INITIAL, STATE_STOPPED):
         logger.debug("Step completed (state=%d) after %d polls", poll.state, poll_count)
         if poll.validity != 0:
           raise EL406DeviceError(poll.validity, get_error_message(poll.validity))
         return poll.raw_response
+
+      if poll.state == STATE_RUNNING:
+        logger.debug("Step in progress (state=Running), continuing poll...")
       elif poll.state == STATE_PAUSED:
         logger.warning("Step is paused (state=3)")
-        continue
+      elif poll.status == 0:
+        # Unknown state with status=0 means done
+        logger.debug("Done (unknown state=%d, status=0)", poll.state)
+        return poll.raw_response
       else:
-        # Unknown state — check status byte as fallback
-        if poll.status == 0:
-          logger.debug("Done (unknown state=%d, status=0)", poll.state)
-          return poll.raw_response
-        else:
-          logger.debug("Unknown state=%d, status=%d, continuing...", poll.state, poll.status)
-          continue
+        logger.debug("Unknown state=%d, status=%d, continuing...", poll.state, poll.status)
 
     raise TimeoutError(f"Timeout waiting for step completion after {timeout}s")

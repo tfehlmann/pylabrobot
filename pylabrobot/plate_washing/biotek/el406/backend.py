@@ -109,7 +109,7 @@ class BioTekEL406Backend(
 
     if not USE_FTDI:
       raise RuntimeError(
-        "pylibftdi is not installed. " "Run `pip install pylibftdi` to use the EL406 backend."
+        "pylibftdi is not installed. Run `pip install pylibftdi` to use the EL406 backend."
       )
 
     # Open FTDI device

@@ -31,5 +31,3 @@ class EL406StepsMixin(
     self._send_step_command: Async method for sending framed commands
     self.timeout: Default timeout in seconds
   """
-
-  pass

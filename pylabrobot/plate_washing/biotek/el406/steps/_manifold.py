@@ -15,11 +15,9 @@ from ..constants import (
   MANIFOLD_PRIME_COMMAND,
   MANIFOLD_WASH_COMMAND,
 )
-from ..enums import EL406StepType
 from ..helpers import (
+  INTENSITY_TO_BYTE,
   VALID_TRAVEL_RATES,
-  buffer_to_byte,
-  encode_duration_mmss,
   encode_signed_byte,
   encode_volume_16bit,
   get_plate_type_wash_defaults,
@@ -983,8 +981,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     final_sec_z = final_secondary_z if final_secondary_aspirate else final_asp_z
 
     # Shake intensity byte (only encode when shake is actually enabled)
-    intensity_map = {"Slow": 0x02, "Medium": 0x03, "Fast": 0x04, "Variable": 0x01}
-    intensity_byte = intensity_map.get(shake_intensity, 0x03) if shake_duration > 0 else 0x00
+    intensity_byte = INTENSITY_TO_BYTE.get(shake_intensity, 0x03) if shake_duration > 0 else 0x00
 
     # Bottom wash: when enabled, Dispense1 gets bottom wash params
     if bottom_wash:

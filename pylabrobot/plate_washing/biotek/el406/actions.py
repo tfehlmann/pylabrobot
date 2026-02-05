@@ -165,8 +165,7 @@ class EL406ActionsMixin:
     logger.info("Setting vacuum pump: %s", state_str)
 
     # Command 299 with 2-byte parameter (little-endian short): 1=on, 0=off
-    state_value = 1 if enabled else 0
-    data = bytes([state_value & 0xFF, (state_value >> 8) & 0xFF])  # Low byte, high byte
+    data = bytes([1 if enabled else 0, 0x00])
     framed_command = build_framed_message(VACUUM_PUMP_CONTROL_COMMAND, data)
     await self._send_framed_command(framed_command)
     logger.info("Vacuum pump set to %s", state_str)
