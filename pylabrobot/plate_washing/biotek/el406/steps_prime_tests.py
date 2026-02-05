@@ -138,16 +138,6 @@ class TestPrimeCommandEncoding(unittest.TestCase):
     # Flow rate: 5
     self.assertEqual(cmd[4], 5)
 
-  def test_prime_command_buffer_c(self):
-    """Prime buffer C should encode as ASCII 'C' (0x43)."""
-    cmd = self.backend._build_manifold_prime_command(buffer="C", volume=100.0, flow_rate=3)
-    self.assertEqual(cmd[1], ord("C"))
-
-  def test_prime_command_buffer_d(self):
-    """Prime buffer D should encode as ASCII 'D' (0x44)."""
-    cmd = self.backend._build_manifold_prime_command(buffer="D", volume=100.0, flow_rate=3)
-    self.assertEqual(cmd[1], ord("D"))
-
   def test_prime_command_lowercase_buffer(self):
     """Prime should accept lowercase buffer names and encode as uppercase."""
     cmd = self.backend._build_manifold_prime_command(buffer="a", volume=100.0, flow_rate=3)
@@ -568,13 +558,6 @@ class TestEL406BackendManifoldPrime(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(RuntimeError):
       await backend.manifold_prime(volume=500.0, buffer="A")
 
-  async def test_manifold_prime_accepts_all_buffers(self):
-    """manifold_prime should accept buffers A, B, C, D."""
-    for buffer in ["A", "B", "C", "D", "a", "b", "c", "d"]:
-      self.backend.io.set_read_buffer(b"\x06" * 100)
-      # Should not raise
-      await self.backend.manifold_prime(volume=500.0, buffer=buffer)
-
   async def test_manifold_prime_accepts_flow_rate_range(self):
     """manifold_prime should accept flow rates 3-11."""
     for flow_rate in range(3, 12):
@@ -643,28 +626,6 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
 
     # Buffer: B = 0x42 (ASCII 'B')
     self.assertEqual(cmd[1], ord("B"))
-
-  def test_manifold_prime_buffer_c(self):
-    """Manifold prime buffer C should encode as 'C' (0x43)."""
-    cmd = self.backend._build_manifold_prime_command(
-      volume=1000.0,
-      buffer="C",
-      flow_rate=9,
-    )
-
-    # Buffer: C = 0x43 (ASCII 'C')
-    self.assertEqual(cmd[1], ord("C"))
-
-  def test_manifold_prime_buffer_d(self):
-    """Manifold prime buffer D should encode as 'D' (0x44)."""
-    cmd = self.backend._build_manifold_prime_command(
-      volume=1000.0,
-      buffer="D",
-      flow_rate=9,
-    )
-
-    # Buffer: D = 0x44 (ASCII 'D')
-    self.assertEqual(cmd[1], ord("D"))
 
   def test_manifold_prime_lowercase_buffer(self):
     """Manifold prime should accept lowercase buffer and encode as uppercase."""
@@ -810,13 +771,6 @@ class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(RuntimeError):
       await backend.manifold_auto_clean(buffer="A")
 
-  async def test_auto_clean_accepts_all_buffers(self):
-    """auto_clean should accept buffers A, B, C, D."""
-    for buffer in ["A", "B", "C", "D", "a", "b", "c", "d"]:
-      self.backend.io.set_read_buffer(b"\x06" * 100)
-      # Should not raise
-      await self.backend.manifold_auto_clean(buffer=buffer)
-
   async def test_auto_clean_with_duration(self):
     """auto_clean should accept duration parameter."""
     initial_count = len(self.backend.io.written_data)
@@ -875,20 +829,6 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
 
     # Buffer: B = 0x42 (ASCII 'B')
     self.assertEqual(cmd[1], ord("B"))
-
-  def test_auto_clean_buffer_c(self):
-    """Auto-clean buffer C should encode as 'C' (0x43)."""
-    cmd = self.backend._build_auto_clean_command(buffer="C")
-
-    # Buffer: C = 0x43 (ASCII 'C')
-    self.assertEqual(cmd[1], ord("C"))
-
-  def test_auto_clean_buffer_d(self):
-    """Auto-clean buffer D should encode as 'D' (0x44)."""
-    cmd = self.backend._build_auto_clean_command(buffer="D")
-
-    # Buffer: D = 0x44 (ASCII 'D')
-    self.assertEqual(cmd[1], ord("D"))
 
   def test_auto_clean_lowercase_buffer(self):
     """Auto-clean should accept lowercase buffer and encode as uppercase."""

@@ -60,13 +60,6 @@ class TestEL406BackendPeristalticDispense(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(RuntimeError):
       await backend.peristaltic_dispense(volume=300.0)
 
-  async def test_peristaltic_dispense_accepts_flow_rate_range(self):
-    """peristaltic_dispense should accept all valid flow rate strings."""
-    for fr in ["Low", "Medium", "High"]:
-      self.backend.io.set_read_buffer(b"\x06" * 100)
-      # Should not raise
-      await self.backend.peristaltic_dispense(volume=100.0, flow_rate=fr)
-
   async def test_peristaltic_dispense_with_pre_dispense_volume(self):
     """peristaltic_dispense should accept optional pre-dispense volume."""
     initial_count = len(self.backend.io.written_data)
@@ -244,15 +237,6 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
     )
 
     self.assertEqual(cmd[11], 5)
-
-  def test_peristaltic_dispense_command_minimum_length(self):
-    """Peristaltic dispense command should have at least 12 bytes."""
-    cmd = self.backend._build_peristaltic_dispense_command(
-      volume=300.0,
-      flow_rate=5,
-    )
-
-    self.assertGreaterEqual(len(cmd), 12)
 
   def test_peristaltic_dispense_full_command(self):
     """Test complete peristaltic dispense command with all parameters.

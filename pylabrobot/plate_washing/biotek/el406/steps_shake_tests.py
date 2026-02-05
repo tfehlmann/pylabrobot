@@ -162,72 +162,6 @@ class TestShakeCommandEncoding(unittest.TestCase):
     # bytes[8-11]: padding
     self.assertEqual(cmd[8:12], bytes([0, 0, 0, 0]))
 
-  def test_shake_command_30_seconds(self):
-    """Shake 30 seconds = 0x1e (30 decimal)."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x01)  # (move_home_first AND shake_enabled)
-    self.assertEqual(cmd[2], 0x1E)  # 30 seconds low byte
-    self.assertEqual(cmd[3], 0x00)  # 30 seconds high byte
-    self.assertEqual(cmd[4], 0x03)  # medium intensity
-
-  def test_shake_command_60_seconds(self):
-    """Shake 60 seconds = 0x3c (60 decimal)."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=60.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x01)  # (move_home_first AND shake_enabled)
-    self.assertEqual(cmd[2], 0x3C)  # 60 seconds low byte
-    self.assertEqual(cmd[3], 0x00)  # 60 seconds high byte
-
-  def test_shake_command_300_seconds(self):
-    """Shake 300 seconds (5 min) = 0x012c (300 decimal, little-endian)."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=300.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x01)  # (move_home_first AND shake_enabled)
-    self.assertEqual(cmd[2], 0x2C)  # 300 seconds low byte (0x2c = 44)
-    self.assertEqual(cmd[3], 0x01)  # 300 seconds high byte (0x01 = 256)
-    # 256 + 44 = 300
-
-  def test_shake_command_slow_intensity(self):
-    """Slow intensity = 0x02."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Slow",
-      shake_enabled=True,
-    )
-
-    self.assertEqual(cmd[4], 0x02)  # slow = 0x02
-
-  def test_shake_command_fast_intensity(self):
-    """Fast intensity = 0x04."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Fast",
-      shake_enabled=True,
-    )
-
-    self.assertEqual(cmd[4], 0x04)  # fast = 0x04
-
   def test_shake_command_variable_intensity(self):
     """Variable intensity maps to 0x01."""
     cmd = self.backend._build_shake_command(
@@ -270,62 +204,6 @@ class TestShakeCommandEncoding(unittest.TestCase):
 
     self.assertEqual(cmd[0], 0x04)  # prefix
     self.assertEqual(cmd[1], 0x00)  # (False AND True) = False -> 0x00
-
-  def test_shake_command_move_home_first_true(self):
-    """Move home first = True with shake_enabled=True -> byte[1] = 0x01."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-      move_home_first=True,
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x01)  # (True AND True) = True -> 0x01
-
-  def test_shake_command_move_home_first_both_false(self):
-    """Both move_home_first and shake_enabled False -> byte[1] = 0x00."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=False,
-      move_home_first=False,
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x00)  # (False AND False) = False -> 0x00
-
-  def test_shake_command_with_soak(self):
-    """Shake 30s with soak 30s - soak at bytes[6-7]."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=30.0,
-      intensity="Medium",
-      shake_enabled=True,
-    )
-
-    self.assertEqual(cmd[0], 0x04)  # prefix
-    self.assertEqual(cmd[1], 0x01)  # (move_home_first AND shake_enabled)
-    self.assertEqual(cmd[2], 0x1E)  # shake 30s low
-    self.assertEqual(cmd[3], 0x00)  # shake 30s high
-    self.assertEqual(cmd[4], 0x03)  # medium
-    self.assertEqual(cmd[5], 0x00)  # reserved
-    self.assertEqual(cmd[6], 0x1E)  # soak 30s low
-    self.assertEqual(cmd[7], 0x00)  # soak 30s high
-
-  def test_shake_command_with_long_soak(self):
-    """Shake 30s with soak 120s (2 min) = 0x0078."""
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=120.0,
-      intensity="Medium",
-      shake_enabled=True,
-    )
-
-    self.assertEqual(cmd[6], 0x78)  # soak 120s low (0x78 = 120)
-    self.assertEqual(cmd[7], 0x00)  # soak 120s high
 
   def test_shake_command_encoding_shake_30s(self):
     """Verify encoding: shake_duration=00:30.

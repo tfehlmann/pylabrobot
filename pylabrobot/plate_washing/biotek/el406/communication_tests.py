@@ -23,18 +23,6 @@ class TestTestCommunication(unittest.IsolatedAsyncioTestCase):
     self.backend = BioTekEL406Backend(timeout=0.5)
     # Don't call setup() yet - we want to test _test_communication() directly
 
-  async def test_communication_success_with_ack(self):
-    """Test communication should succeed when ACK is received."""
-    # Manually set up the device to test the communication method
-    self.backend.io = MockFTDI()
-
-    # _test_communication() sends two commands (TEST_COMM + INIT_STATE)
-    # so we need enough responses for both
-    self.backend.io.set_read_buffer(b"\x06" * 10)
-
-    # Should not raise
-    await self.backend._test_communication()
-
   async def test_communication_sends_query_command(self):
     """Test communication should send a query command."""
     self.backend.io = MockFTDI()

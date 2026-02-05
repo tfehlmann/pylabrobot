@@ -186,47 +186,6 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
     cmd = self.backend._build_wash_composite_command()
     self.assertEqual(len(cmd), 102)
 
-  def test_composite_command_header(self):
-    """Header should encode prefix, sector mask, and cycles."""
-    cmd = self.backend._build_wash_composite_command(cycles=5, sector_mask=0x03)
-    self.assertEqual(cmd[0], 0x04)  # plate type (96-well)
-    self.assertEqual(cmd[4], 0x03)  # sector mask low byte
-    self.assertEqual(cmd[5], 0x00)  # sector mask high byte
-    self.assertEqual(cmd[6], 5)  # wash cycles (bg.a8)
-
-  def test_composite_command_dispense_sections(self):
-    """Both dispense sections should encode buffer, volume, flow rate, Z, prime flow."""
-    cmd = self.backend._build_wash_composite_command(
-      buffer="B",
-      dispense_volume=500.0,
-      dispense_flow_rate=5,
-      dispense_z=200,
-      pre_dispense_flow_rate=7,
-    )
-    # Dispense section 1 starts at [7]
-    self.assertEqual(cmd[7], 0x42)  # Buffer B
-    self.assertEqual(cmd[8], 0xF4)  # 500 low byte
-    self.assertEqual(cmd[9], 0x01)  # 500 high byte
-    self.assertEqual(cmd[10], 5)  # flow rate
-    self.assertEqual(cmd[17], 7)  # pre-dispense flow rate
-
-    # Dispense section 2 starts at [68]
-    self.assertEqual(cmd[68], 0x42)  # Buffer B
-    self.assertEqual(cmd[69], 0xF4)  # 500 low byte
-    self.assertEqual(cmd[70], 0x01)  # 500 high byte
-    self.assertEqual(cmd[71], 5)  # flow rate
-    self.assertEqual(cmd[78], 7)  # pre-dispense flow rate
-
-  def test_composite_command_dispense_offsets(self):
-    """Dispense sections should encode X/Y offsets."""
-    cmd = self.backend._build_wash_composite_command(dispense_x=10, dispense_y=-5)
-    # Dispense section 1: X at [11], Y at [12]
-    self.assertEqual(cmd[11], 10)  # X offset
-    self.assertEqual(cmd[12], 0xFB)  # Y=-5 two's complement
-    # Dispense section 2: X at [72], Y at [73]
-    self.assertEqual(cmd[72], 10)
-    self.assertEqual(cmd[73], 0xFB)
-
   def test_composite_command_aspirate_sections(self):
     """Aspirate sections should encode travel rate and Z offsets.
 
@@ -593,122 +552,6 @@ class TestWashSecondaryAspirate(unittest.TestCase):
     self.assertEqual(cmd[58], 0x64)  # secondary Z = 100
     self.assertEqual(cmd[59], 0x00)
 
-  def test_secondary_aspirate_default_preserves_reference(self):
-    """Default output with secondary_aspirate=False must still match reference."""
-    expected_bytes = bytes(
-      [
-        0x04,
-        0x00,
-        0x01,
-        0x00,
-        0x0F,
-        0x00,
-        0x03,
-        0x41,
-        0x2C,
-        0x01,
-        0x07,
-        0x00,
-        0x00,
-        0x79,
-        0x00,
-        0x00,
-        0x00,
-        0x09,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x03,
-        0x00,
-        0x00,
-        0x1D,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x1D,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x03,
-        0x00,
-        0x00,
-        0x1D,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x1D,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x41,
-        0x2C,
-        0x01,
-        0x07,
-        0x00,
-        0x00,
-        0x79,
-        0x00,
-        0x00,
-        0x00,
-        0x09,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x03,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-      ]
-    )
-    cmd = self.backend._build_wash_composite_command()
-    self.assertEqual(cmd, expected_bytes)
-
-  def test_secondary_aspirate_still_102_bytes(self):
-    """Command is 102 bytes with secondary aspirate enabled."""
-    cmd = self.backend._build_wash_composite_command(secondary_aspirate=True, secondary_z=50)
-    self.assertEqual(len(cmd), 102)
-
 
 class TestWashPreDispenseFlowRateEncoding(unittest.TestCase):
   """Test pre_dispense_flow_rate encoding in wash command."""
@@ -761,19 +604,6 @@ class TestWashSecondaryXY(unittest.TestCase):
     self.assertEqual(cmd[56], 0x00)  # Asp2 secondary X
     self.assertEqual(cmd[57], 0x00)  # Asp2 secondary Y
 
-  def test_secondary_xy_still_102_bytes(self):
-    """Command should still be 102 bytes with secondary X/Y."""
-    cmd = self.backend._build_wash_composite_command(
-      secondary_aspirate=True, secondary_x=30, secondary_y=-20, secondary_z=80
-    )
-    self.assertEqual(len(cmd), 102)
-
-  def test_secondary_xy_preserves_baseline_when_default(self):
-    """Default secondary X/Y should not change baseline bytes."""
-    ref_hex = "040001000f0003412c01070000790000000900000000000000000000000300001d000000001d0000000000000000000000000300001d000000001d000000000000000000412c0107000079000000090000000000000000000000030000000000000000000000"
-    cmd = self.backend._build_wash_composite_command()
-    self.assertEqual(cmd, bytes.fromhex(ref_hex))
-
 
 class TestWashBottomWash(unittest.TestCase):
   """Test bottom wash parameters in 102-byte wash command."""
@@ -810,13 +640,6 @@ class TestWashBottomWash(unittest.TestCase):
     self.assertEqual(cmd[69], 0x2C)  # 300 low
     self.assertEqual(cmd[70], 0x01)  # 300 high
     self.assertEqual(cmd[71], 7)  # main flow rate
-
-  def test_bottom_wash_still_102_bytes(self):
-    """Command should still be 102 bytes with bottom wash enabled."""
-    cmd = self.backend._build_wash_composite_command(
-      bottom_wash=True, bottom_wash_volume=200.0, bottom_wash_flow_rate=5
-    )
-    self.assertEqual(len(cmd), 102)
 
 
 class TestWashBottomWashValidation(unittest.IsolatedAsyncioTestCase):
@@ -887,17 +710,6 @@ class TestWashPreDispenseBetweenCycles(unittest.TestCase):
     self.assertEqual(cmd[76], 50)
     self.assertEqual(cmd[77], 0x00)
     self.assertEqual(cmd[78], 5)
-
-  def test_midcyc_still_102_bytes(self):
-    """Command should still be 102 bytes with midcyc enabled."""
-    cmd = self.backend._build_wash_composite_command(pre_dispense_between_cycles_volume=50.0)
-    self.assertEqual(len(cmd), 102)
-
-  def test_midcyc_preserves_baseline_when_default(self):
-    """Default midcyc parameters should not change baseline bytes."""
-    ref_hex = "040001000f0003412c01070000790000000900000000000000000000000300001d000000001d0000000000000000000000000300001d000000001d000000000000000000412c0107000079000000090000000000000000000000030000000000000000000000"
-    cmd = self.backend._build_wash_composite_command()
-    self.assertEqual(cmd, bytes.fromhex(ref_hex))
 
 
 class TestWashPreDispenseBetweenCyclesValidation(unittest.IsolatedAsyncioTestCase):

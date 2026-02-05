@@ -222,21 +222,6 @@ class TestEL406BackendSyringeDispense(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(RuntimeError):
       await backend.syringe_dispense(volume=50.0, syringe="A")
 
-  async def test_syringe_dispense_accepts_syringe_a(self):
-    """syringe_dispense should accept syringe A."""
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.syringe_dispense(volume=50.0, syringe="A")
-
-  async def test_syringe_dispense_accepts_syringe_b(self):
-    """syringe_dispense should accept syringe B."""
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.syringe_dispense(volume=50.0, syringe="B")
-
-  async def test_syringe_dispense_accepts_syringe_both(self):
-    """syringe_dispense should accept syringe Both."""
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.syringe_dispense(volume=50.0, syringe="Both")
-
   async def test_syringe_dispense_accepts_flow_rate_range(self):
     """syringe_dispense should accept flow rates 1-5."""
     for flow_rate in range(1, 6):

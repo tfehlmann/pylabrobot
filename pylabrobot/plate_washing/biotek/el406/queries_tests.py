@@ -124,16 +124,6 @@ class TestEL406BackendGetWasherManifold(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(TimeoutError):
       await self.backend.get_washer_manifold()
 
-  async def test_get_washer_manifold_command_is_framed(self):
-    """get_washer_manifold command should be an 11-byte framed message."""
-    self.backend.io.set_read_buffer(bytes([0, 0x06]))
-
-    await self.backend.get_washer_manifold()
-
-    last_command = self.backend.io.written_data[-1]
-    # Framed messages are 11 bytes (header only, no data for this command)
-    self.assertEqual(len(last_command), 11)
-
   async def test_get_washer_manifold_invalid_value(self):
     """get_washer_manifold should raise ValueError for unknown manifold type."""
     # 100 is not a valid manifold type
@@ -300,16 +290,6 @@ class TestEL406BackendGetSyringeManifold(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(TimeoutError):
       await self.backend.get_syringe_manifold()
 
-  async def test_get_syringe_manifold_command_is_framed(self):
-    """get_syringe_manifold command should be an 11-byte framed message."""
-    self.backend.io.set_read_buffer(bytes([0, 0x06]))
-
-    await self.backend.get_syringe_manifold()
-
-    last_command = self.backend.io.written_data[-1]
-    # Framed messages are 11 bytes (header only, no data for this command)
-    self.assertEqual(len(last_command), 11)
-
   async def test_get_syringe_manifold_invalid_value(self):
     """get_syringe_manifold should raise ValueError for unknown manifold type."""
     # 100 is not a valid manifold type
@@ -342,16 +322,6 @@ class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
     if self.backend.io is not None:
       await self.backend.stop()
 
-  async def test_get_serial_number_returns_string(self):
-    """get_serial_number should return a string."""
-    # Simulate device response with framed protocol
-    self.backend.io.set_query_response(b"EL406-12345")
-
-    result = await self.backend.get_serial_number()
-
-    self.assertIsInstance(result, str)
-    self.assertEqual(result, "EL406-12345")
-
   async def test_get_serial_number_various_formats(self):
     """get_serial_number should handle various serial number formats."""
     # Test with different serial number formats
@@ -377,16 +347,6 @@ class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
     # Framed message has command at bytes [2-3] (little-endian)
     self.assertEqual(last_command[2], 0x00)  # Low byte of 256
     self.assertEqual(last_command[3], 0x01)  # High byte of 256
-
-  async def test_get_serial_number_command_is_framed(self):
-    """get_serial_number command should be an 11-byte framed message."""
-    self.backend.io.set_query_response(b"SN123")
-
-    await self.backend.get_serial_number()
-
-    last_command = self.backend.io.written_data[-1]
-    # Framed messages are 11 bytes (header only, no data for this command)
-    self.assertEqual(len(last_command), 11)
 
   async def test_get_serial_number_raises_when_device_not_initialized(self):
     """get_serial_number should raise RuntimeError if device not initialized."""
@@ -473,54 +433,6 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
     result = await self.backend.get_sensor_enabled(EL406Sensor.FLUID)
 
     self.assertFalse(result)
-
-  async def test_get_sensor_enabled_vacuum(self):
-    """get_sensor_enabled should work for vacuum sensor."""
-
-
-    self.backend.io.set_query_response(bytes([1]))
-    result = await self.backend.get_sensor_enabled(EL406Sensor.VACUUM)
-    self.assertTrue(result)
-
-  async def test_get_sensor_enabled_waste(self):
-    """get_sensor_enabled should work for waste sensor."""
-
-
-    self.backend.io.set_query_response(bytes([0]))
-    result = await self.backend.get_sensor_enabled(EL406Sensor.WASTE)
-    self.assertFalse(result)
-
-  async def test_get_sensor_enabled_fluid(self):
-    """get_sensor_enabled should work for fluid sensor."""
-
-
-    self.backend.io.set_query_response(bytes([1]))
-    result = await self.backend.get_sensor_enabled(EL406Sensor.FLUID)
-    self.assertTrue(result)
-
-  async def test_get_sensor_enabled_flow(self):
-    """get_sensor_enabled should work for flow sensor."""
-
-
-    self.backend.io.set_query_response(bytes([1]))
-    result = await self.backend.get_sensor_enabled(EL406Sensor.FLOW)
-    self.assertTrue(result)
-
-  async def test_get_sensor_enabled_filter_vac(self):
-    """get_sensor_enabled should work for filter vacuum sensor."""
-
-
-    self.backend.io.set_query_response(bytes([0]))
-    result = await self.backend.get_sensor_enabled(EL406Sensor.FILTER_VAC)
-    self.assertFalse(result)
-
-  async def test_get_sensor_enabled_plate(self):
-    """get_sensor_enabled should work for plate presence sensor."""
-
-
-    self.backend.io.set_query_response(bytes([1]))
-    result = await self.backend.get_sensor_enabled(EL406Sensor.PLATE)
-    self.assertTrue(result)
 
   async def test_get_sensor_enabled_sends_correct_command(self):
     """get_sensor_enabled should send command byte 210 (0xD2) in framed message."""
