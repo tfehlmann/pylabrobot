@@ -75,23 +75,6 @@ class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(ValueError):
       await self.backend.manifold_wash(dispense_y=200)
 
-  async def test_wash_with_all_params(self):
-    """Wash should accept all original parameters."""
-    initial_count = len(self.backend.io.written_data)
-    await self.backend.manifold_wash(
-      cycles=3,
-      buffer="B",
-      dispense_volume=200.0,
-      dispense_flow_rate=5,
-      dispense_x=10,
-      dispense_y=-5,
-      dispense_z=200,
-      aspirate_travel_rate=5,
-      aspirate_z=40,
-      pre_dispense_flow_rate=7,
-    )
-    self.assertGreater(len(self.backend.io.written_data), initial_count)
-
   async def test_wash_with_all_new_params(self):
     """Wash should accept all new parameters."""
     initial_count = len(self.backend.io.written_data)

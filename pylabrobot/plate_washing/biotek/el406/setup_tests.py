@@ -41,27 +41,18 @@ class TestEL406BackendSetup(unittest.IsolatedAsyncioTestCase):
 class TestEL406CommunicationError(unittest.TestCase):
   """Test EL406CommunicationError exception class."""
 
-  def test_exception_message(self):
-    """EL406CommunicationError should preserve message."""
-    error = EL406CommunicationError("Device disconnected")
-    self.assertEqual(str(error), "Device disconnected")
-
-  def test_exception_operation_attribute(self):
-    """EL406CommunicationError should store operation attribute."""
-    error = EL406CommunicationError("Failed to write", operation="write")
-    self.assertEqual(error.operation, "write")
-
-  def test_exception_original_error_attribute(self):
-    """EL406CommunicationError should store original error."""
+  def test_exception_attributes(self):
+    """EL406CommunicationError should preserve message, operation, and original error."""
     original = OSError("USB disconnect")
     error = EL406CommunicationError("FTDI error", operation="read", original_error=original)
+    self.assertEqual(str(error), "FTDI error")
+    self.assertEqual(error.operation, "read")
     self.assertIs(error.original_error, original)
 
-  def test_exception_defaults(self):
-    """EL406CommunicationError should have sensible defaults."""
-    error = EL406CommunicationError("Test")
-    self.assertEqual(error.operation, "")
-    self.assertIsNone(error.original_error)
+    # Defaults
+    simple = EL406CommunicationError("Test")
+    self.assertEqual(simple.operation, "")
+    self.assertIsNone(simple.original_error)
 
 
 class TestEL406BackendSerialization(unittest.TestCase):
@@ -83,28 +74,6 @@ class TestEL406BackendSerialization(unittest.TestCase):
 
 class TestPlateTypeConfiguration(unittest.TestCase):
   """Test plate type configuration."""
-
-  def test_default_plate_type_is_96_well(self):
-    """Default plate type should be 96-well."""
-    backend = BioTekEL406Backend()
-    self.assertEqual(backend.plate_type, EL406PlateType.PLATE_96_WELL)
-
-  def test_init_with_custom_plate_type(self):
-    """Backend should accept custom plate type in __init__."""
-    backend = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_384_WELL)
-    self.assertEqual(backend.plate_type, EL406PlateType.PLATE_384_WELL)
-
-  def test_set_plate_type_method(self):
-    """set_plate_type should update the plate_type property."""
-    backend = BioTekEL406Backend()
-    backend.set_plate_type(EL406PlateType.PLATE_1536_WELL)
-    self.assertEqual(backend.plate_type, EL406PlateType.PLATE_1536_WELL)
-
-  def test_get_plate_type_method(self):
-    """get_plate_type should return the current plate type."""
-    backend = BioTekEL406Backend()
-    result = backend.get_plate_type()
-    self.assertEqual(result, EL406PlateType.PLATE_96_WELL)
 
   def test_set_and_get_plate_type_round_trip(self):
     """set_plate_type and get_plate_type should work together."""

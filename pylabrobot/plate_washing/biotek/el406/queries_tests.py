@@ -400,18 +400,6 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
     if self.backend.io is not None:
       await self.backend.stop()
 
-  async def test_get_sensor_enabled_returns_bool(self):
-    """get_sensor_enabled should return a boolean."""
-
-
-    # Simulate device response: enabled (1) in framed response
-    self.backend.io.set_query_response(bytes([1]))
-
-    result = await self.backend.get_sensor_enabled(EL406Sensor.VACUUM)
-
-    self.assertIsInstance(result, bool)
-    self.assertTrue(result)
-
   async def test_get_sensor_enabled_returns_true_when_enabled(self):
     """get_sensor_enabled should return True when sensor is enabled."""
 

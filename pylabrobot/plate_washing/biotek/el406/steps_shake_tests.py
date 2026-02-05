@@ -205,56 +205,23 @@ class TestShakeCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[0], 0x04)  # prefix
     self.assertEqual(cmd[1], 0x00)  # (False AND True) = False -> 0x00
 
-  def test_shake_command_encoding_shake_30s(self):
-    """Verify encoding: shake_duration=00:30.
-
-    shake_duration="00:30", medium -> 011e000300000000000000
-    Wire format adds plate type prefix (0x04=96-well): 04011e000300000000000000
-    """
-    cmd = self.backend._build_shake_command(
-      shake_duration=30.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-      move_home_first=True,
-    )
-
-    expected = bytes.fromhex("04011e000300000000000000")
-    self.assertEqual(cmd, expected)
-
-  def test_shake_command_encoding_shake_60s(self):
-    """Verify encoding: shake_duration=01:00.
-
-    shake_duration="01:00", medium -> 013c000300000000000000
-    Wire format adds plate type prefix (0x04=96-well): 04013c000300000000000000
-    """
-    cmd = self.backend._build_shake_command(
-      shake_duration=60.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-      move_home_first=True,
-    )
-
-    expected = bytes.fromhex("04013c000300000000000000")
-    self.assertEqual(cmd, expected)
-
-  def test_shake_command_encoding_shake_300s(self):
-    """Verify encoding: shake_duration=05:00.
-
-    shake_duration="05:00", medium -> 012c010300000000000000
-    Wire format adds plate type prefix (0x04=96-well): 04012c010300000000000000
-    """
-    cmd = self.backend._build_shake_command(
-      shake_duration=300.0,
-      soak_duration=0.0,
-      intensity="Medium",
-      shake_enabled=True,
-      move_home_first=True,
-    )
-
-    expected = bytes.fromhex("04012c010300000000000000")
-    self.assertEqual(cmd, expected)
+  def test_shake_command_encoding_durations(self):
+    """Verify encoding for various shake durations (medium intensity, move_home=True)."""
+    cases = [
+      (30.0, "04011e000300000000000000"),   # 00:30
+      (60.0, "04013c000300000000000000"),   # 01:00
+      (300.0, "04012c010300000000000000"),  # 05:00
+    ]
+    for duration, expected_hex in cases:
+      with self.subTest(duration=duration):
+        cmd = self.backend._build_shake_command(
+          shake_duration=duration,
+          soak_duration=0.0,
+          intensity="Medium",
+          shake_enabled=True,
+          move_home_first=True,
+        )
+        self.assertEqual(cmd, bytes.fromhex(expected_hex))
 
   def test_shake_command_encoding_shake_disabled(self):
     """Verify encoding: shake_enabled=false with move_home_first=true.
