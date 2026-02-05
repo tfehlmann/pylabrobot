@@ -10,7 +10,6 @@ import logging
 
 from .constants import (
   ABORT_COMMAND,
-  AUTO_PRIME_DEVICE_COMMAND,
   END_OF_BATCH_COMMAND,
   HOME_VERIFY_MOTORS_COMMAND,
   LONG_READ_TIMEOUT,
@@ -196,21 +195,4 @@ class EL406ActionsMixin:
     await self._send_framed_command(framed_command)
     logger.info("Washer manifold set to: %s", manifold.name)
 
-  async def auto_prime(self) -> None:
-    """Auto-prime all fluid devices."""
-    logger.info("Auto-priming all devices")
-    for device in [1, 2, 3]:
-      await self.auto_prime_device(device)
-    logger.info("Auto-prime complete")
-
-  async def auto_prime_device(self, device: int) -> None:
-    """Auto-prime a specific fluid device."""
-    if device < 0 or device > 3:
-      raise ValueError(f"Invalid device number {device}. Must be 0-3.")
-
-    logger.info("Auto-priming device %d", device)
-    data = bytes([device & 0xFF])
-    framed_command = build_framed_message(AUTO_PRIME_DEVICE_COMMAND, data)
-    await self._send_action_command(framed_command, timeout=LONG_READ_TIMEOUT)
-    logger.info("Device %d primed", device)
 

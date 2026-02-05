@@ -8,6 +8,8 @@ import unittest
 # Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
+  EL406Motor,
+  EL406MotorHomeType,
   EL406StepType,
   EL406WasherManifold,
 )
@@ -240,7 +242,7 @@ class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
 
   async def test_home_motors_sends_command(self):
     """home_motors should send a command to the device."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
+
 
     initial_count = len(self.backend.dev.written_data)
     await self.backend.home_motors(
@@ -252,7 +254,7 @@ class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
 
   async def test_home_motors_home_all(self):
     """home_motors should work with HOME_XYZ_MOTORS to home all xyz motors."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     initial_count = len(self.backend.dev.written_data)
     await self.backend.home_motors(home_type=EL406MotorHomeType.HOME_XYZ_MOTORS)
@@ -261,7 +263,7 @@ class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
 
   async def test_home_motors_init_all(self):
     """home_motors should work with INIT_ALL_MOTORS."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     initial_count = len(self.backend.dev.written_data)
     await self.backend.home_motors(home_type=EL406MotorHomeType.INIT_ALL_MOTORS)
@@ -270,7 +272,7 @@ class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
 
   async def test_home_motors_verify_motor(self):
     """home_motors should work with VERIFY_MOTOR for specific motor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor, EL406MotorHomeType
+
 
     initial_count = len(self.backend.dev.written_data)
     await self.backend.home_motors(
@@ -282,7 +284,7 @@ class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
 
   async def test_home_motors_raises_when_device_not_initialized(self):
     """home_motors should raise RuntimeError if device not initialized."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     backend = BioTekEL406Backend()
     # Note: no setup() called
@@ -343,100 +345,6 @@ class TestRunSelfCheck(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(RuntimeError):
       await backend.run_self_check()
 
-
-class TestAutoPrime(unittest.IsolatedAsyncioTestCase):
-  """Test auto_prime functionality.
-
-  auto_prime automatically primes all fluid devices by calling auto_prime_device
-  for each device (1, 2, 3).
-  """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    await self.backend.setup()
-    # Need 3 action responses since auto_prime calls auto_prime_device 3 times
-    self.backend.dev.set_action_response(count=3)
-
-  async def asyncTearDown(self):
-    if self.backend.dev is not None:
-      await self.backend.stop()
-
-  async def test_auto_prime_calls_auto_prime_device_three_times(self):
-    """auto_prime should call auto_prime_device for devices 1, 2, 3."""
-    initial_count = len(self.backend.dev.written_data)
-    await self.backend.auto_prime()
-    # Should have sent 3 commands (one for each device)
-    self.assertEqual(len(self.backend.dev.written_data) - initial_count, 3)
-
-  async def test_auto_prime_raises_when_device_not_initialized(self):
-    """auto_prime should raise RuntimeError if device not initialized."""
-    backend = BioTekEL406Backend()
-    with self.assertRaises(RuntimeError):
-      await backend.auto_prime()
-
-  async def test_auto_prime_primes_devices_in_order(self):
-    """auto_prime should prime devices 1, 2, 3 in order."""
-    # Need 3 action responses for 3 auto_prime_device calls
-    self.backend.dev.set_action_response(count=3)
-    await self.backend.auto_prime()
-    # Verify the device numbers in the commands sent
-    commands = self.backend.dev.written_data
-    # Commands are framed, so we need to check the data portion
-    # The framed message format has the command data after the header
-    self.assertGreaterEqual(len(commands), 3)
-
-
-class TestAutoPrimeDevice(unittest.IsolatedAsyncioTestCase):
-  """Test auto_prime_device functionality.
-
-  auto_prime_device primes a specific fluid device.
-  """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    await self.backend.setup()
-    self.backend.dev.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.dev is not None:
-      await self.backend.stop()
-
-  async def test_auto_prime_device_sends_command(self):
-    """auto_prime_device should send a command to the device."""
-    initial_count = len(self.backend.dev.written_data)
-    await self.backend.auto_prime_device(device=0)
-    self.assertGreater(len(self.backend.dev.written_data), initial_count)
-
-  async def test_auto_prime_device_validates_device_number(self):
-    """auto_prime_device should validate device number."""
-    # Negative numbers should be rejected
-    with self.assertRaises(ValueError):
-      await self.backend.auto_prime_device(device=-1)
-    # Numbers > 3 should be rejected
-    with self.assertRaises(ValueError):
-      await self.backend.auto_prime_device(device=4)
-    with self.assertRaises(ValueError):
-      await self.backend.auto_prime_device(device=100)
-
-  async def test_auto_prime_device_accepts_valid_devices(self):
-    """auto_prime_device should accept valid device numbers."""
-    for device in [0, 1, 2, 3]:
-      self.backend.dev.set_read_buffer(b"\x06" * 100)
-      # Should not raise
-      await self.backend.auto_prime_device(device=device)
-
-  async def test_auto_prime_device_raises_when_device_not_initialized(self):
-    """auto_prime_device should raise RuntimeError if device not initialized."""
-    backend = BioTekEL406Backend()
-    with self.assertRaises(RuntimeError):
-      await backend.auto_prime_device(device=0)
-
-  async def test_auto_prime_device_includes_device_number_in_command(self):
-    """auto_prime_device should include device number in command."""
-    await self.backend.auto_prime_device(device=2)
-    last_command = self.backend.dev.written_data[-1]
-    # Device number should be in the command
-    self.assertIn(2, list(last_command))
 
 
 class TestSetWasherManifold(unittest.IsolatedAsyncioTestCase):

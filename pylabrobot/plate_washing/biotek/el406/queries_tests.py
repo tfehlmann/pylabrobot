@@ -8,6 +8,7 @@ import unittest
 # Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
+  EL406Sensor,
   EL406SyringeManifold,
   EL406WasherManifold,
 )
@@ -436,7 +437,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_returns_bool(self):
     """get_sensor_enabled should return a boolean."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     # Simulate device response: enabled (1) in framed response
     self.backend.dev.set_query_response(bytes([1]))
@@ -448,7 +449,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_returns_true_when_enabled(self):
     """get_sensor_enabled should return True when sensor is enabled."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     # Enabled = 1
     self.backend.dev.set_query_response(bytes([1]))
@@ -459,7 +460,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_returns_false_when_disabled(self):
     """get_sensor_enabled should return False when sensor is disabled."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     # Disabled = 0
     self.backend.dev.set_query_response(bytes([0]))
@@ -470,7 +471,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_vacuum(self):
     """get_sensor_enabled should work for vacuum sensor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([1]))
     result = await self.backend.get_sensor_enabled(EL406Sensor.VACUUM)
@@ -478,7 +479,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_waste(self):
     """get_sensor_enabled should work for waste sensor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([0]))
     result = await self.backend.get_sensor_enabled(EL406Sensor.WASTE)
@@ -486,7 +487,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_fluid(self):
     """get_sensor_enabled should work for fluid sensor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([1]))
     result = await self.backend.get_sensor_enabled(EL406Sensor.FLUID)
@@ -494,7 +495,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_flow(self):
     """get_sensor_enabled should work for flow sensor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([1]))
     result = await self.backend.get_sensor_enabled(EL406Sensor.FLOW)
@@ -502,7 +503,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_filter_vac(self):
     """get_sensor_enabled should work for filter vacuum sensor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([0]))
     result = await self.backend.get_sensor_enabled(EL406Sensor.FILTER_VAC)
@@ -510,7 +511,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_plate(self):
     """get_sensor_enabled should work for plate presence sensor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([1]))
     result = await self.backend.get_sensor_enabled(EL406Sensor.PLATE)
@@ -518,7 +519,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_sends_correct_command(self):
     """get_sensor_enabled should send command byte 210 (0xD2) in framed message."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([1]))
 
@@ -531,7 +532,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_sends_sensor_type(self):
     """get_sensor_enabled should include sensor type in command data."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_query_response(bytes([1]))
 
@@ -548,7 +549,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_sensor_types_in_command(self):
     """get_sensor_enabled should send correct sensor type byte for each sensor."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     test_cases = [
       (EL406Sensor.VACUUM, 0),
@@ -571,7 +572,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_raises_when_device_not_initialized(self):
     """get_sensor_enabled should raise RuntimeError if device not initialized."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     backend = BioTekEL406Backend()
     # Note: no setup() called
@@ -581,7 +582,7 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_raises_on_timeout(self):
     """get_sensor_enabled should raise TimeoutError when device does not respond."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.backend.dev.set_read_buffer(b"")  # No response
 

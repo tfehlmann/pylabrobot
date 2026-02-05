@@ -9,6 +9,7 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
+from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
 
 
 class TestHelperFunctions(unittest.TestCase):
@@ -16,37 +17,6 @@ class TestHelperFunctions(unittest.TestCase):
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
-
-  def test_buffer_to_byte_a(self):
-    """Buffer A should encode to 0."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
-
-    self.assertEqual(buffer_to_byte("A"), 0)
-
-  def test_buffer_to_byte_b(self):
-    """Buffer B should encode to 1."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
-
-    self.assertEqual(buffer_to_byte("B"), 1)
-
-  def test_buffer_to_byte_c(self):
-    """Buffer C should encode to 2."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
-
-    self.assertEqual(buffer_to_byte("C"), 2)
-
-  def test_buffer_to_byte_d(self):
-    """Buffer D should encode to 3."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
-
-    self.assertEqual(buffer_to_byte("D"), 3)
-
-  def test_buffer_to_byte_lowercase(self):
-    """Lowercase buffer should work."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import buffer_to_byte
-
-    self.assertEqual(buffer_to_byte("a"), 0)
-    self.assertEqual(buffer_to_byte("b"), 1)
 
   def test_encode_volume_little_endian(self):
     """Volume should be encoded as little-endian 2 bytes."""
@@ -104,7 +74,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_none_returns_all_ones(self):
     """encode_well_mask(None) should return all 1s (all wells selected)."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     mask = encode_well_mask(None)
 
@@ -114,7 +84,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_empty_list_returns_all_zeros(self):
     """encode_well_mask([]) should return all 0s (no wells selected)."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     mask = encode_well_mask([])
 
@@ -123,7 +93,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_single_well_0(self):
     """encode_well_mask([0]) should set bit 0 only."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     mask = encode_well_mask([0])
 
@@ -133,7 +103,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_single_well_7(self):
     """encode_well_mask([7]) should set bit 7 only."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     mask = encode_well_mask([7])
 
@@ -143,7 +113,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_single_well_8(self):
     """encode_well_mask([8]) should set bit 0 in byte 1."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     mask = encode_well_mask([8])
 
@@ -154,7 +124,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_single_well_47(self):
     """encode_well_mask([47]) should set bit 7 in byte 5."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     mask = encode_well_mask([47])
 
@@ -164,7 +134,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_multiple_wells(self):
     """encode_well_mask with multiple wells should set multiple bits."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     # Wells 0, 1, 2, 3 = bits 0-3 in byte 0 = 0b00001111 = 0x0F
     mask = encode_well_mask([0, 1, 2, 3])
@@ -174,7 +144,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_wells_in_different_bytes(self):
     """encode_well_mask with wells spanning multiple bytes."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     # Wells 0 (byte 0, bit 0), 8 (byte 1, bit 0), 16 (byte 2, bit 0)
     mask = encode_well_mask([0, 8, 16])
@@ -186,7 +156,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_all_48_wells(self):
     """encode_well_mask with all 48 wells should return all 1s."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     all_wells = list(range(48))
     mask = encode_well_mask(all_wells)
@@ -195,7 +165,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_first_row_96_plate(self):
     """encode_well_mask for first row of 96-well plate (wells 0-11)."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     # For 48-well selection, first 12 wells would be wells 0-11
     mask = encode_well_mask(list(range(12)))
@@ -208,7 +178,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_out_of_range_raises(self):
     """encode_well_mask should raise ValueError for well index >= 48."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     with self.assertRaises(ValueError) as ctx:
       encode_well_mask([48])
@@ -217,7 +187,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_negative_raises(self):
     """encode_well_mask should raise ValueError for negative well index."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     with self.assertRaises(ValueError) as ctx:
       encode_well_mask([-1])
@@ -226,7 +196,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_duplicate_wells_handled(self):
     """encode_well_mask should handle duplicate well indices."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     # Duplicates should just set the same bit twice (no effect)
     mask = encode_well_mask([0, 0, 0])
@@ -236,7 +206,7 @@ class TestWellMaskEncoding(unittest.TestCase):
 
   def test_encode_well_mask_unsorted_wells(self):
     """encode_well_mask should handle unsorted well indices."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import encode_well_mask
+
 
     # Order shouldn't matter
     mask = encode_well_mask([3, 0, 2, 1])

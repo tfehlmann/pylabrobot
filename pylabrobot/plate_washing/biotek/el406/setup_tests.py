@@ -9,11 +9,15 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
   EL406CommunicationError,
+  EL406Motor,
+  EL406MotorHomeType,
   EL406PlateType,
+  EL406Sensor,
   EL406StepType,
   EL406SyringeManifold,
   EL406WasherManifold,
 )
+from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
 
 
 class TestEL406BackendSetup(unittest.IsolatedAsyncioTestCase):
@@ -188,43 +192,43 @@ class TestEL406Sensor(unittest.TestCase):
 
   def test_sensor_enum_exists(self):
     """EL406Sensor enum should be importable."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.assertTrue(hasattr(EL406Sensor, "VACUUM"))
 
   def test_sensor_vacuum_value(self):
     """Vacuum sensor should have value 0."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.assertEqual(EL406Sensor.VACUUM.value, 0)
 
   def test_sensor_waste_value(self):
     """Waste sensor should have value 1."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.assertEqual(EL406Sensor.WASTE.value, 1)
 
   def test_sensor_fluid_value(self):
     """Fluid sensor should have value 2."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.assertEqual(EL406Sensor.FLUID.value, 2)
 
   def test_sensor_flow_value(self):
     """Flow sensor should have value 3."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.assertEqual(EL406Sensor.FLOW.value, 3)
 
   def test_sensor_filter_vac_value(self):
     """Filter vacuum sensor should have value 4."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.assertEqual(EL406Sensor.FILTER_VAC.value, 4)
 
   def test_sensor_plate_value(self):
     """Plate presence sensor should have value 5."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Sensor
+
 
     self.assertEqual(EL406Sensor.PLATE.value, 5)
 
@@ -234,55 +238,55 @@ class TestEL406Motor(unittest.TestCase):
 
   def test_motor_enum_exists(self):
     """EL406Motor enum should exist in the module."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertTrue(hasattr(EL406Motor, "CARRIER_X"))
 
   def test_motor_carrier_x(self):
     """CARRIER_X motor should have value 0."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.CARRIER_X.value, 0)
 
   def test_motor_carrier_y(self):
     """CARRIER_Y motor should have value 1."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.CARRIER_Y.value, 1)
 
   def test_motor_disp_head_z(self):
     """DISP_HEAD_Z motor should have value 2."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.DISP_HEAD_Z.value, 2)
 
   def test_motor_wash_head_z(self):
     """WASH_HEAD_Z motor should have value 3."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.WASH_HEAD_Z.value, 3)
 
   def test_motor_syringe_a(self):
     """SYRINGE_A motor should have value 4."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.SYRINGE_A.value, 4)
 
   def test_motor_syringe_b(self):
     """SYRINGE_B motor should have value 5."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.SYRINGE_B.value, 5)
 
   def test_motor_peri_pump_primary(self):
     """PERI_PUMP_PRIMARY motor should have value 6."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.PERI_PUMP_PRIMARY.value, 6)
 
   def test_motor_peri_pump_secondary(self):
     """PERI_PUMP_SECONDARY motor should have value 7."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406Motor
+
 
     self.assertEqual(EL406Motor.PERI_PUMP_SECONDARY.value, 7)
 
@@ -292,43 +296,43 @@ class TestEL406MotorHomeType(unittest.TestCase):
 
   def test_motor_home_type_enum_exists(self):
     """EL406MotorHomeType enum should exist in the module."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     self.assertTrue(hasattr(EL406MotorHomeType, "INIT_ALL_MOTORS"))
 
   def test_init_all_motors(self):
     """INIT_ALL_MOTORS should have value 1."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     self.assertEqual(EL406MotorHomeType.INIT_ALL_MOTORS.value, 1)
 
   def test_init_peri_pump(self):
     """INIT_PERI_PUMP should have value 2."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     self.assertEqual(EL406MotorHomeType.INIT_PERI_PUMP.value, 2)
 
   def test_home_motor(self):
     """HOME_MOTOR should have value 3."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     self.assertEqual(EL406MotorHomeType.HOME_MOTOR.value, 3)
 
   def test_home_xyz_motors(self):
     """HOME_XYZ_MOTORS should have value 4."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     self.assertEqual(EL406MotorHomeType.HOME_XYZ_MOTORS.value, 4)
 
   def test_verify_motor(self):
     """VERIFY_MOTOR should have value 5."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     self.assertEqual(EL406MotorHomeType.VERIFY_MOTOR.value, 5)
 
   def test_verify_xyz_motors(self):
     """VERIFY_XYZ_MOTORS should have value 6."""
-    from pylabrobot.plate_washing.biotek.el406 import EL406MotorHomeType
+
 
     self.assertEqual(EL406MotorHomeType.VERIFY_XYZ_MOTORS.value, 6)
 
@@ -386,7 +390,7 @@ class TestPlateTypeConfiguration(unittest.TestCase):
 
   def test_validate_plate_type_raises_for_invalid(self):
     """validate_plate_type should raise ValueError for invalid input."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
+
 
     # Invalid integer should raise
     with self.assertRaises(ValueError):
@@ -405,7 +409,7 @@ class TestPlateTypeValidation(unittest.TestCase):
 
   def test_validate_plate_type_accepts_enum(self):
     """validate_plate_type should accept EL406PlateType enum values."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
+
 
     for plate_type in EL406PlateType:
       # Should not raise
@@ -413,7 +417,7 @@ class TestPlateTypeValidation(unittest.TestCase):
 
   def test_validate_plate_type_accepts_int_values(self):
     """validate_plate_type should accept valid integer values."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
+
 
     # Valid values: 0 (1536), 1 (384), 2 (384 PCR), 4 (96), 14 (1536 flange)
     for value in [0, 1, 2, 4, 14]:
@@ -422,7 +426,7 @@ class TestPlateTypeValidation(unittest.TestCase):
 
   def test_validate_plate_type_raises_for_invalid_int(self):
     """validate_plate_type should raise ValueError for invalid integers."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
+
 
     with self.assertRaises(ValueError):
       validate_plate_type(-1)
@@ -435,7 +439,7 @@ class TestPlateTypeValidation(unittest.TestCase):
 
   def test_validate_plate_type_raises_for_invalid_type(self):
     """validate_plate_type should raise for invalid types."""
-    from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
+
 
     with self.assertRaises((ValueError, TypeError)):
       validate_plate_type("96-well")

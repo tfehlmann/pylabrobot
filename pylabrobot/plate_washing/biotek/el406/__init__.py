@@ -21,8 +21,6 @@ from .enums import (
 )
 from .errors import EL406CommunicationError, EL406DeviceError
 from .helpers import (
-  buffer_to_byte,
-  encode_duration_mmss,
   encode_signed_byte,
   encode_volume_16bit,
   encode_well_mask,

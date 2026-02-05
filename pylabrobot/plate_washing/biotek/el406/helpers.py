@@ -198,21 +198,6 @@ def validate_submerge_duration(duration: int) -> None:
     )
 
 
-def buffer_to_byte(buffer: str) -> int:
-  """Convert buffer letter to byte value.
-
-  Note: This uses NUMERIC encoding (A=0, B=1, C=2, D=3) which is used
-  by most dispense commands. Some commands like manifold_prime and
-  auto_clean use ASCII encoding instead (A=0x41, etc.).
-
-  Args:
-    buffer: Buffer letter (A, B, C, D).
-
-  Returns:
-    Byte value (0, 1, 2, 3).
-  """
-  return ord(buffer.upper()) - ord("A")
-
 
 def syringe_to_byte(syringe: str) -> int:
   """Convert syringe letter to byte value.
@@ -259,20 +244,6 @@ def encode_signed_byte(value: int) -> int:
     return (256 + value) & 0xFF
   return value & 0xFF
 
-
-def encode_duration_mmss(seconds: float) -> tuple[int, int]:
-  """Encode duration as minutes and seconds bytes.
-
-  Args:
-    seconds: Duration in seconds.
-
-  Returns:
-    Tuple of (minutes, seconds).
-  """
-  total_seconds = int(seconds)
-  minutes = total_seconds // 60
-  secs = total_seconds % 60
-  return (minutes & 0xFF, secs & 0xFF)
 
 
 def encode_well_mask(wells: list[int] | None) -> bytes:

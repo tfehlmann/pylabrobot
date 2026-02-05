@@ -243,12 +243,12 @@ class EL406CommunicationMixin:
       logger.debug("Sent framed: %s", framed_message.hex())
 
       # Read full response: ACK + 11-byte header + variable data
-      t0 = time.time()
-      await self._wait_for_ack(timeout, t0)
+      await self._wait_for_ack(timeout, time.time())
       result = bytes([ACK_BYTE])
 
-      # Use full timeout with fresh timestamp for header read — matches original
-      # LHC behavior.  START_STEP needs ~2s after ACK before sending response.
+      # Fresh timestamp after ACK — header + data share a single timeout budget.
+      # START_STEP needs ~2s after ACK before sending response.
+      t0 = time.time()
       resp_header = await self._read_exact_bytes(11, timeout, time.time())
 
       if len(resp_header) == 11:
@@ -372,11 +372,9 @@ class EL406CommunicationMixin:
         self._write_to_device(msg_data)
         logger.debug("Sent query data: %s", msg_data.hex())
 
-      t0 = time.time()
-
       # Wait for ACK
       try:
-        await self._wait_for_ack(timeout, t0)
+        await self._wait_for_ack(timeout, time.time())
       except RuntimeError as e:
         raise RuntimeError(
           f"Device rejected command 0x{command:04X} (NAK). "
@@ -385,6 +383,7 @@ class EL406CommunicationMixin:
       except TimeoutError as e:
         raise TimeoutError(f"Timeout waiting for ACK (command 0x{command:04X})") from e
 
+      t0 = time.time()
       # Read 11-byte response header (full timeout, fresh timestamp)
       resp_header = await self._read_exact_bytes(11, timeout, time.time())
       if len(resp_header) < 11:
