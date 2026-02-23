@@ -80,7 +80,7 @@ class BioTekEL406Backend(
     self.io: FTDI | None = None
     self._command_lock = asyncio.Lock()  # Protect against concurrent commands
 
-  async def setup(self) -> None:
+  async def setup(self, skip_reset: bool = False) -> None:
     """Set up communication with the EL406.
 
     Configures the FTDI USB interface with the correct parameters:
@@ -138,12 +138,32 @@ class BioTekEL406Backend(
       logger.error("  Communication test: FAILED - %s", e)
       raise
 
+    if not skip_reset:
+      logger.info("Performing full instrument reset...")
+      await self.reset()
+      logger.info("  Instrument reset: DONE")
+
+    # Start batch mode so step commands (e.g. manifold) work immediately
+    logger.info("Starting batch mode...")
+    await self.start_batch()
+    logger.info("  Batch mode: READY")
+
     logger.info("BioTekEL406Backend setup complete")
 
-  async def stop(self) -> None:
-    """Stop communication with the EL406."""
+  async def stop(self, skip_cleanup: bool = False) -> None:
+    """Stop communication with the EL406.
+
+    Args:
+      skip_cleanup: If False (default), run cleanup_after_protocol before closing
+        the connection. This stops the pump, homes the motors, and sends the
+        end-of-batch marker.
+    """
     logger.info("BioTekEL406Backend stopping")
     if self.io is not None:
+      if not skip_cleanup:
+        logger.info("Running cleanup protocol before stopping...")
+        await self.cleanup_after_protocol()
+        logger.info("  Cleanup protocol: DONE")
       await self.io.stop()
       self.io = None
 
