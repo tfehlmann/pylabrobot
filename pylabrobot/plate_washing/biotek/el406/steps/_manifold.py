@@ -431,8 +431,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     vacuum_filtration: bool = False,
     travel_rate: str = "3",
-    delay_ms: int = 0,
-    vacuum_time_sec: int = 30,
+    delay: float = 0.0,
+    vacuum_time: float = 30.0,
     offset_x: int = 0,
     offset_y: int = 0,
     offset_z: int | None = None,
@@ -444,8 +444,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     """Aspirate liquid from all wells via the wash manifold.
 
     Two modes based on vacuum_filtration:
-    - Normal (vacuum_filtration=False): Uses travel_rate and delay_ms.
-    - Vacuum filtration (vacuum_filtration=True): Uses vacuum_time_sec.
+    - Normal (vacuum_filtration=False): Uses travel_rate and delay.
+    - Vacuum filtration (vacuum_filtration=True): Uses vacuum_time.
       Travel rate is ignored (greyed out in GUI).
 
     Args:
@@ -453,9 +453,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       travel_rate: Head travel rate. Normal: "1"-"5".
         Cell wash: "1 CW", "2 CW", "3 CW", "4 CW", "6 CW".
         Ignored when vacuum_filtration=True.
-      delay_ms: Post-aspirate delay in milliseconds (0-5000). Only used when
-        vacuum_filtration=False.
-      vacuum_time_sec: Vacuum filtration time in seconds (5-999). Only used when
+      delay: Post-aspirate delay in seconds (0-5). Only used when
+        vacuum_filtration=False. Wire resolution: 1 ms.
+      vacuum_time: Vacuum filtration time in seconds (5-999). Only used when
         vacuum_filtration=True.
       offset_x: X offset in steps (-60 to +60).
       offset_y: Y offset in steps (-40 to +40).
@@ -471,6 +471,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Raises:
       ValueError: If parameters are invalid.
     """
+    # Convert PLR units (seconds) to wire units: seconds → milliseconds, seconds → integer seconds
+    delay_ms = round(delay * 1000)
+    vacuum_time_sec = round(vacuum_time)
+
     offset_z, secondary_z, time_value, rate_byte = self._validate_aspirate_params(
       vacuum_filtration=vacuum_filtration,
       travel_rate=travel_rate,
@@ -486,10 +490,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     )
 
     logger.info(
-      "Aspirating: vacuum=%s, travel_rate=%s, delay=%d ms",
+      "Aspirating: vacuum=%s, travel_rate=%s, delay=%.3f s",
       vacuum_filtration,
       travel_rate,
-      delay_ms,
+      delay,
     )
 
     data = self._build_aspirate_command(
@@ -586,14 +590,14 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     aspirate_travel_rate: int = 3,
     aspirate_z: int | None = None,
     pre_dispense_flow_rate: int = 9,
-    aspirate_delay_ms: int = 0,
+    aspirate_delay: float = 0.0,
     aspirate_x: int = 0,
     aspirate_y: int = 0,
     final_aspirate: bool = True,
     final_aspirate_z: int | None = None,
     final_aspirate_x: int = 0,
     final_aspirate_y: int = 0,
-    final_aspirate_delay_ms: int = 0,
+    final_aspirate_delay: float = 0.0,
     pre_dispense_volume: float = 0.0,
     vacuum_delay_volume: float = 0.0,
     soak_duration: int = 0,
@@ -644,7 +648,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
         (plate-type-aware: 29 for 96-well, 22 for 384-well, etc.).
       pre_dispense_flow_rate: Pre-dispense flow rate (3-11). Default 9.
         Controls how fast the pre-dispense is delivered.
-      aspirate_delay_ms: Post-aspirate delay in milliseconds (0-5000). Default 0.
+      aspirate_delay: Post-aspirate delay in seconds (0-65.535). Default 0.
+        Wire resolution: 1 ms.
       aspirate_x: Aspirate X offset in steps (-60 to +60). Default 0.
       aspirate_y: Aspirate Y offset in steps (-40 to +40). Default 0.
       final_aspirate: Enable final aspirate after last cycle. Default True.
@@ -653,9 +658,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
         (inherits from aspirate_z). Independent from primary aspirate Z.
       final_aspirate_x: X offset for final aspirate (-60 to +60). Default 0.
       final_aspirate_y: Y offset for final aspirate (-40 to +40). Default 0.
-      final_aspirate_delay_ms: Post-aspirate delay for final aspirate in
-        milliseconds (0-5000). Default 0. Encoded at Disp1[20-21] (wire
-        [27-28]) as 16-bit LE.
+      final_aspirate_delay: Post-aspirate delay for final aspirate in
+        seconds (0-65.535). Default 0. Wire resolution: 1 ms.
       pre_dispense_volume: Pre-dispense volume in uL/tube (0 to disable,
         25-3000 when enabled). Default 0.0.
       vacuum_delay_volume: Vacuum delay volume in uL/well (0 to disable,
@@ -698,6 +702,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Raises:
       ValueError: If parameters are invalid.
     """
+    # Convert PLR units (seconds) to wire units (ms)
+    aspirate_delay_ms = round(aspirate_delay * 1000)
+    final_aspirate_delay_ms = round(final_aspirate_delay * 1000)
+
     # Convert sectors list to bitmask
     if sectors is not None:
       sector_mask = 0
@@ -757,7 +765,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     logger.info(
       "Manifold wash: %d cycles, %.1f uL, buffer %s, flow %d, "
       "disp_xy=(%d,%d), z_disp=%d, z_asp=%d, pre_disp_flow=%d, "
-      "asp_delay=%d, asp_xy=(%d,%d), final_asp=%s, "
+      "asp_delay=%.3f s, asp_xy=(%d,%d), final_asp=%s, "
       "pre_disp=%.1f, vac_delay=%.1f, soak=%d, shake=%d/%s, "
       "sec_asp=%s, sec_z=%d, sec_xy=(%d,%d), "
       "btm_wash=%s/%.1f/%d, midcyc=%.1f/%d",
@@ -770,7 +778,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       dispense_z,
       aspirate_z,
       pre_dispense_flow_rate,
-      aspirate_delay_ms,
+      aspirate_delay,
       aspirate_x,
       aspirate_y,
       final_aspirate,
@@ -844,8 +852,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     volume: float,
     buffer: str = "A",
     flow_rate: int = 9,
-    low_flow_volume: int = 5,
-    submerge_duration: int = 0,
+    low_flow_volume: float = 5000.0,
+    submerge_duration: float = 0.0,
   ) -> None:
     """Prime the manifold fluid lines.
 
@@ -854,37 +862,49 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     are filled and ready for dispensing.
 
     Args:
-      volume: Prime volume in mL (not uL!). Range: 5-999 mL.
+      volume: Prime volume in uL. Range: 5000-999000 uL.
+        Wire resolution: 1000 uL (1 mL).
       buffer: Buffer valve selection (A, B, C, D).
       flow_rate: Flow rate (3-11, default 9).
-      low_flow_volume: Low flow path volume in mL (5-999, default 5). Set to 0 to disable.
-      submerge_duration: Submerge duration in minutes (0 to disable, 1-1439 when enabled).
-        Limit: 00:01-23:59. Wire encoding is total minutes.
+      low_flow_volume: Low flow path volume in uL (5000-999000, default 5000).
+        Set to 0 to disable. Wire resolution: 1000 uL (1 mL).
+      submerge_duration: Submerge duration in seconds (0 to disable, 60-86340 when
+        enabled). Wire resolution: 60 s (1 minute).
 
     Raises:
       ValueError: If parameters are invalid.
     """
-    # Parameter limits
-    if not 5 <= volume <= 999:
-      raise ValueError(f"Washer prime volume must be 5-999 mL, got {volume}")
+    # Validate in PLR units
+    if not 5000 <= volume <= 999000:
+      raise ValueError(f"Washer prime volume must be 5000-999000 uL, got {volume}")
     validate_buffer(buffer)
     if not 3 <= flow_rate <= 11:
       raise ValueError(f"Washer prime flow rate must be 3-11, got {flow_rate}")
-    if low_flow_volume != 0 and not 5 <= low_flow_volume <= 999:
+    if low_flow_volume != 0 and not 5000 <= low_flow_volume <= 999000:
       raise ValueError(
-        f"Low flow path volume must be 0 (disabled) or 5-999 mL, got {low_flow_volume}"
+        f"Low flow path volume must be 0 (disabled) or 5000-999000 uL, got {low_flow_volume}"
       )
-    if submerge_duration != 0 and not 1 <= submerge_duration <= 1439:
+    if submerge_duration != 0 and not 60 <= submerge_duration <= 86340:
       raise ValueError(
-        f"Submerge duration must be 0 (disabled) or 1-1439 minutes (00:01-23:59), "
+        f"Submerge duration must be 0 (disabled) or 60-86340 seconds, " f"got {submerge_duration}"
+      )
+    if submerge_duration % 60 != 0:
+      raise ValueError(
+        f"Submerge duration must be a multiple of 60 seconds (device resolution is 1 minute), "
         f"got {submerge_duration}"
       )
+
+    # Convert to wire units: uL → mL, seconds → minutes
+    volume_ml = round(volume / 1000)
+    low_flow_volume_ml = round(low_flow_volume / 1000)
+    submerge_duration_min = round(submerge_duration / 60)
 
     low_flow_enabled = low_flow_volume > 0
     submerge_enabled = submerge_duration > 0
 
     logger.info(
-      "Manifold prime: %.1f mL from buffer %s, flow rate %d, low_flow=%s/%d mL, submerge=%s/%d min",
+      "Manifold prime: %.1f uL from buffer %s, flow rate %d, low_flow=%s/%.0f uL, "
+      "submerge=%s/%.0f s",
       volume,
       buffer,
       flow_rate,
@@ -896,47 +916,53 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
 
     data = self._build_manifold_prime_command(
       buffer=buffer,
-      volume=volume,
+      volume_ml=volume_ml,
       flow_rate=flow_rate,
-      low_flow_volume=low_flow_volume,
+      low_flow_volume_ml=low_flow_volume_ml,
       low_flow_enabled=low_flow_enabled,
       submerge_enabled=submerge_enabled,
-      submerge_duration=submerge_duration,
+      submerge_duration_min=submerge_duration_min,
     )
     framed_command = build_framed_message(MANIFOLD_PRIME_COMMAND, data)
-    # Timeout: base time for priming + submerge duration (in minutes) + buffer
-    prime_timeout = self.timeout + (submerge_duration * 60) + 30
+    # Timeout: base time for priming + submerge duration + buffer
+    prime_timeout = self.timeout + submerge_duration + 30
     await self._send_step_command(framed_command, timeout=prime_timeout)
 
   async def manifold_auto_clean(
     self,
     buffer: str = "A",
-    duration: int = 1,
+    duration: float = 60.0,
   ) -> None:
     """Run a manifold auto-clean cycle.
 
     Args:
       buffer: Buffer valve to use (A, B, C, or D).
-      duration: Cleaning duration in minutes (1-239, i.e. up to 3h59m).
+      duration: Cleaning duration in seconds (60-14340, i.e. up to 3h59m).
+        Wire resolution: 60 s (1 minute).
 
     Raises:
       ValueError: If parameters are invalid.
     """
     validate_buffer(buffer)
-    # AutoClean Duration must be 00:01..03:59
-    # 03:59 = 3*60 + 59 = 239 minutes
-    if not 1 <= duration <= 239:
-      raise ValueError(f"AutoClean duration must be 1-239 minutes (00:01-03:59), got {duration}")
+    if not 60 <= duration <= 14340:
+      raise ValueError(f"AutoClean duration must be 60-14340 seconds, got {duration}")
+    if duration % 60 != 0:
+      raise ValueError(
+        f"AutoClean duration must be a multiple of 60 seconds (device resolution is 1 minute), "
+        f"got {duration}"
+      )
 
-    logger.info("Auto-clean: buffer %s, duration %d minutes", buffer, duration)
+    # Convert to wire units: seconds → minutes
+    duration_min = round(duration / 60)
+
+    logger.info("Auto-clean: buffer %s, duration %.0f s", buffer, duration)
 
     data = self._build_auto_clean_command(
       buffer=buffer,
-      duration=duration,
+      duration_min=duration_min,
     )
     framed_command = build_framed_message(MANIFOLD_AUTO_CLEAN_COMMAND, data)
-    # Auto-clean can take 1+ minutes, use longer timeout (duration is in minutes on wire)
-    auto_clean_timeout = max(120.0, duration * 60.0 + 30.0)  # At least 2 min, or duration + 30s
+    auto_clean_timeout = max(120.0, duration + 30.0)
     await self._send_step_command(framed_command, timeout=auto_clean_timeout)
 
   # =========================================================================
@@ -1502,12 +1528,12 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   def _build_manifold_prime_command(
     self,
     buffer: str,
-    volume: float,
+    volume_ml: float,
     flow_rate: int = 9,
-    low_flow_volume: int = 5,
+    low_flow_volume_ml: int = 5,
     low_flow_enabled: bool = True,
     submerge_enabled: bool = False,
-    submerge_duration: int = 0,
+    submerge_duration_min: int = 0,
   ) -> bytes:
     """Build manifold prime command bytes.
 
@@ -1524,30 +1550,30 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
 
     Args:
       buffer: Buffer valve (A, B, C, D).
-      volume: Prime volume in mL (not uL!).
+      volume_ml: Prime volume in mL.
       flow_rate: Flow rate (3-11, default 9).
-      low_flow_volume: Low flow volume in mL (default 5).
+      low_flow_volume_ml: Low flow volume in mL (default 5).
       low_flow_enabled: Enable low flow path (default True).
       submerge_enabled: Enable submerge tips after prime (default False).
-      submerge_duration: Submerge duration in minutes (default 0).
+      submerge_duration_min: Submerge duration in minutes (default 0).
 
     Returns:
       Command bytes (13 bytes).
     """
-    vol_low, vol_high = encode_volume_16bit(volume)
+    vol_low, vol_high = encode_volume_16bit(volume_ml)
 
     # Low flow volume: 16-bit LE, but only if enabled
-    if low_flow_enabled and low_flow_volume > 0:
-      lf_low = low_flow_volume & 0xFF
-      lf_high = (low_flow_volume >> 8) & 0xFF
+    if low_flow_enabled and low_flow_volume_ml > 0:
+      lf_low = low_flow_volume_ml & 0xFF
+      lf_high = (low_flow_volume_ml >> 8) & 0xFF
     else:
       lf_low = 0
       lf_high = 0
 
     # Submerge duration: 16-bit LE in minutes, only if enabled
     if submerge_enabled:
-      sub_low = submerge_duration & 0xFF
-      sub_high = (submerge_duration >> 8) & 0xFF
+      sub_low = submerge_duration_min & 0xFF
+      sub_high = (submerge_duration_min >> 8) & 0xFF
     else:
       sub_low = 0
       sub_high = 0
@@ -1573,7 +1599,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   def _build_auto_clean_command(
     self,
     buffer: str,
-    duration: int = 1,
+    duration_min: int = 1,
   ) -> bytes:
     """Build auto-clean command bytes.
 
@@ -1586,12 +1612,12 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
 
     Args:
       buffer: Buffer valve (A, B, C, D).
-      duration: Cleaning duration in minutes (1-239).
+      duration_min: Cleaning duration in minutes (1-239).
 
     Returns:
       Command bytes (8 bytes).
     """
-    duration_int = int(duration) & 0xFFFF
+    duration_int = int(duration_min) & 0xFFFF
     duration_low = duration_int & 0xFF
     duration_high = (duration_int >> 8) & 0xFF
 

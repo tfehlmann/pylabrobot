@@ -47,7 +47,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     offset_x: int = 0,
     offset_y: int = 0,
     offset_z: int = 336,
-    pump_delay: int = 0,
+    pump_delay: float = 0.0,
     pre_dispense: bool = False,
     pre_dispense_volume: float = 0.0,
     num_pre_dispenses: int = 2,
@@ -71,7 +71,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       offset_x: X offset (signed, 0.1mm units).
       offset_y: Y offset (signed, 0.1mm units).
       offset_z: Z offset (0.1mm units, default 336 for 96-well, 254 for 1536-well).
-      pump_delay: Post-dispense delay in milliseconds (0-5000).
+      pump_delay: Post-dispense delay in seconds (0-5). Wire resolution: 1 ms.
       pre_dispense: Whether to enable pre-dispense mode.
       pre_dispense_volume: Pre-dispense volume in µL/tube (only used if pre_dispense=True).
       num_pre_dispenses: Number of pre-dispenses (default 2).
@@ -81,13 +81,16 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     Raises:
       ValueError: If parameters are invalid.
     """
+    # Convert PLR units (seconds) to wire units (ms)
+    pump_delay_ms = round(pump_delay * 1000)
+
     validate_volume(volume)
     validate_syringe(syringe)
     validate_syringe_flow_rate(flow_rate)
     validate_offset_xy(offset_x, "offset_x")
     validate_offset_xy(offset_y, "offset_y")
     validate_offset_z(offset_z, "offset_z")
-    validate_pump_delay(pump_delay)
+    validate_pump_delay(pump_delay_ms)
     validate_num_pre_dispenses(num_pre_dispenses)
 
     column_mask = columns_to_column_mask(
@@ -108,7 +111,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       offset_x=offset_x,
       offset_y=offset_y,
       offset_z=offset_z,
-      pump_delay=pump_delay,
+      pump_delay_ms=pump_delay_ms,
       pre_dispense=pre_dispense,
       pre_dispense_volume=pre_dispense_volume,
       num_pre_dispenses=num_pre_dispenses,
@@ -123,9 +126,9 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     volume: float = 5000.0,
     flow_rate: int = 5,
     refills: int = 2,
-    pump_delay: int = 0,
+    pump_delay: float = 0.0,
     submerge_tips: bool = True,
-    submerge_duration: int = 0,
+    submerge_duration: float = 0.0,
   ) -> None:
     """Prime the syringe pump system.
 
@@ -136,19 +139,29 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       volume: Volume to prime in microliters (80-9999).
       flow_rate: Flow rate (1-5).
       refills: Number of prime cycles (1-255).
-      pump_delay: Delay between cycles in milliseconds (0-5000).
+      pump_delay: Delay between cycles in seconds (0-5). Wire resolution: 1 ms.
       submerge_tips: Submerge tips in fluid after prime (default True).
-      submerge_duration: Submerge duration in minutes (0-1439, i.e. up to 23:59).
+      submerge_duration: Submerge duration in seconds (0-86340, i.e. up to 23:59).
                          0 to disable submerge time. Only encoded when submerge_tips=True.
+                         Wire resolution: 60 s (1 minute).
 
     Raises:
       ValueError: If parameters are invalid.
     """
+    # Convert to wire units: seconds → milliseconds, seconds → minutes
+    pump_delay_ms = round(pump_delay * 1000)
+    if submerge_duration != 0 and submerge_duration % 60 != 0:
+      raise ValueError(
+        f"Submerge duration must be a multiple of 60 seconds (device resolution is 1 minute), "
+        f"got {submerge_duration}"
+      )
+    submerge_duration_min = round(submerge_duration / 60)
+
     validate_syringe(syringe)
     validate_syringe_volume(volume)
     validate_syringe_flow_rate(flow_rate)
-    validate_pump_delay(pump_delay)
-    validate_submerge_duration(submerge_duration)
+    validate_pump_delay(pump_delay_ms)
+    validate_submerge_duration(submerge_duration_min)
     if not 1 <= refills <= 255:
       raise ValueError(f"refills must be 1-255, got {refills}")
 
@@ -165,13 +178,13 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       syringe=syringe,
       flow_rate=flow_rate,
       refills=refills,
-      pump_delay=pump_delay,
+      pump_delay_ms=pump_delay_ms,
       submerge_tips=submerge_tips,
-      submerge_duration=submerge_duration,
+      submerge_duration_min=submerge_duration_min,
     )
     framed_command = build_framed_message(SYRINGE_PRIME_COMMAND, data)
-    # Timeout: base for priming + submerge duration (in minutes) + buffer
-    prime_timeout = self.timeout + (submerge_duration * 60) + 30
+    # Timeout: base for priming + submerge duration + buffer
+    prime_timeout = self.timeout + submerge_duration + 30
     await self._send_step_command(framed_command, timeout=prime_timeout)
 
   # =========================================================================
@@ -186,7 +199,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     offset_x: int = 0,
     offset_y: int = 0,
     offset_z: int = 336,
-    pump_delay: int = 0,
+    pump_delay_ms: int = 0,
     pre_dispense: bool = False,
     pre_dispense_volume: float = 0.0,
     num_pre_dispenses: int = 2,
@@ -216,7 +229,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       offset_x: X offset (signed, 0.1mm units).
       offset_y: Y offset (signed, 0.1mm units).
       offset_z: Z offset (0.1mm units).
-      pump_delay: Post-dispense delay in milliseconds.
+      pump_delay_ms: Post-dispense delay in milliseconds.
       pre_dispense: Whether to enable pre-dispense mode.
       pre_dispense_volume: Pre-dispense volume in µL/tube (only used if pre_dispense=True).
       num_pre_dispenses: Number of pre-dispenses (default 2).
@@ -228,8 +241,8 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     vol_low, vol_high = encode_volume_16bit(volume)
     z_low = offset_z & 0xFF
     z_high = (offset_z >> 8) & 0xFF
-    delay_low = pump_delay & 0xFF
-    delay_high = (pump_delay >> 8) & 0xFF
+    delay_low = pump_delay_ms & 0xFF
+    delay_high = (pump_delay_ms >> 8) & 0xFF
 
     # Pre-dispense volume: only encode if pre-dispense is enabled
     if pre_dispense:
@@ -284,9 +297,9 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     syringe: str,
     flow_rate: int,
     refills: int = 2,
-    pump_delay: int = 0,
+    pump_delay_ms: int = 0,
     submerge_tips: bool = True,
-    submerge_duration: int = 0,
+    submerge_duration_min: int = 0,
   ) -> bytes:
     """Build syringe prime command bytes.
 
@@ -307,21 +320,21 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       syringe: Syringe selection (A, B).
       flow_rate: Flow rate (1-5).
       refills: Number of prime cycles.
-      pump_delay: Delay between cycles in milliseconds (default 0).
+      pump_delay_ms: Delay between cycles in milliseconds (default 0).
       submerge_tips: Submerge tips in fluid after prime (default True).
-      submerge_duration: Submerge duration in minutes (0-1439). Only encoded
-                         when submerge_tips=True.
+      submerge_duration_min: Submerge duration in minutes (0-1439). Only encoded
+                             when submerge_tips=True.
 
     Returns:
       Command bytes (13 bytes).
     """
     vol_low, vol_high = encode_volume_16bit(volume)
-    delay_low = pump_delay & 0xFF
-    delay_high = (pump_delay >> 8) & 0xFF
+    delay_low = pump_delay_ms & 0xFF
+    delay_high = (pump_delay_ms >> 8) & 0xFF
 
     # Submerge time: only encode when submerge_tips is enabled
-    if submerge_tips and submerge_duration > 0:
-      sub_total = submerge_duration & 0xFFFF
+    if submerge_tips and submerge_duration_min > 0:
+      sub_total = submerge_duration_min & 0xFFFF
     else:
       sub_total = 0
     sub_low = sub_total & 0xFF

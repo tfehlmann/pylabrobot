@@ -79,7 +79,7 @@ class TestEL406BackendWash(EL406TestCase):
       aspirate_travel_rate=5,
       aspirate_z=40,
       pre_dispense_flow_rate=7,
-      aspirate_delay_ms=1000,
+      aspirate_delay=1.0,
       aspirate_x=15,
       aspirate_y=-10,
       final_aspirate=False,
@@ -91,12 +91,12 @@ class TestEL406BackendWash(EL406TestCase):
     )
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
-  async def test_wash_validates_aspirate_delay_ms(self):
+  async def test_wash_validates_aspirate_delay(self):
     """Wash should validate aspirate delay range."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_wash(aspirate_delay_ms=-1)
+      await self.backend.manifold_wash(aspirate_delay=-1.0)
     with self.assertRaises(ValueError):
-      await self.backend.manifold_wash(aspirate_delay_ms=70000)
+      await self.backend.manifold_wash(aspirate_delay=70.0)
 
   async def test_wash_validates_aspirate_x(self):
     """Wash should validate aspirate X offset range."""
@@ -219,7 +219,7 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
 
     Wire Aspirate1 uses fixed defaults (delay=0 always).
     Wire Aspirate2 layout: [2]=X, [3]=Y, no delay field.
-    aspirate_delay_ms is accepted as parameter but not currently encoded.
+    aspirate_delay_ms (wire unit) is accepted as parameter but not currently encoded.
     """
     cmd = self.backend._build_wash_composite_command(aspirate_delay_ms=1000)
     # Aspirate1 always has delay=0 (fixed defaults)
@@ -667,7 +667,7 @@ class TestWashCaptureVectors(unittest.TestCase):
     self.assertEqual(cmd, expected)
 
   def test_aspirate_delay_capture(self):
-    """Aspirate delay: aspirate_delay=1ms, final_aspirate_delay=2ms.
+    """Aspirate delay: aspirate_delay=0.001s, final_aspirate_delay=0.002s (wire: 1ms, 2ms).
 
     384-well plate (prefix=0x01). Uses 384-well backend for full byte-exact match.
     Delay encoding: wire [48-49]=delay LE (spans Asp1[19] + Asp2[0]).

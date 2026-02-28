@@ -44,19 +44,19 @@ class TestEL406BackendAspirate(EL406TestCase):
     with self.assertRaises(ValueError):
       await self.backend.manifold_aspirate(travel_rate="bad")
 
-  async def test_aspirate_validates_delay_ms(self):
-    """Aspirate delay must be 0-5000 ms."""
+  async def test_aspirate_validates_delay(self):
+    """Aspirate delay must be 0.0-5.0 seconds."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_aspirate(delay_ms=5001)
+      await self.backend.manifold_aspirate(delay=6.0)
     with self.assertRaises(ValueError):
-      await self.backend.manifold_aspirate(delay_ms=-1)
+      await self.backend.manifold_aspirate(delay=-1.0)
 
   async def test_aspirate_validates_vacuum_time(self):
     """Vacuum filtration time must be 5-999 seconds."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time_sec=4)
+      await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time=4)
     with self.assertRaises(ValueError):
-      await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time_sec=1000)
+      await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time=1000)
 
   async def test_aspirate_validates_offsets(self):
     """Aspirate should validate X/Y/Z offset ranges."""
@@ -85,7 +85,7 @@ class TestEL406BackendAspirate(EL406TestCase):
   async def test_aspirate_vacuum_filtration(self):
     """Aspirate with vacuum filtration should send command."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time_sec=30)
+    await self.backend.manifold_aspirate(vacuum_filtration=True, vacuum_time=30)
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
 

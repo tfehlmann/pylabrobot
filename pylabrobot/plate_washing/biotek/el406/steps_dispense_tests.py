@@ -191,12 +191,12 @@ class TestEL406BackendSyringeDispense(EL406TestCase):
       await self.backend.syringe_dispense(volume=50.0, syringe="A", flow_rate=6)
 
   async def test_syringe_dispense_validates_pump_delay(self):
-    """syringe_dispense should validate pump_delay (0-5000)."""
+    """syringe_dispense should validate pump_delay (0-5.0 seconds)."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_dispense(volume=50.0, syringe="A", pump_delay=-1)
+      await self.backend.syringe_dispense(volume=50.0, syringe="A", pump_delay=-1.0)
 
     with self.assertRaises(ValueError):
-      await self.backend.syringe_dispense(volume=50.0, syringe="A", pump_delay=5001)
+      await self.backend.syringe_dispense(volume=50.0, syringe="A", pump_delay=6.0)
 
   async def test_syringe_dispense_raises_when_device_not_initialized(self):
     """syringe_dispense should raise RuntimeError if device not initialized."""
@@ -213,8 +213,8 @@ class TestEL406BackendSyringeDispense(EL406TestCase):
       await self.backend.syringe_dispense(volume=50.0, syringe="A", flow_rate=flow_rate)
 
   async def test_syringe_dispense_accepts_pump_delay_range(self):
-    """syringe_dispense should accept pump_delay 0-5000."""
-    for pump_delay in [0, 100, 5000]:
+    """syringe_dispense should accept pump_delay 0-5.0 seconds."""
+    for pump_delay in [0, 0.1, 5.0]:
       self.backend.io.set_read_buffer(b"\x06" * 100)
       await self.backend.syringe_dispense(volume=50.0, syringe="A", pump_delay=pump_delay)
 
