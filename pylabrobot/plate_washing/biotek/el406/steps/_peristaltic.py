@@ -197,7 +197,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     framed_command = build_framed_message(command=0x90, data=data)
     # Timeout: duration (if specified) + buffer for volume-based priming
     prime_timeout = self.timeout + prime_duration + 30
-    await self._send_step_command(framed_command, timeout=prime_timeout)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command, timeout=prime_timeout)
 
   async def peristaltic_dispense(
     self,
@@ -267,7 +268,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       pump=1,
     )
     framed_command = build_framed_message(command=0x8F, data=data)
-    await self._send_step_command(framed_command)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command)
 
   async def peristaltic_purge(
     self,
@@ -332,7 +334,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     framed_command = build_framed_message(command=0x91, data=data)
     # Timeout: duration (if specified) + buffer for volume-based purging
     purge_timeout = self.timeout + purge_duration + 30
-    await self._send_step_command(framed_command, timeout=purge_timeout)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command, timeout=purge_timeout)
 
   # =========================================================================
   # COMMAND BUILDERS

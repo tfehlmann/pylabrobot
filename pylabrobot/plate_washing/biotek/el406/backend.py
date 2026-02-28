@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from pylabrobot.io.ftdi import FTDI
 from pylabrobot.plate_washing.backend import PlateWasherBackend
@@ -71,11 +73,11 @@ class BioTekEL406Backend(
     self._device_id = device_id
     self.io: FTDI | None = None
     self._command_lock: asyncio.Lock | None = None
+    self._in_batch: bool = False
 
   async def setup(
     self,
     skip_reset: bool = False,
-    plate_type: EL406PlateType = EL406PlateType.PLATE_96_WELL,
   ) -> None:
     """Set up communication with the EL406.
 
@@ -87,9 +89,11 @@ class BioTekEL406Backend(
     If ``self.io`` is already set (e.g. injected mock for testing),
     it is used as-is and ``setup()`` is not called on it again.
 
+    Note: This does NOT start a batch. Use ``batch()`` or call step commands
+    directly (they auto-batch).
+
     Args:
       skip_reset: If True, skip the instrument reset step.
-      plate_type: Plate type to use for the initial batch.
 
     Raises:
       RuntimeError: If pylibftdi is not installed or communication fails.
@@ -144,29 +148,53 @@ class BioTekEL406Backend(
       await self.reset()
       logger.info("  Instrument reset: DONE")
 
-    # Start batch mode so step commands (e.g. manifold) work immediately
-    logger.info("Starting batch mode...")
-    await self.start_batch(plate_type)
-    logger.info("  Batch mode: READY")
-
     logger.info("BioTekEL406Backend setup complete")
 
-  async def stop(self, skip_cleanup: bool = False) -> None:
+  async def stop(self) -> None:
     """Stop communication with the EL406.
 
-    Args:
-      skip_cleanup: If False (default), run cleanup_after_protocol before closing
-        the connection. This stops the pump, homes the motors, and sends the
-        end-of-batch marker.
+    Closes the FTDI connection. Batch cleanup is handled by the ``batch()``
+    context manager, not by ``stop()``.
     """
     logger.info("BioTekEL406Backend stopping")
     if self.io is not None:
-      if not skip_cleanup:
-        logger.info("Running cleanup protocol before stopping...")
-        await self.cleanup_after_protocol()
-        logger.info("  Cleanup protocol: DONE")
       await self.io.stop()
       self.io = None
+
+  @asynccontextmanager
+  async def batch(
+    self, plate_type: EL406PlateType = EL406PlateType.PLATE_96_WELL
+  ) -> AsyncIterator[None]:
+    """Context manager for batching step commands.
+
+    Each step command (manifold_wash, syringe_prime, etc.) automatically wraps
+    its execution in a batch. Use this context manager to group multiple step
+    commands into a single batch, avoiding repeated start/cleanup cycles.
+
+    If already inside a batch, this is a no-op passthrough.
+
+    Args:
+      plate_type: Plate type to configure for this batch.
+
+    Example:
+      >>> async with backend.batch(EL406PlateType.PLATE_96_WELL):
+      ...     await backend.manifold_prime(PT96, volume=5000)
+      ...     await backend.manifold_wash(PT96, cycles=3)
+      ...     await backend.syringe_dispense(PT96, volume=50)
+    """
+    if self._in_batch:
+      yield
+      return
+
+    self._in_batch = True
+    try:
+      await self.start_batch(plate_type)
+      yield
+    finally:
+      try:
+        await self.cleanup_after_protocol()
+      finally:
+        self._in_batch = False
 
   def serialize(self) -> dict:
     """Serialize backend configuration."""

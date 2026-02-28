@@ -540,7 +540,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       secondary_z=secondary_z,
     )
     framed_command = build_framed_message(command=0xA5, data=data)
-    await self._send_step_command(framed_command)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command)
 
   async def manifold_dispense(
     self,
@@ -610,7 +611,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       vacuum_delay_volume=vacuum_delay_volume,
     )
     framed_command = build_framed_message(command=0xA6, data=data)
-    await self._send_step_command(framed_command)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command)
 
   async def manifold_wash(
     self,
@@ -881,7 +883,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     # Each cycle takes ~10-30s depending on volume/flow/plate type.
     # Use 60s per cycle as generous safety margin to avoid false timeouts.
     wash_timeout = (cycles * 60) + shake_duration + soak_duration + 120
-    await self._send_step_command(framed_command, timeout=wash_timeout)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command, timeout=wash_timeout)
 
   async def manifold_prime(
     self,
@@ -964,7 +967,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     framed_command = build_framed_message(command=0xA7, data=data)
     # Timeout: base time for priming + submerge duration + buffer
     prime_timeout = self.timeout + submerge_duration + 30
-    await self._send_step_command(framed_command, timeout=prime_timeout)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command, timeout=prime_timeout)
 
   async def manifold_auto_clean(
     self,
@@ -1003,7 +1007,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     )
     framed_command = build_framed_message(command=0xA8, data=data)
     auto_clean_timeout = max(120.0, duration + 30.0)
-    await self._send_step_command(framed_command, timeout=auto_clean_timeout)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command, timeout=auto_clean_timeout)
 
   # =========================================================================
   # COMMAND BUILDERS

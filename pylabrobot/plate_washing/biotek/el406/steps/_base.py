@@ -6,7 +6,11 @@ Sub-mixins inherit from this class so they can reference
 
 from __future__ import annotations
 
+from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+  from ..enums import EL406PlateType
 
 
 class EL406StepsBaseMixin:
@@ -21,4 +25,10 @@ class EL406StepsBaseMixin:
       framed_message: bytes,
       timeout: float | None = None,
     ) -> bytes:
+      ...
+
+    def batch(
+      self,
+      plate_type: EL406PlateType = ...,
+    ) -> AbstractAsyncContextManager[None]:
       ...

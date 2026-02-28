@@ -96,7 +96,8 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     )
     framed_command = build_framed_message(command=0xA3, data=data)
     total_timeout = duration + soak_duration + self.timeout
-    await self._send_step_command(framed_command, timeout=total_timeout)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command, timeout=total_timeout)
 
   # =========================================================================
   # COMMAND BUILDERS

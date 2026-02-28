@@ -138,7 +138,8 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       column_mask=column_mask,
     )
     framed_command = build_framed_message(command=0xA1, data=data)
-    await self._send_step_command(framed_command)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command)
 
   async def syringe_prime(
     self,
@@ -207,7 +208,8 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     framed_command = build_framed_message(command=0xA2, data=data)
     # Timeout: base for priming + submerge duration + buffer
     prime_timeout = self.timeout + submerge_duration + 30
-    await self._send_step_command(framed_command, timeout=prime_timeout)
+    async with self.batch(plate_type):
+      await self._send_step_command(framed_command, timeout=prime_timeout)
 
   # =========================================================================
   # COMMAND BUILDERS
