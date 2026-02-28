@@ -12,7 +12,7 @@ def row_index_to_label(index: int) -> str:
   """Convert a 0-based row index to a letter label.
 
   Follows the same convention as Excel column headers:
-  0→A, 1→B, ..., 25→Z, 26→AA, 27→AB, ..., 31→AF, ...
+  0->A, 1->B, ..., 25->Z, 26->AA, 27->AB, ..., 31->AF, ...
 
   >>> row_index_to_label(0)
   'A'
