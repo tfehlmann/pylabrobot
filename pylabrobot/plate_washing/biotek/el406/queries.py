@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import enum
 import logging
-from typing import TypeVar
+from typing import TypedDict, TypeVar
 
 from .communication import LONG_READ_TIMEOUT
 from .enums import (
@@ -20,6 +20,26 @@ from .enums import (
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
 _E = TypeVar("_E", bound=enum.Enum)
+
+
+class SyringeBoxInfo(TypedDict):
+  box_type: int
+  box_size: int
+  installed: bool
+
+
+class SelfCheckResult(TypedDict):
+  success: bool
+  error_code: int
+  message: str
+
+
+class InstrumentSettings(TypedDict):
+  washer_manifold: EL406WasherManifold
+  syringe_manifold: EL406SyringeManifold
+  syringe_box: SyringeBoxInfo
+  peristaltic_pump_1: bool
+  peristaltic_pump_2: bool
 
 
 class EL406QueriesMixin:
@@ -99,7 +119,7 @@ class EL406QueriesMixin:
     logger.info("Sensor %s enabled: %s", sensor.name, enabled)
     return enabled
 
-  async def get_syringe_box_info(self) -> dict:
+  async def get_syringe_box_info(self) -> SyringeBoxInfo:
     """Get syringe box information."""
     logger.info("Querying syringe box info")
     response_data = await self._send_framed_query(command=0xF6)
@@ -113,12 +133,7 @@ class EL406QueriesMixin:
     )
     installed = box_type != 0
 
-    info = {
-      "box_type": box_type,
-      "box_size": box_size,
-      "installed": installed,
-    }
-
+    info = SyringeBoxInfo(box_type=box_type, box_size=box_size, installed=installed)
     logger.info("Syringe box info: %s", info)
     return info
 
@@ -136,7 +151,7 @@ class EL406QueriesMixin:
     logger.info("Peristaltic pump %d installed: %s", selector, installed)
     return installed
 
-  async def get_instrument_settings(self) -> dict:
+  async def get_instrument_settings(self) -> InstrumentSettings:
     """Get current instrument hardware configuration."""
     logger.info("Querying instrument settings from hardware")
 
@@ -146,18 +161,17 @@ class EL406QueriesMixin:
     peristaltic_1 = await self.get_peristaltic_installed(0)
     peristaltic_2 = await self.get_peristaltic_installed(1)
 
-    settings = {
-      "washer_manifold": washer_manifold,
-      "syringe_manifold": syringe_manifold,
-      "syringe_box": syringe_box,
-      "peristaltic_pump_1": peristaltic_1,
-      "peristaltic_pump_2": peristaltic_2,
-    }
-
+    settings = InstrumentSettings(
+      washer_manifold=washer_manifold,
+      syringe_manifold=syringe_manifold,
+      syringe_box=syringe_box,
+      peristaltic_pump_1=peristaltic_1,
+      peristaltic_pump_2=peristaltic_2,
+    )
     logger.info("Instrument settings: %s", settings)
     return settings
 
-  async def run_self_check(self) -> dict:
+  async def run_self_check(self) -> SelfCheckResult:
     """Run instrument self-check diagnostics."""
     logger.info("Running instrument self-check")
     response_data = await self._send_framed_query(command=0x95, timeout=LONG_READ_TIMEOUT)
@@ -165,13 +179,7 @@ class EL406QueriesMixin:
     error_code = self._extract_payload_byte(response_data)
     success = error_code == 0
 
-    result = {
-      "success": success,
-      "error_code": error_code,
-      "message": "Self-check passed"
-      if success
-      else f"Self-check failed (error code: {error_code})",
-    }
-
+    message = "Self-check passed" if success else f"Self-check failed (error code: {error_code})"
+    result = SelfCheckResult(success=success, error_code=error_code, message=message)
     logger.info("Self-check result: %s", result["message"])
     return result

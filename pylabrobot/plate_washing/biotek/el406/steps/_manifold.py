@@ -377,7 +377,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     vacuum_delay_volume: float,
     soak_duration: int,
     shake_duration: int,
-    shake_intensity: str,
+    shake_intensity: Intensity,
     secondary_aspirate: bool,
     secondary_z: int | None,
     secondary_x: int,
