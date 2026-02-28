@@ -11,12 +11,6 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
-from ..constants import (
-  PERISTALTIC_DISPENSE_COMMAND,
-  PERISTALTIC_PRIME_COMMAND,
-  PERISTALTIC_PURGE_COMMAND,
-  VALID_PERISTALTIC_FLOW_RATES,
-)
 from ..helpers import (
   cassette_to_byte,
   columns_to_column_mask,
@@ -36,8 +30,10 @@ PERISTALTIC_FLOW_RATE_MAP: dict[str, int] = {"Low": 0, "Medium": 1, "High": 2}
 
 
 def validate_peristaltic_flow_rate(flow_rate: str) -> None:
-  if flow_rate not in VALID_PERISTALTIC_FLOW_RATES:
-    raise ValueError(f"flow_rate must be one of {VALID_PERISTALTIC_FLOW_RATES}, got {flow_rate!r}")
+  if flow_rate not in PERISTALTIC_FLOW_RATE_MAP:
+    raise ValueError(
+      f"flow_rate must be one of {sorted(PERISTALTIC_FLOW_RATE_MAP)}, got {flow_rate!r}"
+    )
 
 
 class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
@@ -153,7 +149,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       cassette=cassette,
       pump=1,
     )
-    framed_command = build_framed_message(PERISTALTIC_PRIME_COMMAND, data)
+    framed_command = build_framed_message(command=0x90, data=data)
     # Timeout: duration (if specified) + buffer for volume-based priming
     prime_timeout = self.timeout + prime_duration + 30
     await self._send_step_command(framed_command, timeout=prime_timeout)
@@ -222,7 +218,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       rows=rows,
       pump=1,
     )
-    framed_command = build_framed_message(PERISTALTIC_DISPENSE_COMMAND, data)
+    framed_command = build_framed_message(command=0x8F, data=data)
     await self._send_step_command(framed_command)
 
   async def peristaltic_purge(
@@ -283,7 +279,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       cassette=cassette,
       pump=1,
     )
-    framed_command = build_framed_message(PERISTALTIC_PURGE_COMMAND, data)
+    framed_command = build_framed_message(command=0x91, data=data)
     # Timeout: duration (if specified) + buffer for volume-based purging
     purge_timeout = self.timeout + purge_duration + 30
     await self._send_step_command(framed_command, timeout=purge_timeout)

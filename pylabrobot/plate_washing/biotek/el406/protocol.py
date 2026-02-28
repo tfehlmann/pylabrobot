@@ -8,12 +8,6 @@ from __future__ import annotations
 
 from pylabrobot.io.binary import Writer
 
-from .constants import (
-  MSG_CONSTANT,
-  MSG_START_MARKER,
-  MSG_VERSION_MARKER,
-)
-
 
 def build_framed_message(command: int, data: bytes = b"") -> bytes:
   """Build a properly framed EL406 message.
@@ -40,10 +34,10 @@ def build_framed_message(command: int, data: bytes = b"") -> bytes:
   # Build header bytes 0-8 (checksum placeholder filled after)
   header_prefix = (
     Writer()
-    .u8(MSG_START_MARKER)      # [0] Start marker
-    .u8(MSG_VERSION_MARKER)    # [1] Version marker
+    .u8(0x01)      # [0] Start marker
+    .u8(0x02)    # [1] Version marker
     .u16(command)              # [2-3] Command (LE)
-    .u8(MSG_CONSTANT)          # [4] Constant
+    .u8(0x01)          # [4] Constant
     .u16(0x0000)               # [5-6] Reserved
     .u16(len(data))            # [7-8] Data length (LE)
     .finish()

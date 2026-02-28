@@ -11,17 +11,6 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
-from ..constants import (
-  SYRINGE_DISPENSE_COMMAND,
-  SYRINGE_MAX_FLOW_RATE,
-  SYRINGE_MAX_PUMP_DELAY,
-  SYRINGE_MAX_SUBMERGE_DURATION,
-  SYRINGE_MAX_VOLUME,
-  SYRINGE_MIN_FLOW_RATE,
-  SYRINGE_MIN_VOLUME,
-  SYRINGE_PRIME_COMMAND,
-  VALID_SYRINGES,
-)
 from ..helpers import (
   columns_to_column_mask,
   encode_column_mask,
@@ -35,37 +24,28 @@ logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
 
 def validate_syringe(syringe: str) -> None:
-  if syringe.upper() not in VALID_SYRINGES:
-    raise ValueError(
-      f"Invalid syringe '{syringe}'. Must be one of: {', '.join(sorted(VALID_SYRINGES))}"
-    )
+  if syringe.upper() not in {"A", "B", "BOTH"}:
+    raise ValueError(f"Invalid syringe '{syringe}'. Must be one of: A, B, BOTH")
 
 
 def validate_syringe_flow_rate(flow_rate: int) -> None:
-  if not SYRINGE_MIN_FLOW_RATE <= flow_rate <= SYRINGE_MAX_FLOW_RATE:
-    raise ValueError(
-      f"Syringe flow rate must be {SYRINGE_MIN_FLOW_RATE}-{SYRINGE_MAX_FLOW_RATE}, "
-      f"got {flow_rate}"
-    )
+  if not 1 <= flow_rate <= 5:
+    raise ValueError(f"Syringe flow rate must be 1-5, got {flow_rate}")
 
 
 def validate_syringe_volume(volume: float) -> None:
-  if not SYRINGE_MIN_VOLUME <= volume <= SYRINGE_MAX_VOLUME:
-    raise ValueError(
-      f"Syringe volume must be {SYRINGE_MIN_VOLUME}-{SYRINGE_MAX_VOLUME} uL, got {volume}"
-    )
+  if not 80 <= volume <= 9999:
+    raise ValueError(f"Syringe volume must be 80-9999 uL, got {volume}")
 
 
 def validate_pump_delay(delay: int) -> None:
-  if not 0 <= delay <= SYRINGE_MAX_PUMP_DELAY:
-    raise ValueError(f"Pump delay must be 0-{SYRINGE_MAX_PUMP_DELAY} ms, got {delay}")
+  if not 0 <= delay <= 5000:
+    raise ValueError(f"Pump delay must be 0-5000 ms, got {delay}")
 
 
 def validate_submerge_duration(duration: int) -> None:
-  if not 0 <= duration <= SYRINGE_MAX_SUBMERGE_DURATION:
-    raise ValueError(
-      f"Submerge duration must be 0-{SYRINGE_MAX_SUBMERGE_DURATION} minutes, got {duration}"
-    )
+  if not 0 <= duration <= 1439:
+    raise ValueError(f"Submerge duration must be 0-1439 minutes, got {duration}")
 
 
 class EL406SyringeStepsMixin(EL406StepsBaseMixin):
@@ -146,7 +126,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       num_pre_dispenses=num_pre_dispenses,
       column_mask=column_mask,
     )
-    framed_command = build_framed_message(SYRINGE_DISPENSE_COMMAND, data)
+    framed_command = build_framed_message(command=0xA1, data=data)
     await self._send_step_command(framed_command)
 
   async def syringe_prime(
@@ -211,7 +191,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       submerge_tips=submerge_tips,
       submerge_duration_min=submerge_duration_min,
     )
-    framed_command = build_framed_message(SYRINGE_PRIME_COMMAND, data)
+    framed_command = build_framed_message(command=0xA2, data=data)
     # Timeout: base for priming + submerge duration + buffer
     prime_timeout = self.timeout + submerge_duration + 30
     await self._send_step_command(framed_command, timeout=prime_timeout)

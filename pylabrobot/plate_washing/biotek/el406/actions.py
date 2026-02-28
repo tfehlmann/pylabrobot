@@ -8,17 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from .constants import (
-  ABORT_COMMAND,
-  END_OF_BATCH_COMMAND,
-  HOME_VERIFY_MOTORS_COMMAND,
-  LONG_READ_TIMEOUT,
-  PAUSE_COMMAND,
-  RESET_COMMAND,
-  RESUME_COMMAND,
-  SET_WASHER_MANIFOLD_COMMAND,
-  VACUUM_PUMP_CONTROL_COMMAND,
-)
+from .communication import LONG_READ_TIMEOUT
 from .enums import (
   EL406Motor,
   EL406MotorHomeType,
@@ -81,25 +71,25 @@ class EL406ActionsMixin:
 
     step_type_value = step_type.value if step_type is not None else 0
     data = bytes([step_type_value])
-    framed_command = build_framed_message(ABORT_COMMAND, data)
+    framed_command = build_framed_message(command=0x89, data=data)
     await self._send_framed_command(framed_command)
 
   async def pause(self) -> None:
     """Pause a running operation."""
     logger.info("Pausing operation")
-    framed_command = build_framed_message(PAUSE_COMMAND)
+    framed_command = build_framed_message(command=0x8A)
     await self._send_framed_command(framed_command)
 
   async def resume(self) -> None:
     """Resume a paused operation."""
     logger.info("Resuming operation")
-    framed_command = build_framed_message(RESUME_COMMAND)
+    framed_command = build_framed_message(command=0x8B)
     await self._send_framed_command(framed_command)
 
   async def reset(self) -> None:
     """Reset the instrument to a known state."""
     logger.info("Resetting instrument")
-    framed_command = build_framed_message(RESET_COMMAND)
+    framed_command = build_framed_message(command=0x70)
     await self._send_action_command(framed_command, timeout=LONG_READ_TIMEOUT)
     logger.info("Instrument reset complete")
 
@@ -116,7 +106,7 @@ class EL406ActionsMixin:
     2. home_motors() - to return syringes to home position
     """
     logger.info("Performing end-of-batch activities (completion marker)")
-    framed_command = build_framed_message(END_OF_BATCH_COMMAND)
+    framed_command = build_framed_message(command=0x8C)
     await self._send_action_command(framed_command, timeout=60.0)
     logger.info("End-of-batch marker sent")
 
@@ -179,7 +169,7 @@ class EL406ActionsMixin:
 
     # Command 299 with 2-byte parameter (little-endian short): 1=on, 0=off
     data = bytes([1 if enabled else 0, 0x00])
-    framed_command = build_framed_message(VACUUM_PUMP_CONTROL_COMMAND, data)
+    framed_command = build_framed_message(command=0x012B, data=data)
     await self._send_framed_command(framed_command)
     logger.info("Vacuum pump set to %s", state_str)
 
@@ -197,7 +187,7 @@ class EL406ActionsMixin:
 
     motor_num = motor.value if motor is not None else 0
     data = bytes([home_type.value, motor_num])
-    framed_command = build_framed_message(HOME_VERIFY_MOTORS_COMMAND, data)
+    framed_command = build_framed_message(command=0xC8, data=data)
     await self._send_action_command(framed_command, timeout=120.0)
     logger.info("Motors homed")
 
@@ -205,6 +195,6 @@ class EL406ActionsMixin:
     """Set the washer manifold type."""
     logger.info("Setting washer manifold to: %s", manifold.name)
     data = bytes([manifold.value])
-    framed_command = build_framed_message(SET_WASHER_MANIFOLD_COMMAND, data)
+    framed_command = build_framed_message(command=0xD9, data=data)
     await self._send_framed_command(framed_command)
     logger.info("Washer manifold set to: %s", manifold.name)

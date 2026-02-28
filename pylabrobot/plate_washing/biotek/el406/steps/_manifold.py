@@ -11,16 +11,6 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
-from ..constants import (
-  MANIFOLD_ASPIRATE_COMMAND,
-  MANIFOLD_AUTO_CLEAN_COMMAND,
-  MANIFOLD_DISPENSE_COMMAND,
-  MANIFOLD_PRIME_COMMAND,
-  MANIFOLD_WASH_COMMAND,
-  MAX_FLOW_RATE,
-  MIN_FLOW_RATE,
-  VALID_BUFFERS,
-)
 from ..helpers import (
   INTENSITY_TO_BYTE,
   VALID_TRAVEL_RATES,
@@ -35,17 +25,13 @@ logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
 
 def validate_buffer(buffer: str) -> None:
-  if buffer.upper() not in VALID_BUFFERS:
-    raise ValueError(
-      f"Invalid buffer '{buffer}'. Must be one of: {', '.join(sorted(VALID_BUFFERS))}"
-    )
+  if buffer.upper() not in {"A", "B", "C", "D"}:
+    raise ValueError(f"Invalid buffer '{buffer}'. Must be one of: A, B, C, D")
 
 
 def validate_flow_rate(flow_rate: int) -> None:
-  if not MIN_FLOW_RATE <= flow_rate <= MAX_FLOW_RATE:
-    raise ValueError(
-      f"Invalid flow rate {flow_rate}. Must be between {MIN_FLOW_RATE} and {MAX_FLOW_RATE}."
-    )
+  if not 1 <= flow_rate <= 9:
+    raise ValueError(f"Invalid flow rate {flow_rate}. Must be between 1 and 9.")
 
 
 def validate_cycles(cycles: int) -> None:
@@ -237,21 +223,20 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       final_secondary_z = pt_defaults["aspirate_z"]
     return (dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z)
 
-  @staticmethod
+  @classmethod
   def _validate_wash_core_params(
+    cls,
     cycles: int,
     buffer: str,
     dispense_volume: float,
     dispense_flow_rate: int,
     dispense_x: int,
     dispense_y: int,
-    dispense_z: int,
     aspirate_travel_rate: int,
-    aspirate_z: int,
-    pre_dispense_flow_rate: int,
-    aspirate_delay_ms: int,
     aspirate_x: int,
     aspirate_y: int,
+    pre_dispense_flow_rate: int,
+    aspirate_delay_ms: int,
     wash_format: Literal["Plate", "Sector"],
     sector_mask: int,
   ) -> None:
@@ -261,7 +246,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       raise ValueError(f"dispense_volume must be positive, got {dispense_volume}")
     validate_buffer(buffer)
     validate_flow_rate(dispense_flow_rate)
+    cls._validate_manifold_xy(dispense_x, dispense_y, "Wash dispense")
     validate_travel_rate(aspirate_travel_rate)
+    cls._validate_manifold_xy(aspirate_x, aspirate_y, "Wash aspirate")
     if wash_format not in ("Plate", "Sector"):
       raise ValueError(f"wash_format must be 'Plate' or 'Sector', got '{wash_format}'")
     if not 0 <= sector_mask <= 0xFFFF:
@@ -269,9 +256,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     validate_flow_rate(pre_dispense_flow_rate)
     validate_delay_ms(aspirate_delay_ms)
 
-  @staticmethod
+  @classmethod
   def _validate_wash_final_and_extras(
-    final_aspirate_z: int | None,
+    cls,
     final_aspirate_x: int,
     final_aspirate_y: int,
     final_aspirate_delay_ms: int,
@@ -282,6 +269,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     shake_intensity: str,
   ) -> None:
     """Validate final-aspirate, pre-dispense, soak/shake parameters."""
+    cls._validate_manifold_xy(final_aspirate_x, final_aspirate_y, "Final aspirate")
     validate_delay_ms(final_aspirate_delay_ms)
     if pre_dispense_volume != 0 and not 25 <= pre_dispense_volume <= 3000:
       raise ValueError(
@@ -300,11 +288,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   def _validate_wash_secondary_aspirates(
     cls,
     secondary_aspirate: bool,
-    secondary_z: int,
     secondary_x: int,
     secondary_y: int,
     final_secondary_aspirate: bool,
-    final_secondary_z: int,
     final_secondary_x: int,
     final_secondary_y: int,
   ) -> None:
@@ -346,11 +332,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     dispense_z: int | None,
     aspirate_travel_rate: int,
     aspirate_z: int | None,
-    pre_dispense_flow_rate: int,
-    aspirate_delay_ms: int,
     aspirate_x: int,
     aspirate_y: int,
-    final_aspirate_z: int | None,
+    pre_dispense_flow_rate: int,
+    aspirate_delay_ms: int,
     final_aspirate_x: int,
     final_aspirate_y: int,
     final_aspirate_delay_ms: int,
@@ -400,18 +385,15 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       dispense_flow_rate,
       dispense_x,
       dispense_y,
-      dispense_z,
       aspirate_travel_rate,
-      aspirate_z,
-      pre_dispense_flow_rate,
-      aspirate_delay_ms,
       aspirate_x,
       aspirate_y,
+      pre_dispense_flow_rate,
+      aspirate_delay_ms,
       wash_format,
       sector_mask,
     )
     self._validate_wash_final_and_extras(
-      final_aspirate_z,
       final_aspirate_x,
       final_aspirate_y,
       final_aspirate_delay_ms,
@@ -423,11 +405,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     )
     self._validate_wash_secondary_aspirates(
       secondary_aspirate,
-      secondary_z,
       secondary_x,
       secondary_y,
       final_secondary_aspirate,
-      final_secondary_z,
       final_secondary_x,
       final_secondary_y,
     )
@@ -521,7 +501,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       secondary_y=secondary_y,
       secondary_z=secondary_z,
     )
-    framed_command = build_framed_message(MANIFOLD_ASPIRATE_COMMAND, data)
+    framed_command = build_framed_message(command=0xA5, data=data)
     await self._send_step_command(framed_command)
 
   async def manifold_dispense(
@@ -588,7 +568,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       pre_dispense_flow_rate=pre_dispense_flow_rate,
       vacuum_delay_volume=vacuum_delay_volume,
     )
-    framed_command = build_framed_message(MANIFOLD_DISPENSE_COMMAND, data)
+    framed_command = build_framed_message(command=0xA6, data=data)
     await self._send_step_command(framed_command)
 
   async def manifold_wash(
@@ -745,11 +725,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       dispense_z=dispense_z,
       aspirate_travel_rate=aspirate_travel_rate,
       aspirate_z=aspirate_z,
-      pre_dispense_flow_rate=pre_dispense_flow_rate,
-      aspirate_delay_ms=aspirate_delay_ms,
       aspirate_x=aspirate_x,
       aspirate_y=aspirate_y,
-      final_aspirate_z=final_aspirate_z,
+      pre_dispense_flow_rate=pre_dispense_flow_rate,
+      aspirate_delay_ms=aspirate_delay_ms,
       final_aspirate_x=final_aspirate_x,
       final_aspirate_y=final_aspirate_y,
       final_aspirate_delay_ms=final_aspirate_delay_ms,
@@ -853,7 +832,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       move_home_first=move_home_first,
     )
 
-    framed_command = build_framed_message(MANIFOLD_WASH_COMMAND, data)
+    framed_command = build_framed_message(command=0xA4, data=data)
     # Dynamic timeout: base per cycle + shake + soak + buffer
     # Each cycle takes ~10-30s depending on volume/flow/plate type.
     # Use 60s per cycle as generous safety margin to avoid false timeouts.
@@ -936,7 +915,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       submerge_enabled=submerge_enabled,
       submerge_duration_min=submerge_duration_min,
     )
-    framed_command = build_framed_message(MANIFOLD_PRIME_COMMAND, data)
+    framed_command = build_framed_message(command=0xA7, data=data)
     # Timeout: base time for priming + submerge duration + buffer
     prime_timeout = self.timeout + submerge_duration + 30
     await self._send_step_command(framed_command, timeout=prime_timeout)
@@ -974,7 +953,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       buffer=buffer,
       duration_min=duration_min,
     )
-    framed_command = build_framed_message(MANIFOLD_AUTO_CLEAN_COMMAND, data)
+    framed_command = build_framed_message(command=0xA8, data=data)
     auto_clean_timeout = max(120.0, duration + 30.0)
     await self._send_step_command(framed_command, timeout=auto_clean_timeout)
 

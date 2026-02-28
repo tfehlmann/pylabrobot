@@ -10,10 +10,6 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
-from ..constants import (
-  SHAKE_SOAK_COMMAND,
-  VALID_INTENSITIES,
-)
 from ..helpers import (
   INTENSITY_TO_BYTE,
 )
@@ -24,8 +20,10 @@ logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
 
 def validate_intensity(intensity: str) -> None:
-  if intensity not in VALID_INTENSITIES:
-    raise ValueError(f"intensity must be one of {sorted(VALID_INTENSITIES)}, got {intensity!r}")
+  if intensity not in {"Slow", "Medium", "Fast", "Variable"}:
+    raise ValueError(
+      f"intensity must be one of {sorted({'Slow', 'Medium', 'Fast', 'Variable'})}, got {intensity!r}"
+    )
 
 
 class EL406ShakeStepsMixin(EL406StepsBaseMixin):
@@ -86,7 +84,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
       shake_enabled=shake_enabled,
       move_home_first=move_home_first,
     )
-    framed_command = build_framed_message(SHAKE_SOAK_COMMAND, data)
+    framed_command = build_framed_message(command=0xA3, data=data)
     total_timeout = duration + soak_duration + self.timeout
     await self._send_step_command(framed_command, timeout=total_timeout)
 

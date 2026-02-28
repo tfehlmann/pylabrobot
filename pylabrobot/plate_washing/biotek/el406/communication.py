@@ -13,20 +13,14 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from pylabrobot.io.binary import Reader
 
-from .constants import (
-  ACK_BYTE,
-  INIT_STATE_COMMAND,
-  LONG_READ_TIMEOUT,
-  NAK_BYTE,
-  START_STEP_COMMAND,
-  STATE_INITIAL,
-  STATE_PAUSED,
-  STATE_RUNNING,
-  STATE_STOPPED,
-  STATUS_POLL_COMMAND,
-  TEST_COMM_COMMAND,
-)
 from .enums import EL406PlateType
+
+LONG_READ_TIMEOUT = 120.0  # seconds, for long operations (wash cycles can take >30s)
+
+STATE_INITIAL = 1
+STATE_RUNNING = 2
+STATE_PAUSED = 3
+STATE_STOPPED = 4
 from .error_codes import get_error_message
 from .errors import EL406CommunicationError, EL406DeviceError
 from .protocol import build_framed_message
@@ -99,12 +93,12 @@ class EL406CommunicationMixin:
     while time.time() - t0 < timeout:
       byte = await self.io.read(1)
       if byte:
-        if byte[0] == NAK_BYTE:
+        if byte[0] == 0x15:  # NAK
           raise RuntimeError(
             f"Device rejected command (NAK). Response: {byte!r}. "
             "This may indicate an invalid command, bad parameters, or device busy state."
           )
-        if byte[0] == ACK_BYTE:
+        if byte[0] == 0x06:  # ACK
           return
       await asyncio.sleep(0.01)
     raise TimeoutError("Timeout waiting for ACK")
@@ -158,9 +152,9 @@ class EL406CommunicationMixin:
       raise RuntimeError("EL406 communication test failed: device not open")
 
     try:
-      framed_command = build_framed_message(TEST_COMM_COMMAND)
+      framed_command = build_framed_message(command=0x73)
       response = await self._send_framed_command(framed_command, timeout=self.timeout)
-      if ACK_BYTE not in response:
+      if 0x06 not in response:
         raise RuntimeError(
           f"EL406 communication test failed: expected ACK (0x06), got {response!r}"
         )
@@ -171,7 +165,7 @@ class EL406CommunicationMixin:
 
     # Send INIT_STATE (0xA0) command to clear device state
     logger.info("Sending INIT_STATE command (0xA0) to clear device state")
-    init_state_cmd = build_framed_message(INIT_STATE_COMMAND)
+    init_state_cmd = build_framed_message(command=0xA0)
     init_response = await self._send_framed_command(init_state_cmd, timeout=self.timeout)
     logger.debug("INIT_STATE sent, response: %s", init_response.hex())
 
@@ -205,7 +199,7 @@ class EL406CommunicationMixin:
 
     # Data byte is the plate type value (e.g., 0x04 for 96-well, 0x01 for 384-well).
     start_step_data = bytes([self.plate_type.value])
-    start_step_cmd = build_framed_message(START_STEP_COMMAND, start_step_data)
+    start_step_cmd = build_framed_message(command=0x8D, data=start_step_data)
     response = await self._send_framed_command(start_step_cmd, timeout=self.timeout)
     logger.debug("START_STEP sent, response: %s", response.hex())
 
@@ -258,7 +252,7 @@ class EL406CommunicationMixin:
 
       # Read full response: ACK + 11-byte header + variable data
       await self._wait_for_ack(timeout, time.time())
-      result = bytes([ACK_BYTE])
+      result = bytes([0x06])
 
       # Fresh timestamp after ACK — header + data share a single timeout budget.
       t0 = time.time()
@@ -426,7 +420,7 @@ class EL406CommunicationMixin:
     Raises:
       EL406CommunicationError: If poll response is too short to parse.
     """
-    poll_command = build_framed_message(STATUS_POLL_COMMAND)
+    poll_command = build_framed_message(command=0x92)
     poll_response = await self._send_framed_command(poll_command, timeout=self.timeout)
     logger.debug("Status poll response (%d bytes): %s", len(poll_response), poll_response.hex())
 

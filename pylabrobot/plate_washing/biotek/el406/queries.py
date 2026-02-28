@@ -10,16 +10,7 @@ import enum
 import logging
 from typing import TypeVar
 
-from .constants import (
-  GET_PERISTALTIC_INSTALLED_COMMAND,
-  GET_SENSOR_ENABLED_COMMAND,
-  GET_SERIAL_NUMBER_COMMAND,
-  GET_SYRINGE_BOX_INFO_COMMAND,
-  GET_SYRINGE_MANIFOLD_COMMAND,
-  GET_WASHER_MANIFOLD_COMMAND,
-  LONG_READ_TIMEOUT,
-  RUN_SELF_CHECK_COMMAND,
-)
+from .communication import LONG_READ_TIMEOUT
 from .enums import (
   EL406Sensor,
   EL406SyringeManifold,
@@ -82,19 +73,19 @@ class EL406QueriesMixin:
   async def get_washer_manifold(self) -> EL406WasherManifold:
     """Query the installed washer manifold type."""
     return await self._query_enum(
-      GET_WASHER_MANIFOLD_COMMAND, EL406WasherManifold, "washer manifold type"
+      command=0xD8, enum_cls=EL406WasherManifold, label="washer manifold type"
     )
 
   async def get_syringe_manifold(self) -> EL406SyringeManifold:
     """Query the installed syringe manifold type."""
     return await self._query_enum(
-      GET_SYRINGE_MANIFOLD_COMMAND, EL406SyringeManifold, "syringe manifold type"
+      command=0xBB, enum_cls=EL406SyringeManifold, label="syringe manifold type"
     )
 
   async def get_serial_number(self) -> str:
     """Query the product serial number."""
     logger.info("Querying product serial number")
-    response_data = await self._send_framed_query(GET_SERIAL_NUMBER_COMMAND)
+    response_data = await self._send_framed_query(command=0x0100)
     serial_number = response_data[2:].decode("ascii", errors="ignore").strip().rstrip("\x00")
     logger.info("Product serial number: %s", serial_number)
     return serial_number
@@ -102,7 +93,7 @@ class EL406QueriesMixin:
   async def get_sensor_enabled(self, sensor: EL406Sensor) -> bool:
     """Query whether a specific sensor is enabled."""
     logger.info("Querying sensor enabled status: %s", sensor.name)
-    response_data = await self._send_framed_query(GET_SENSOR_ENABLED_COMMAND, bytes([sensor.value]))
+    response_data = await self._send_framed_query(command=0xD2, data=bytes([sensor.value]))
     logger.debug("Sensor enabled response data: %s", response_data.hex())
     enabled = bool(self._extract_payload_byte(response_data))
     logger.info("Sensor %s enabled: %s", sensor.name, enabled)
@@ -111,7 +102,7 @@ class EL406QueriesMixin:
   async def get_syringe_box_info(self) -> dict:
     """Get syringe box information."""
     logger.info("Querying syringe box info")
-    response_data = await self._send_framed_query(GET_SYRINGE_BOX_INFO_COMMAND)
+    response_data = await self._send_framed_query(command=0xF6)
     logger.debug("Syringe box info response data: %s", response_data.hex())
 
     box_type = self._extract_payload_byte(response_data)
@@ -137,9 +128,7 @@ class EL406QueriesMixin:
       raise ValueError(f"Invalid selector {selector}. Must be 0 (primary) or 1 (secondary).")
 
     logger.info("Querying peristaltic pump installed: selector=%d", selector)
-    response_data = await self._send_framed_query(
-      GET_PERISTALTIC_INSTALLED_COMMAND, bytes([selector])
-    )
+    response_data = await self._send_framed_query(command=0x0104, data=bytes([selector]))
     logger.debug("Peristaltic installed response data: %s", response_data.hex())
 
     installed = bool(self._extract_payload_byte(response_data))
@@ -171,7 +160,7 @@ class EL406QueriesMixin:
   async def run_self_check(self) -> dict:
     """Run instrument self-check diagnostics."""
     logger.info("Running instrument self-check")
-    response_data = await self._send_framed_query(RUN_SELF_CHECK_COMMAND, timeout=LONG_READ_TIMEOUT)
+    response_data = await self._send_framed_query(command=0x95, timeout=LONG_READ_TIMEOUT)
     logger.debug("Self-check response data: %s", response_data.hex())
     error_code = self._extract_payload_byte(response_data)
     success = error_code == 0

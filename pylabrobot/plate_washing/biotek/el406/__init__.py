@@ -3,13 +3,6 @@
 from .actions import EL406ActionsMixin
 from .backend import BioTekEL406Backend
 from .communication import EL406CommunicationMixin
-from .constants import (
-  ACK_BYTE,
-  DEFAULT_READ_TIMEOUT,
-  LONG_READ_TIMEOUT,
-  VALID_BUFFERS,
-  VALID_SYRINGES,
-)
 from .enums import (
   EL406Motor,
   EL406MotorHomeType,

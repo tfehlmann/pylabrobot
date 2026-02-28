@@ -21,9 +21,6 @@ from pylabrobot.plate_washing.backend import PlateWasherBackend
 
 from .actions import EL406ActionsMixin
 from .communication import EL406CommunicationMixin
-from .constants import (
-  DEFAULT_READ_TIMEOUT,
-)
 from .enums import EL406PlateType
 from .errors import EL406CommunicationError
 from .helpers import validate_plate_type
@@ -62,7 +59,7 @@ class BioTekEL406Backend(
 
   def __init__(
     self,
-    timeout: float = DEFAULT_READ_TIMEOUT,
+    timeout: float = 15.0,
     plate_type: EL406PlateType = EL406PlateType.PLATE_96_WELL,
     device_id: str | None = None,
   ) -> None:
