@@ -14,6 +14,9 @@ from pylabrobot.plate_washing.biotek.el406 import (
 )
 from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
 
+PT96 = EL406PlateType.PLATE_96_WELL
+PT1536 = EL406PlateType.PLATE_1536_WELL
+
 
 class TestEL406BackendPeristalticDispense(EL406TestCase):
   """Test EL406 peristaltic dispense functionality.
@@ -25,23 +28,23 @@ class TestEL406BackendPeristalticDispense(EL406TestCase):
   async def test_peristaltic_dispense_sends_command(self):
     """peristaltic_dispense should send a command to the device."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.peristaltic_dispense(volume=300.0, flow_rate="Medium")
+    await self.backend.peristaltic_dispense(PT96, volume=300.0, flow_rate="Medium")
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_peristaltic_dispense_validates_volume(self):
     """peristaltic_dispense should validate volume is positive."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_dispense(volume=0.0)
+      await self.backend.peristaltic_dispense(PT96, volume=0.0)
 
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_dispense(volume=-100.0)
+      await self.backend.peristaltic_dispense(PT96, volume=-100.0)
 
   async def test_peristaltic_dispense_accepts_various_flow_rates(self):
     """peristaltic_dispense should accept all valid flow rate strings."""
     for fr in ["Low", "Medium", "High"]:
       self.backend.io.set_read_buffer(b"\x06" * 100)
-      await self.backend.peristaltic_dispense(volume=300.0, flow_rate=fr)
+      await self.backend.peristaltic_dispense(PT96, volume=300.0, flow_rate=fr)
 
   async def test_peristaltic_dispense_raises_when_device_not_initialized(self):
     """peristaltic_dispense should raise RuntimeError if device not initialized."""
@@ -49,12 +52,13 @@ class TestEL406BackendPeristalticDispense(EL406TestCase):
     # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
-      await backend.peristaltic_dispense(volume=300.0)
+      await backend.peristaltic_dispense(PT96, volume=300.0)
 
   async def test_peristaltic_dispense_with_pre_dispense_volume(self):
     """peristaltic_dispense should accept optional pre-dispense volume."""
     initial_count = len(self.backend.io.written_data)
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
       pre_dispense_volume=50.0,
@@ -65,6 +69,7 @@ class TestEL406BackendPeristalticDispense(EL406TestCase):
     """peristaltic_dispense should accept X, Y, Z offsets."""
     initial_count = len(self.backend.io.written_data)
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
       offset_x=10,
@@ -83,6 +88,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_step_type(self):
     """Peristaltic dispense command should have step type prefix 0x04."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
     )
@@ -92,6 +98,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_volume_encoding(self):
     """Peristaltic dispense should encode volume as little-endian 2 bytes."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
     )
@@ -103,6 +110,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_volume_1000ul(self):
     """Peristaltic dispense with 1000 uL."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=1000.0,
       flow_rate=5,
     )
@@ -114,6 +122,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_flow_rate_at_byte3(self):
     """Peristaltic dispense flow rate should be at byte 3."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
     )
@@ -123,6 +132,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_cassette_at_byte4(self):
     """Peristaltic dispense cassette type should be at byte 4."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       cassette="5uL",
@@ -134,6 +144,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_offset_z(self):
     """Peristaltic dispense should encode Z offset as little-endian 2 bytes."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       offset_z=336,
@@ -146,6 +157,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_offset_x_positive(self):
     """Peristaltic dispense should encode positive X offset at byte 5."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       offset_x=50,
@@ -156,6 +168,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_offset_x_negative(self):
     """Peristaltic dispense should encode negative X offset as two's complement at byte 5."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       offset_x=-30,
@@ -167,6 +180,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_offset_y_negative(self):
     """Peristaltic dispense should encode negative Y offset as two's complement at byte 6."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       offset_y=-20,
@@ -178,6 +192,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_pre_dispense_volume(self):
     """Peristaltic dispense should encode prime volume as little-endian 2 bytes."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       pre_dispense_volume=50.0,
@@ -190,6 +205,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_num_pre_dispenses_default(self):
     """Peristaltic dispense should encode default num_pre_dispenses (2) at byte 11."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=7,
     )
@@ -200,6 +216,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_num_pre_dispenses_1(self):
     """Peristaltic dispense should encode num_pre_dispenses=1 at byte 11."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=1,
       num_pre_dispenses=1,
@@ -210,6 +227,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_num_pre_dispenses_5(self):
     """Peristaltic dispense should encode num_pre_dispenses=5 at byte 11."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=9,
       num_pre_dispenses=5,
@@ -220,6 +238,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
   def test_peristaltic_dispense_full_command(self):
     """Test complete peristaltic dispense command with all parameters."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=500.0,
       flow_rate=7,
       offset_x=10,
@@ -248,6 +267,7 @@ class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
   async def test_peristaltic_dispense_accepts_columns(self):
     """peristaltic_dispense should accept columns parameter (1-indexed)."""
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
       columns=[1, 2, 3, 4],
@@ -257,6 +277,7 @@ class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
   async def test_peristaltic_dispense_accepts_all_columns_96well(self):
     """peristaltic_dispense should accept columns 1-12 for 96-well plate."""
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
       columns=list(range(1, 13)),
@@ -267,18 +288,21 @@ class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
     """peristaltic_dispense should reject column 0 and 13 for 96-well plate."""
     with self.assertRaises(ValueError):
       await self.backend.peristaltic_dispense(
+        PT96,
         volume=300.0,
-        columns=[0],  # Invalid — 1-indexed
+        columns=[0],  # Invalid -- 1-indexed
       )
     with self.assertRaises(ValueError):
       await self.backend.peristaltic_dispense(
+        PT96,
         volume=300.0,
-        columns=[13],  # Invalid — max 12 for 96-well
+        columns=[13],  # Invalid -- max 12 for 96-well
       )
 
   async def test_peristaltic_dispense_none_columns_means_all(self):
     """peristaltic_dispense with columns=None should dispense to all columns."""
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
       columns=None,
@@ -289,13 +313,15 @@ class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
     """peristaltic_dispense should reject row > 1 for 96-well plate."""
     with self.assertRaises(ValueError):
       await self.backend.peristaltic_dispense(
+        PT96,
         volume=300.0,
-        rows=[2],  # Invalid — only 1 row group for 96-well
+        rows=[2],  # Invalid -- only 1 row group for 96-well
       )
 
   async def test_peristaltic_dispense_accepts_row_1_96well(self):
     """peristaltic_dispense should accept row 1 for 96-well plate."""
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
       rows=[1],
@@ -304,8 +330,9 @@ class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
 
   async def test_peristaltic_dispense_default_z_96well(self):
     """peristaltic_dispense should default offset_z to 336 for 96-well."""
-    # offset_z=None → uses plate_type_default_z → 336 for 96-well
+    # offset_z=None -> uses plate_type_default_z -> 336 for 96-well
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
     )
@@ -314,6 +341,7 @@ class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
   async def test_peristaltic_dispense_columns_and_rows(self):
     """peristaltic_dispense should accept both columns and rows."""
     await self.backend.peristaltic_dispense(
+      PT96,
       volume=300.0,
       flow_rate="Medium",
       columns=[1, 3, 5],
@@ -331,6 +359,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_with_column_mask_length(self):
     """Command with well mask should be 24 bytes."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       column_mask=[0, 1, 2, 3],
@@ -340,6 +369,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_column_mask_encoding(self):
     """Command should correctly encode well mask at bytes 12-17."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       column_mask=[0, 1, 2, 3],
@@ -352,6 +382,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_pump_at_byte19(self):
     """Pump should be at byte 19 (1=Primary, 2=Secondary)."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       pump=2,  # Secondary
@@ -361,6 +392,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_none_column_mask_all_wells(self):
     """Command with None column_mask should encode all wells (0xFF * 6)."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       column_mask=None,
@@ -370,6 +402,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_default_row_mask(self):
     """Default rows=None should encode 0x00 (all selected, inverted)."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
     )
@@ -378,6 +411,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_default_pump(self):
     """Default pump should be 1 (Primary)."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
     )
@@ -386,6 +420,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_empty_column_mask(self):
     """Command with empty column_mask should encode no wells (0x00 * 6)."""
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       column_mask=[],
@@ -395,9 +430,9 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_rows_inverted_encoding(self):
     """Row mask uses inverted encoding: 0=selected, 1=deselected."""
     # Use 1536-well plate type which supports 4 row groups
-    self.backend.plate_type = EL406PlateType.PLATE_1536_WELL
-    # Select rows 1 and 2 → bits 0,1 cleared, bits 2,3 set → 0x0C
+    # Select rows 1 and 2 -> bits 0,1 cleared, bits 2,3 set -> 0x0C
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT1536,
       volume=300.0,
       flow_rate=5,
       rows=[1, 2],
@@ -408,6 +443,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
     """Command with complex well mask spanning multiple bytes."""
     # Wells 0, 8, 16, 24, 32, 40 = bit 0 of each of the 6 bytes
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT96,
       volume=300.0,
       flow_rate=5,
       column_mask=[0, 8, 16, 24, 32, 40],
@@ -423,8 +459,8 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
   def test_peristaltic_dispense_command_both_masks(self):
     """Command with column_mask and rows."""
     # Use 1536-well plate type which supports 4 row groups
-    self.backend.plate_type = EL406PlateType.PLATE_1536_WELL
     cmd = self.backend._build_peristaltic_dispense_command(
+      PT1536,
       volume=500.0,
       flow_rate=7,
       column_mask=[0, 47],  # First and last wells
@@ -440,7 +476,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
     self.assertEqual(cmd[13:17], bytes([0x00, 0x00, 0x00, 0x00]))
     self.assertEqual(cmd[17], 0x80)
 
-    # Row mask: all 4 rows selected → inverted = 0x00
+    # Row mask: all 4 rows selected -> inverted = 0x00
     self.assertEqual(cmd[18], 0x00)
     # Pump at byte 19
     self.assertEqual(cmd[19], 2)
@@ -452,51 +488,51 @@ class TestEL406BackendPeristalticPurge(EL406TestCase):
   async def test_peristaltic_purge_sends_command(self):
     """peristaltic_purge should send a command to the device."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.peristaltic_purge(volume=1000.0, flow_rate="High")
+    await self.backend.peristaltic_purge(PT96, volume=1000.0, flow_rate="High")
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_peristaltic_purge_validates_volume(self):
-    """peristaltic_purge should validate volume range (1-3000 µL)."""
+    """peristaltic_purge should validate volume range (1-3000 uL)."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(volume=0.0)
+      await self.backend.peristaltic_purge(PT96, volume=0.0)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(volume=-100.0)
+      await self.backend.peristaltic_purge(PT96, volume=-100.0)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(volume=3001.0)
+      await self.backend.peristaltic_purge(PT96, volume=3001.0)
 
   async def test_peristaltic_purge_accepts_volume_boundaries(self):
     """peristaltic_purge should accept volume at boundaries (1, 3000)."""
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_purge(volume=1.0)
+    await self.backend.peristaltic_purge(PT96, volume=1.0)
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_purge(volume=3000.0)
+    await self.backend.peristaltic_purge(PT96, volume=3000.0)
 
   async def test_peristaltic_purge_validates_duration(self):
     """peristaltic_purge should validate duration range (1-300 seconds)."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(duration=0)
+      await self.backend.peristaltic_purge(PT96, duration=0)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(duration=-1)
+      await self.backend.peristaltic_purge(PT96, duration=-1)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(duration=301)
+      await self.backend.peristaltic_purge(PT96, duration=301)
 
   async def test_peristaltic_purge_accepts_duration_boundaries(self):
     """peristaltic_purge should accept duration at boundaries (1, 300)."""
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_purge(duration=1)
+    await self.backend.peristaltic_purge(PT96, duration=1)
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_purge(duration=300)
+    await self.backend.peristaltic_purge(PT96, duration=300)
 
   async def test_peristaltic_purge_rejects_both_volume_and_duration(self):
     """peristaltic_purge should reject both volume and duration specified."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(volume=100.0, duration=10)
+      await self.backend.peristaltic_purge(PT96, volume=100.0, duration=10)
 
   async def test_peristaltic_purge_validates_flow_rate(self):
     """peristaltic_purge should validate flow rate is Low/Medium/High."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_purge(volume=1000.0, flow_rate="Invalid")
+      await self.backend.peristaltic_purge(PT96, volume=1000.0, flow_rate="Invalid")
 
   async def test_peristaltic_purge_raises_when_device_not_initialized(self):
     """peristaltic_purge should raise RuntimeError if device not initialized."""
@@ -504,18 +540,18 @@ class TestEL406BackendPeristalticPurge(EL406TestCase):
     # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
-      await backend.peristaltic_purge(volume=1000.0)
+      await backend.peristaltic_purge(PT96, volume=1000.0)
 
   async def test_peristaltic_purge_accepts_all_flow_rates(self):
     """peristaltic_purge should accept flow rates Low, Medium, High."""
     for flow_rate in ["Low", "Medium", "High"]:
       self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
-      await self.backend.peristaltic_purge(volume=500.0, flow_rate=flow_rate)
+      await self.backend.peristaltic_purge(PT96, volume=500.0, flow_rate=flow_rate)
 
   async def test_peristaltic_purge_default_flow_rate(self):
     """peristaltic_purge should use default flow rate High."""
-    await self.backend.peristaltic_purge(volume=1000.0)
+    await self.backend.peristaltic_purge(PT96, volume=1000.0)
 
     # Verify command was sent
     self.assertGreater(len(self.backend.io.written_data), 0)
@@ -525,7 +561,7 @@ class TestEL406BackendPeristalticPurge(EL406TestCase):
     self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
-      await self.backend.peristaltic_purge(volume=1000.0)
+      await self.backend.peristaltic_purge(PT96, volume=1000.0)
 
 
 if __name__ == "__main__":

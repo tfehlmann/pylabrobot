@@ -8,13 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..enums import EL406PlateType
-
 
 class EL406StepsBaseMixin:
   """Type stubs consumed by the per-subsystem step mixins."""
 
-  plate_type: EL406PlateType
   timeout: float
 
   if TYPE_CHECKING:

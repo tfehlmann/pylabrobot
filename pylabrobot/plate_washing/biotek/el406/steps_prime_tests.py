@@ -13,8 +13,11 @@ import unittest
 
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
+  EL406PlateType,
 )
 from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase
+
+PT96 = EL406PlateType.PLATE_96_WELL
 
 
 class TestEL406BackendPeristalticPrime(EL406TestCase):
@@ -23,7 +26,7 @@ class TestEL406BackendPeristalticPrime(EL406TestCase):
   async def test_peristaltic_prime_sends_correct_command(self):
     """Peristaltic prime should send correct step type and parameters."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.peristaltic_prime(volume=1000.0)
+    await self.backend.peristaltic_prime(PT96, volume=1000.0)
 
     # Verify a command was sent
     self.assertGreater(len(self.backend.io.written_data), initial_count)
@@ -31,44 +34,44 @@ class TestEL406BackendPeristalticPrime(EL406TestCase):
   async def test_peristaltic_prime_validates_flow_rate(self):
     """Peristaltic prime should validate flow rate selection."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(flow_rate="Invalid")  # Invalid flow rate
+      await self.backend.peristaltic_prime(PT96, flow_rate="Invalid")  # Invalid flow rate
 
   async def test_peristaltic_prime_validates_volume(self):
     """Peristaltic prime should validate volume range (1-3000 uL)."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(volume=-100.0)
+      await self.backend.peristaltic_prime(PT96, volume=-100.0)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(volume=0.0)
+      await self.backend.peristaltic_prime(PT96, volume=0.0)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(volume=3001.0)
+      await self.backend.peristaltic_prime(PT96, volume=3001.0)
 
   async def test_peristaltic_prime_accepts_volume_boundaries(self):
     """Peristaltic prime should accept volume at boundaries (1, 3000)."""
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_prime(volume=1.0)
+    await self.backend.peristaltic_prime(PT96, volume=1.0)
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_prime(volume=3000.0)
+    await self.backend.peristaltic_prime(PT96, volume=3000.0)
 
   async def test_peristaltic_prime_validates_duration(self):
     """Peristaltic prime should validate duration range (1-300 seconds)."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(duration=0)
+      await self.backend.peristaltic_prime(PT96, duration=0)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(duration=-1)
+      await self.backend.peristaltic_prime(PT96, duration=-1)
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(duration=301)
+      await self.backend.peristaltic_prime(PT96, duration=301)
 
   async def test_peristaltic_prime_accepts_duration_boundaries(self):
     """Peristaltic prime should accept duration at boundaries (1, 300)."""
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_prime(duration=1)
+    await self.backend.peristaltic_prime(PT96, duration=1)
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.peristaltic_prime(duration=300)
+    await self.backend.peristaltic_prime(PT96, duration=300)
 
   async def test_peristaltic_prime_rejects_both_volume_and_duration(self):
     """Peristaltic prime should reject both volume and duration specified."""
     with self.assertRaises(ValueError):
-      await self.backend.peristaltic_prime(volume=100.0, duration=10)
+      await self.backend.peristaltic_prime(PT96, volume=100.0, duration=10)
 
 
 class TestEL406BackendSyringePrime(EL406TestCase):
@@ -77,82 +80,83 @@ class TestEL406BackendSyringePrime(EL406TestCase):
   async def test_syringe_prime_sends_command(self):
     """syringe_prime should send a command to the device."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.syringe_prime(volume=5000.0, syringe="A", flow_rate=5)
+    await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", flow_rate=5)
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_syringe_prime_validates_volume_too_low(self):
     """syringe_prime should reject volume below 80 uL."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=79.0, syringe="A")
+      await self.backend.syringe_prime(PT96, volume=79.0, syringe="A")
 
   async def test_syringe_prime_validates_volume_too_high(self):
     """syringe_prime should reject volume above 9999 uL."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=10000.0, syringe="A")
+      await self.backend.syringe_prime(PT96, volume=10000.0, syringe="A")
 
   async def test_syringe_prime_validates_volume_negative(self):
     """syringe_prime should reject negative volume."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=-100.0, syringe="A")
+      await self.backend.syringe_prime(PT96, volume=-100.0, syringe="A")
 
   async def test_syringe_prime_accepts_volume_boundaries(self):
     """syringe_prime should accept volume at boundaries (80, 9999)."""
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.syringe_prime(volume=80.0, syringe="A")
+    await self.backend.syringe_prime(PT96, volume=80.0, syringe="A")
     self.backend.io.set_read_buffer(b"\x06" * 100)
-    await self.backend.syringe_prime(volume=9999.0, syringe="A")
+    await self.backend.syringe_prime(PT96, volume=9999.0, syringe="A")
 
   async def test_syringe_prime_validates_syringe(self):
     """syringe_prime should validate syringe selection."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="Z")
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="Z")
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="C")
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="C")
 
   async def test_syringe_prime_validates_flow_rate(self):
     """syringe_prime should validate flow rate (1-5)."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", flow_rate=0)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", flow_rate=0)
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", flow_rate=6)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", flow_rate=6)
 
   async def test_syringe_prime_validates_pump_delay(self):
     """syringe_prime should validate pump delay (0-5.0 s)."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", pump_delay=-1.0)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", pump_delay=-1.0)
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", pump_delay=6.0)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", pump_delay=6.0)
 
   async def test_syringe_prime_validates_refills(self):
     """syringe_prime should validate refills (1-255)."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", refills=0)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", refills=0)
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", refills=256)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", refills=256)
 
   async def test_syringe_prime_validates_submerge_duration(self):
     """syringe_prime should validate submerge duration (0-86340 s)."""
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", submerge_duration=-60)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", submerge_duration=-60)
     with self.assertRaises(ValueError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", submerge_duration=86400)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", submerge_duration=86400)
 
   async def test_syringe_prime_raises_when_device_not_initialized(self):
     """syringe_prime should raise RuntimeError if device not initialized."""
     backend = BioTekEL406Backend()
     with self.assertRaises(RuntimeError):
-      await backend.syringe_prime(volume=5000.0, syringe="A")
+      await backend.syringe_prime(PT96, volume=5000.0, syringe="A")
 
   async def test_syringe_prime_accepts_flow_rate_range(self):
     """syringe_prime should accept flow rates 1-5."""
     for flow_rate in range(1, 6):
       self.backend.io.set_read_buffer(b"\x06" * 100)
-      await self.backend.syringe_prime(volume=5000.0, syringe="A", flow_rate=flow_rate)
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A", flow_rate=flow_rate)
 
   async def test_syringe_prime_with_refills(self):
     """syringe_prime should accept refills parameter."""
     initial_count = len(self.backend.io.written_data)
     await self.backend.syringe_prime(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -162,13 +166,14 @@ class TestEL406BackendSyringePrime(EL406TestCase):
 
   async def test_syringe_prime_default_values(self):
     """syringe_prime should use appropriate defaults."""
-    await self.backend.syringe_prime(syringe="A")
+    await self.backend.syringe_prime(PT96, syringe="A")
     self.assertGreater(len(self.backend.io.written_data), 0)
 
   async def test_syringe_prime_with_submerge(self):
     """syringe_prime should accept submerge parameters."""
     self.backend.io.set_read_buffer(b"\x06" * 100)
     await self.backend.syringe_prime(
+      PT96,
       volume=5000.0,
       syringe="A",
       submerge_tips=True,
@@ -180,7 +185,7 @@ class TestEL406BackendSyringePrime(EL406TestCase):
     self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")
     with self.assertRaises(TimeoutError):
-      await self.backend.syringe_prime(volume=5000.0, syringe="A")
+      await self.backend.syringe_prime(PT96, volume=5000.0, syringe="A")
 
 
 class TestSyringePrimeCommandEncoding(unittest.TestCase):
@@ -192,6 +197,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_step_type(self):
     """Syringe prime command should have prefix 0x04."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -201,6 +207,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_syringe_a(self):
     """Syringe prime syringe A should encode as 0."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -210,6 +217,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_syringe_b(self):
     """Syringe prime syringe B should encode as 1."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="B",
       flow_rate=5,
@@ -219,6 +227,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_lowercase_syringe(self):
     """Syringe prime should accept lowercase syringe names."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="b",
       flow_rate=5,
@@ -228,6 +237,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_volume_encoding(self):
     """Syringe prime should encode volume as little-endian 2 bytes."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -238,6 +248,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_volume_1000ul(self):
     """Syringe prime with 1000 uL."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=1000.0,
       syringe="A",
       flow_rate=5,
@@ -249,6 +260,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
     """Syringe prime should encode flow rate as single byte."""
     for rate in [1, 3, 5]:
       cmd = self.backend._build_syringe_prime_command(
+        PT96,
         volume=5000.0,
         syringe="A",
         flow_rate=rate,
@@ -258,6 +270,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_refills(self):
     """Syringe prime should encode refills as single byte."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -268,6 +281,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_default_refills(self):
     """Syringe prime should default to 2 refills."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -277,6 +291,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_pump_delay(self):
     """Syringe prime should encode pump delay as LE uint16."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -289,6 +304,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_command_length(self):
     """Syringe prime command should have exactly 13 bytes."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=5000.0,
       syringe="A",
       flow_rate=5,
@@ -298,6 +314,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_full_command(self):
     """Test complete syringe prime command with all parameters."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=3000.0,
       syringe="B",
       flow_rate=3,
@@ -325,11 +342,13 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_bottle_encoding(self):
     """Test syringe prime encodes bottle from syringe selection."""
     cmd_a = self.backend._build_syringe_prime_command(
+      PT96,
       volume=1000.0,
       syringe="A",
       flow_rate=5,
     )
     cmd_b = self.backend._build_syringe_prime_command(
+      PT96,
       volume=1000.0,
       syringe="B",
       flow_rate=5,
@@ -340,6 +359,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_submerge_duration(self):
     """Test syringe prime encodes submerge duration at bytes 9-10."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=1000.0,
       syringe="A",
       flow_rate=5,
@@ -354,6 +374,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_submerge_disabled_zeroes_time(self):
     """When submerge_tips=False, time bytes should be zero."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=1000.0,
       syringe="A",
       flow_rate=5,
@@ -367,6 +388,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
   def test_syringe_prime_submerge_max_duration(self):
     """Test max submerge duration (1439 minutes = 23:59)."""
     cmd = self.backend._build_syringe_prime_command(
+      PT96,
       volume=1000.0,
       syringe="A",
       flow_rate=5,
@@ -384,39 +406,39 @@ class TestEL406BackendManifoldPrime(EL406TestCase):
   async def test_manifold_prime_sends_command(self):
     """manifold_prime should send a command to the device."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.manifold_prime(volume=500000.0, buffer="A", flow_rate=9)
+    await self.backend.manifold_prime(PT96, volume=500000.0, buffer="A", flow_rate=9)
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_manifold_prime_validates_volume(self):
-    """manifold_prime should validate volume (5000-999000 µL)."""
+    """manifold_prime should validate volume (5000-999000 uL)."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=0.0, buffer="A")
+      await self.backend.manifold_prime(PT96, volume=0.0, buffer="A")
 
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=4000.0, buffer="A")
+      await self.backend.manifold_prime(PT96, volume=4000.0, buffer="A")
 
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=1000000.0, buffer="A")
+      await self.backend.manifold_prime(PT96, volume=1000000.0, buffer="A")
 
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=-100000.0, buffer="A")
+      await self.backend.manifold_prime(PT96, volume=-100000.0, buffer="A")
 
   async def test_manifold_prime_validates_buffer(self):
     """manifold_prime should validate buffer selection."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=500000.0, buffer="Z")
+      await self.backend.manifold_prime(PT96, volume=500000.0, buffer="Z")
 
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=500000.0, buffer="E")
+      await self.backend.manifold_prime(PT96, volume=500000.0, buffer="E")
 
   async def test_manifold_prime_validates_flow_rate(self):
     """manifold_prime should validate flow rate (3-11)."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=500000.0, buffer="A", flow_rate=2)
+      await self.backend.manifold_prime(PT96, volume=500000.0, buffer="A", flow_rate=2)
 
     with self.assertRaises(ValueError):
-      await self.backend.manifold_prime(volume=500000.0, buffer="A", flow_rate=12)
+      await self.backend.manifold_prime(PT96, volume=500000.0, buffer="A", flow_rate=12)
 
   async def test_manifold_prime_raises_when_device_not_initialized(self):
     """manifold_prime should raise RuntimeError if device not initialized."""
@@ -424,18 +446,18 @@ class TestEL406BackendManifoldPrime(EL406TestCase):
     # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
-      await backend.manifold_prime(volume=500000.0, buffer="A")
+      await backend.manifold_prime(PT96, volume=500000.0, buffer="A")
 
   async def test_manifold_prime_accepts_flow_rate_range(self):
     """manifold_prime should accept flow rates 3-11."""
     for flow_rate in range(3, 12):
       self.backend.io.set_read_buffer(b"\x06" * 100)
       # Should not raise
-      await self.backend.manifold_prime(volume=500000.0, buffer="A", flow_rate=flow_rate)
+      await self.backend.manifold_prime(PT96, volume=500000.0, buffer="A", flow_rate=flow_rate)
 
   async def test_manifold_prime_default_flow_rate(self):
     """manifold_prime should use default flow rate 9."""
-    await self.backend.manifold_prime(volume=500000.0, buffer="A")
+    await self.backend.manifold_prime(PT96, volume=500000.0, buffer="A")
 
     # Verify command was sent (flow rate 9 is default, fastest for priming)
     self.assertGreater(len(self.backend.io.written_data), 0)
@@ -445,7 +467,7 @@ class TestEL406BackendManifoldPrime(EL406TestCase):
     self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
-      await self.backend.manifold_prime(volume=500000.0, buffer="A")
+      await self.backend.manifold_prime(PT96, volume=500000.0, buffer="A")
 
 
 class TestManifoldPrimeCommandEncoding(unittest.TestCase):
@@ -457,6 +479,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_step_type(self):
     """Manifold prime command should have step type prefix 0x04."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="A",
       flow_rate=9,
@@ -467,6 +490,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_buffer_a(self):
     """Manifold prime buffer A should encode as 'A' (0x41)."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="A",
       flow_rate=9,
@@ -477,6 +501,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_buffer_b(self):
     """Manifold prime buffer B should encode as 'B' (0x42)."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="B",
       flow_rate=9,
@@ -487,6 +512,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_lowercase_buffer(self):
     """Manifold prime should accept lowercase buffer and encode as uppercase."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="b",
       flow_rate=9,
@@ -497,6 +523,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_volume_encoding(self):
     """Manifold prime should encode volume as little-endian 2 bytes."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="A",
       flow_rate=9,
@@ -509,6 +536,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_volume_500ml(self):
     """Manifold prime with 500 mL."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=500.0,
       buffer="A",
       flow_rate=9,
@@ -521,6 +549,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_volume_max(self):
     """Manifold prime with maximum volume (65535 mL)."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=65535.0,
       buffer="A",
       flow_rate=9,
@@ -532,6 +561,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_flow_rate(self):
     """Manifold prime should encode flow rate as single byte."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="A",
       flow_rate=7,
@@ -542,6 +572,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_flow_rate_min(self):
     """Manifold prime should encode minimum flow rate 1."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="A",
       flow_rate=1,
@@ -552,6 +583,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_flow_rate_max(self):
     """Manifold prime should encode maximum flow rate 9."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=1000.0,
       buffer="A",
       flow_rate=9,
@@ -562,6 +594,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
   def test_manifold_prime_full_command(self):
     """Test complete manifold prime command with all parameters."""
     cmd = self.backend._build_manifold_prime_command(
+      PT96,
       volume_ml=2000.0,
       buffer="B",
       flow_rate=5,
@@ -580,17 +613,17 @@ class TestEL406BackendAutoClean(EL406TestCase):
   async def test_auto_clean_sends_command(self):
     """auto_clean should send a command to the device."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.manifold_auto_clean(buffer="A")
+    await self.backend.manifold_auto_clean(PT96, buffer="A")
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_auto_clean_validates_buffer(self):
     """auto_clean should validate buffer selection."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_auto_clean(buffer="Z")
+      await self.backend.manifold_auto_clean(PT96, buffer="Z")
 
     with self.assertRaises(ValueError):
-      await self.backend.manifold_auto_clean(buffer="E")
+      await self.backend.manifold_auto_clean(PT96, buffer="E")
 
   async def test_auto_clean_raises_when_device_not_initialized(self):
     """auto_clean should raise RuntimeError if device not initialized."""
@@ -598,18 +631,18 @@ class TestEL406BackendAutoClean(EL406TestCase):
     # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
-      await backend.manifold_auto_clean(buffer="A")
+      await backend.manifold_auto_clean(PT96, buffer="A")
 
   async def test_auto_clean_with_duration(self):
     """auto_clean should accept duration parameter."""
     initial_count = len(self.backend.io.written_data)
-    await self.backend.manifold_auto_clean(buffer="A", duration=60.0)
+    await self.backend.manifold_auto_clean(PT96, buffer="A", duration=60.0)
 
     self.assertGreater(len(self.backend.io.written_data), initial_count)
 
   async def test_auto_clean_default_buffer(self):
     """auto_clean should use default buffer A."""
-    await self.backend.manifold_auto_clean()
+    await self.backend.manifold_auto_clean(PT96)
 
     # Verify command was sent
     self.assertGreater(len(self.backend.io.written_data), 0)
@@ -619,12 +652,12 @@ class TestEL406BackendAutoClean(EL406TestCase):
     self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
-      await self.backend.manifold_auto_clean(buffer="A")
+      await self.backend.manifold_auto_clean(PT96, buffer="A")
 
   async def test_auto_clean_validates_negative_duration(self):
     """auto_clean should raise ValueError for negative duration."""
     with self.assertRaises(ValueError):
-      await self.backend.manifold_auto_clean(buffer="A", duration=-10.0)
+      await self.backend.manifold_auto_clean(PT96, buffer="A", duration=-10.0)
 
 
 class TestAutoCleanCommandEncoding(unittest.TestCase):
@@ -635,31 +668,31 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
 
   def test_auto_clean_step_type(self):
     """Auto-clean command should have step type prefix 0x04."""
-    cmd = self.backend._build_auto_clean_command(buffer="A")
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="A")
 
     self.assertEqual(cmd[0], 0x04)
 
   def test_auto_clean_buffer_a(self):
     """Auto-clean buffer A should encode as 'A' (0x41)."""
-    cmd = self.backend._build_auto_clean_command(buffer="A")
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="A")
 
     self.assertEqual(cmd[1], ord("A"))
 
   def test_auto_clean_buffer_b(self):
     """Auto-clean buffer B should encode as 'B' (0x42)."""
-    cmd = self.backend._build_auto_clean_command(buffer="B")
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="B")
 
     self.assertEqual(cmd[1], ord("B"))
 
   def test_auto_clean_lowercase_buffer(self):
     """Auto-clean should accept lowercase buffer and encode as uppercase."""
-    cmd = self.backend._build_auto_clean_command(buffer="c")
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="c")
 
     self.assertEqual(cmd[1], ord("C"))
 
   def test_auto_clean_duration_encoding(self):
     """Auto-clean should encode duration as little-endian 2 bytes."""
-    cmd = self.backend._build_auto_clean_command(buffer="A", duration_min=60.0)
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="A", duration_min=60.0)
 
     # 60 = 0x003C LE
     self.assertEqual(cmd[2], 0x3C)
@@ -667,7 +700,7 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
 
   def test_auto_clean_duration_30_minutes(self):
     """Auto-clean with 30 minute duration."""
-    cmd = self.backend._build_auto_clean_command(buffer="A", duration_min=30.0)
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="A", duration_min=30.0)
 
     # 30 = 0x001E LE
     self.assertEqual(cmd[2], 0x1E)
@@ -675,7 +708,7 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
 
   def test_auto_clean_duration_zero(self):
     """Auto-clean with zero duration (no additional cleaning time)."""
-    cmd = self.backend._build_auto_clean_command(buffer="A", duration_min=0.0)
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="A", duration_min=0.0)
 
     self.assertEqual(cmd[2], 0x00)
     self.assertEqual(cmd[3], 0x00)
@@ -683,6 +716,7 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
   def test_auto_clean_full_command(self):
     """Test complete auto-clean command with all parameters."""
     cmd = self.backend._build_auto_clean_command(
+      PT96,
       buffer="B",
       duration_min=90.0,
     )
@@ -694,7 +728,7 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
 
   def test_auto_clean_default_duration(self):
     """Auto-clean without duration should use default 1 minute."""
-    cmd = self.backend._build_auto_clean_command(buffer="A")
+    cmd = self.backend._build_auto_clean_command(PT96, buffer="A")
 
     self.assertEqual(cmd[2], 0x01)
     self.assertEqual(cmd[3], 0x00)

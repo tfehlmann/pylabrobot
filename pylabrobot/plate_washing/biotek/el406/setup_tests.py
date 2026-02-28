@@ -2,7 +2,7 @@
 """Tests for BioTek EL406 plate washer backend - Setup, serialization, and configuration.
 
 This module contains tests for setup, serialization, error classes,
-and plate type configuration.
+and plate type validation.
 """
 
 import unittest
@@ -71,32 +71,6 @@ class TestEL406BackendSerialization(unittest.TestCase):
     """Backend should be instantiable without FTDI library."""
     backend = BioTekEL406Backend()
     self.assertIsNone(backend.io)
-
-
-class TestPlateTypeConfiguration(unittest.TestCase):
-  """Test plate type configuration."""
-
-  def test_set_and_get_plate_type_round_trip(self):
-    """set_plate_type and get_plate_type should work together."""
-    backend = BioTekEL406Backend()
-    for plate_type in EL406PlateType:
-      backend.set_plate_type(plate_type)
-      result = backend.get_plate_type()
-      self.assertEqual(result, plate_type)
-
-  def test_serialize_includes_plate_type(self):
-    """Backend serialization should include plate_type."""
-    backend = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_384_WELL)
-    serialized = backend.serialize()
-    self.assertEqual(serialized["plate_type"], EL406PlateType.PLATE_384_WELL.value)
-
-  def test_set_plate_type_does_not_send_command(self):
-    """set_plate_type should NOT send any command to the device."""
-    backend = BioTekEL406Backend(timeout=0.01)
-    backend.io = MockFTDI()
-    initial_count = len(backend.io.written_data)
-    backend.set_plate_type(EL406PlateType.PLATE_384_WELL)
-    self.assertEqual(len(backend.io.written_data), initial_count)
 
 
 class TestPlateTypeValidation(unittest.TestCase):

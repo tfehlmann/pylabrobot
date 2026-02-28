@@ -59,7 +59,6 @@ class EL406CommunicationMixin:
 
   io: FTDI | None
   timeout: float
-  plate_type: EL406PlateType
   _command_lock: asyncio.Lock
 
   async def _write_to_device(self, data: bytes) -> None:
@@ -169,7 +168,7 @@ class EL406CommunicationMixin:
     init_response = await self._send_framed_command(init_state_cmd, timeout=self.timeout)
     logger.debug("INIT_STATE sent, response: %s", init_response.hex())
 
-  async def start_batch(self) -> None:
+  async def start_batch(self, plate_type: EL406PlateType) -> None:
     """Send START_STEP command to begin a batch of step operations.
 
     Use this function at the beginning of a protocol, before executing any step
@@ -181,6 +180,9 @@ class EL406CommunicationMixin:
     - After setup() completes
     - Before running any step commands
     - Only once per batch of operations (not before each individual step)
+
+    Args:
+      plate_type: Plate type to configure for this batch.
     """
     if self.io is None:
       raise RuntimeError("Device not initialized - call setup() first")
@@ -198,7 +200,7 @@ class EL406CommunicationMixin:
         logger.warning("Pre-batch command 0x%04X failed: %s", cmd, e)
 
     # Data byte is the plate type value (e.g., 0x04 for 96-well, 0x01 for 384-well).
-    start_step_data = bytes([self.plate_type.value])
+    start_step_data = bytes([plate_type.value])
     start_step_cmd = build_framed_message(command=0x8D, data=start_step_data)
     response = await self._send_framed_command(start_step_cmd, timeout=self.timeout)
     logger.debug("START_STEP sent, response: %s", response.hex())

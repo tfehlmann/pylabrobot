@@ -11,6 +11,7 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
+from ..enums import EL406PlateType
 from ..helpers import (
   plate_type_default_z,
   plate_type_max_columns,
@@ -78,26 +79,28 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
   def _validate_peristaltic_well_selection(
     self,
+    plate_type: EL406PlateType,
     columns: list[int] | None,
     rows: list[int] | None,
   ) -> list[int] | None:
     """Validate column/row selection and return column mask."""
-    max_cols = plate_type_max_columns(self.plate_type)
+    max_cols = plate_type_max_columns(plate_type)
     if columns is not None:
       for col in columns:
         if col < 1 or col > max_cols:
           raise ValueError(f"Column {col} out of range for plate type (1-{max_cols}).")
 
-    max_rows = plate_type_max_rows(self.plate_type)
+    max_rows = plate_type_max_rows(plate_type)
     if rows is not None:
       for row in rows:
         if row < 1 or row > max_rows:
           raise ValueError(f"Row {row} out of range for plate type (1-{max_rows}).")
 
-    return columns_to_column_mask(columns, plate_wells=plate_type_well_count(self.plate_type))
+    return columns_to_column_mask(columns, plate_wells=plate_type_well_count(plate_type))
 
   def _validate_peristaltic_dispense_params(
     self,
+    plate_type: EL406PlateType,
     volume: float,
     flow_rate: Literal["Low", "Medium", "High"],
     offset_x: int,
@@ -121,19 +124,20 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       raise ValueError(f"Peri-pump dispense Y-axis offset must be -40..40, got {offset_y}")
 
     if offset_z is None:
-      offset_z = plate_type_default_z(self.plate_type)
+      offset_z = plate_type_default_z(plate_type)
     if not 1 <= offset_z <= 1500:
       raise ValueError(f"Peri-pump dispense Z-axis offset must be 1..1500, got {offset_z}")
 
     if pre_dispense_volume < 0:
       raise ValueError(f"pre_dispense_volume must be non-negative, got {pre_dispense_volume}")
 
-    column_mask = self._validate_peristaltic_well_selection(columns, rows)
+    column_mask = self._validate_peristaltic_well_selection(plate_type, columns, rows)
 
     return (offset_z, PERISTALTIC_FLOW_RATE_MAP[flow_rate], column_mask)
 
   async def peristaltic_prime(
     self,
+    plate_type: EL406PlateType,
     volume: float | None = None,
     duration: int | None = None,
     flow_rate: Literal["Low", "Medium", "High"] = "High",
@@ -179,6 +183,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_peristaltic_prime_command(
+      plate_type=plate_type,
       volume=prime_volume,
       duration=prime_duration,
       flow_rate=PERISTALTIC_FLOW_RATE_MAP[flow_rate],
@@ -193,6 +198,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
   async def peristaltic_dispense(
     self,
+    plate_type: EL406PlateType,
     volume: float,
     flow_rate: Literal["Low", "Medium", "High"] = "High",
     offset_x: int = 0,
@@ -225,6 +231,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       ValueError: If parameters are invalid.
     """
     offset_z, flow_rate_enum, column_mask = self._validate_peristaltic_dispense_params(
+      plate_type=plate_type,
       volume=volume,
       flow_rate=flow_rate,
       offset_x=offset_x,
@@ -243,6 +250,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_peristaltic_dispense_command(
+      plate_type=plate_type,
       volume=volume,
       flow_rate=flow_rate_enum,
       cassette=cassette,
@@ -260,6 +268,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
   async def peristaltic_purge(
     self,
+    plate_type: EL406PlateType,
     volume: float | None = None,
     duration: int | None = None,
     flow_rate: Literal["Low", "Medium", "High"] = "High",
@@ -309,6 +318,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
     # Reuse peristaltic_prime builder since data format is identical
     data = self._build_peristaltic_prime_command(
+      plate_type=plate_type,
       volume=purge_volume,
       duration=purge_duration,
       flow_rate=PERISTALTIC_FLOW_RATE_MAP[flow_rate],
@@ -327,6 +337,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
   def _build_peristaltic_prime_command(
     self,
+    plate_type: EL406PlateType,
     volume: float,
     duration: int = 0,
     flow_rate: int = 2,
@@ -361,7 +372,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     """
     return (
       Writer()
-      .u8(self.plate_type.value)              # [0] Plate type
+      .u8(plate_type.value)                   # [0] Plate type
       .u16(int(volume))                       # [1-2] Volume (LE)
       .u16(duration)                          # [3-4] Duration (LE)
       .u8(flow_rate)                          # [5] Flow rate
@@ -374,6 +385,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
 
   def _build_peristaltic_dispense_command(
     self,
+    plate_type: EL406PlateType,
     volume: float,
     flow_rate: int,
     cassette: str = "Any",
@@ -421,11 +433,11 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (24 bytes).
     """
-    num_row_groups = plate_type_max_rows(self.plate_type)
+    num_row_groups = plate_type_max_rows(plate_type)
 
     return (
       Writer()
-      .u8(self.plate_type.value)                                         # [0] Plate type
+      .u8(plate_type.value)                                              # [0] Plate type
       .u16(int(volume))                                                  # [1-2] Volume (LE)
       .u8(flow_rate)                                                     # [3] Flow rate
       .u8(cassette_to_byte(cassette))                                    # [4] Cassette type

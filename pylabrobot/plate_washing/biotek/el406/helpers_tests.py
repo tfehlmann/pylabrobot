@@ -4,8 +4,11 @@ import unittest
 
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
+  EL406PlateType,
 )
 from pylabrobot.plate_washing.biotek.el406.protocol import encode_column_mask
+
+PT96 = EL406PlateType.PLATE_96_WELL
 
 
 class TestHelperFunctions(unittest.TestCase):
@@ -17,6 +20,7 @@ class TestHelperFunctions(unittest.TestCase):
   def test_encode_volume_little_endian(self):
     """Volume should be encoded as little-endian 2 bytes."""
     cmd = self.backend._build_dispense_command(
+      plate_type=PT96,
       volume=1000.0,
       buffer="A",
       flow_rate=5,
@@ -30,6 +34,7 @@ class TestHelperFunctions(unittest.TestCase):
   def test_encode_signed_byte_positive(self):
     """Positive offset should encode correctly."""
     cmd = self.backend._build_aspirate_command(
+      plate_type=PT96,
       time_value=1000,
       travel_rate_byte=3,
       offset_x=50,
@@ -42,6 +47,7 @@ class TestHelperFunctions(unittest.TestCase):
   def test_encode_signed_byte_negative(self):
     """Negative offset should encode as two's complement."""
     cmd = self.backend._build_aspirate_command(
+      plate_type=PT96,
       time_value=1000,
       travel_rate_byte=3,
       offset_x=-30,

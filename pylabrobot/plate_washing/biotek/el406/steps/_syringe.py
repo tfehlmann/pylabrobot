@@ -11,6 +11,7 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
+from ..enums import EL406PlateType
 from ..helpers import (
   plate_type_well_count,
 )
@@ -61,6 +62,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
   async def syringe_dispense(
     self,
+    plate_type: EL406PlateType,
     volume: float,
     syringe: Literal["A", "B", "Both"] = "A",
     flow_rate: int = 2,
@@ -110,9 +112,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     validate_syringe_flow_rate(flow_rate)
     validate_pump_delay(pump_delay_ms)
 
-    column_mask = columns_to_column_mask(
-      columns, plate_wells=plate_type_well_count(self.plate_type)
-    )
+    column_mask = columns_to_column_mask(columns, plate_wells=plate_type_well_count(plate_type))
 
     logger.info(
       "Syringe dispense: %.1f uL from syringe %s, flow rate %d",
@@ -122,6 +122,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_syringe_dispense_command(
+      plate_type=plate_type,
       volume=volume,
       syringe=syringe,
       flow_rate=flow_rate,
@@ -139,6 +140,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
   async def syringe_prime(
     self,
+    plate_type: EL406PlateType,
     syringe: Literal["A", "B"] = "A",
     volume: float = 5000.0,
     flow_rate: int = 5,
@@ -191,6 +193,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_syringe_prime_command(
+      plate_type=plate_type,
       volume=volume,
       syringe=syringe,
       flow_rate=flow_rate,
@@ -210,6 +213,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
   def _build_syringe_dispense_command(
     self,
+    plate_type: EL406PlateType,
     volume: float,
     syringe: str,
     flow_rate: int,
@@ -260,7 +264,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
     return (
       Writer()
-      .u8(self.plate_type.value)               # [0] Plate type
+      .u8(plate_type.value)                    # [0] Plate type
       .u8(syringe_to_byte(syringe))            # [1] Syringe
       .u16(int(volume))                        # [2-3] Volume (LE)
       .u8(flow_rate)                           # [4] Flow rate
@@ -278,6 +282,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
   def _build_syringe_prime_command(
     self,
+    plate_type: EL406PlateType,
     volume: float,
     syringe: str,
     flow_rate: int,
@@ -318,7 +323,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
     return (
       Writer()
-      .u8(self.plate_type.value)               # [0] Plate type
+      .u8(plate_type.value)                    # [0] Plate type
       .u8(syringe_to_byte(syringe))            # [1] Syringe (A=0, B=1)
       .u16(int(volume))                        # [2-3] Volume (LE)
       .u8(flow_rate)                           # [4] Flow rate

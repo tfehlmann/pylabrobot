@@ -23,7 +23,6 @@ from .actions import EL406ActionsMixin
 from .communication import EL406CommunicationMixin
 from .enums import EL406PlateType
 from .errors import EL406CommunicationError
-from .helpers import validate_plate_type
 from .queries import EL406QueriesMixin
 from .steps import EL406StepsMixin
 
@@ -43,7 +42,6 @@ class BioTekEL406Backend(
 
   Attributes:
     timeout: Default timeout for operations in seconds.
-    plate_type: Currently configured plate type.
 
   Example:
     >>> backend = BioTekEL406Backend()
@@ -60,24 +58,25 @@ class BioTekEL406Backend(
   def __init__(
     self,
     timeout: float = 15.0,
-    plate_type: EL406PlateType = EL406PlateType.PLATE_96_WELL,
     device_id: str | None = None,
   ) -> None:
     """Initialize the EL406 backend.
 
     Args:
       timeout: Default timeout for operations in seconds.
-      plate_type: Plate type to use for operations.
       device_id: FTDI device serial number for explicit connection.
     """
     super().__init__()
     self.timeout = timeout
-    self.plate_type = plate_type
     self._device_id = device_id
     self.io: FTDI | None = None
     self._command_lock: asyncio.Lock | None = None
 
-  async def setup(self, skip_reset: bool = False) -> None:
+  async def setup(
+    self,
+    skip_reset: bool = False,
+    plate_type: EL406PlateType = EL406PlateType.PLATE_96_WELL,
+  ) -> None:
     """Set up communication with the EL406.
 
     Configures the FTDI USB interface with the correct parameters:
@@ -88,6 +87,10 @@ class BioTekEL406Backend(
     If ``self.io`` is already set (e.g. injected mock for testing),
     it is used as-is and ``setup()`` is not called on it again.
 
+    Args:
+      skip_reset: If True, skip the instrument reset step.
+      plate_type: Plate type to use for the initial batch.
+
     Raises:
       RuntimeError: If pylibftdi is not installed or communication fails.
     """
@@ -95,7 +98,6 @@ class BioTekEL406Backend(
 
     logger.info("BioTekEL406Backend setting up")
     logger.info("  Timeout: %.1f seconds", self.timeout)
-    logger.info("  Plate type: %s", self.plate_type.name if self.plate_type else "not set")
 
     if self.io is None:
       self.io = FTDI(device_id=self._device_id)
@@ -144,7 +146,7 @@ class BioTekEL406Backend(
 
     # Start batch mode so step commands (e.g. manifold) work immediately
     logger.info("Starting batch mode...")
-    await self.start_batch()
+    await self.start_batch(plate_type)
     logger.info("  Batch mode: READY")
 
     logger.info("BioTekEL406Backend setup complete")
@@ -166,21 +168,10 @@ class BioTekEL406Backend(
       await self.io.stop()
       self.io = None
 
-  def set_plate_type(self, plate_type: EL406PlateType | int) -> None:
-    """Set the current plate type."""
-    validated_type = validate_plate_type(plate_type)
-    self.plate_type = validated_type
-    logger.info("Plate type set to: %s", self.plate_type.name)
-
-  def get_plate_type(self) -> EL406PlateType:
-    """Get the current plate type."""
-    return self.plate_type
-
   def serialize(self) -> dict:
     """Serialize backend configuration."""
     return {
       **super().serialize(),
       "timeout": self.timeout,
-      "plate_type": self.plate_type.value,
       "device_id": self._device_id,
     }

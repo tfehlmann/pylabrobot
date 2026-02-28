@@ -10,6 +10,7 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
+from ..enums import EL406PlateType
 from ..protocol import build_framed_message
 
 INTENSITY_TO_BYTE: dict[str, int] = {
@@ -38,6 +39,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
   async def shake(
     self,
+    plate_type: EL406PlateType,
     duration: int = 0,
     intensity: Literal["Variable", "Slow", "Medium", "Fast"] = "Medium",
     soak_duration: int = 0,
@@ -82,6 +84,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_shake_command(
+      plate_type=plate_type,
       shake_duration=duration,
       soak_duration=soak_duration,
       intensity=intensity,
@@ -98,6 +101,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
   def _build_shake_command(
     self,
+    plate_type: EL406PlateType,
     shake_duration: int = 0,
     soak_duration: int = 0,
     intensity: str = "medium",
@@ -129,7 +133,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
     return (
       Writer()
-      .u8(self.plate_type.value)                       # [0] Plate type
+      .u8(plate_type.value)                             # [0] Plate type
       .u8(0x01 if move_home_first else 0x00)           # [1] move_home_first
       .u16(shake_total_seconds)                        # [2-3] Shake duration (seconds)
       .u8(INTENSITY_TO_BYTE.get(intensity, 0x03))      # [4] Intensity
