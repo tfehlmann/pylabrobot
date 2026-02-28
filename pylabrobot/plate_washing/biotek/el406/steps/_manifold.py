@@ -184,7 +184,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     """Validate pre-dispense and vacuum-delay parameters for manifold dispense."""
     if pre_dispense_volume != 0 and not 25 <= pre_dispense_volume <= 3000:
       raise ValueError(
-        f"Manifold pre-dispense volume must be 0 (disabled) or 25-3000 µL, "
+        f"Manifold pre-dispense volume must be 0 (disabled) or 25-3000 uL, "
         f"got {pre_dispense_volume}"
       )
     if not 3 <= pre_dispense_flow_rate <= 11:
@@ -192,7 +192,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
         f"Manifold pre-dispense flow rate must be 3-11, got {pre_dispense_flow_rate}"
       )
     if not 0 <= vacuum_delay_volume <= 3000:
-      raise ValueError(f"Manifold vacuum delay volume must be 0-3000 µL, got {vacuum_delay_volume}")
+      raise ValueError(f"Manifold vacuum delay volume must be 0-3000 uL, got {vacuum_delay_volume}")
 
   def _validate_dispense_params(
     self,
@@ -217,7 +217,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       offset_z = pt_defaults["dispense_z"]
 
     if not 25 <= volume <= 3000:
-      raise ValueError(f"Manifold dispense volume must be 25-3000 µL, got {volume}")
+      raise ValueError(f"Manifold dispense volume must be 25-3000 uL, got {volume}")
     validate_buffer(buffer)
     if not 1 <= flow_rate <= 11:
       raise ValueError(f"Manifold dispense flow rate must be 1-11, got {flow_rate}")
@@ -561,7 +561,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
 
     Args:
       plate: PLR Plate resource.
-      volume: Volume to dispense in µL/well. Range: 25-3000 µL (manifold-dependent:
+      volume: Volume to dispense in uL/well. Range: 25-3000 uL (manifold-dependent:
         96-tube manifolds require ≥50, 192/128-tube manifolds allow ≥25).
       buffer: Buffer valve selection (A, B, C, D).
       flow_rate: Dispense flow rate (1-11, default 7).
@@ -572,9 +572,9 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
       offset_y: Y offset in steps (-40 to +40).
       offset_z: Z offset in steps (1-210). Default None (plate-type-aware:
         121 for 96-well, 120 for 384-well, etc.).
-      pre_dispense_volume: Pre-dispense volume in µL/tube (0 to disable, 25-3000 when enabled).
+      pre_dispense_volume: Pre-dispense volume in uL/tube (0 to disable, 25-3000 when enabled).
       pre_dispense_flow_rate: Pre-dispense flow rate (3-11, default 9).
-      vacuum_delay_volume: Delay start of vacuum until volume dispensed in µL/well
+      vacuum_delay_volume: Delay start of vacuum until volume dispensed in uL/well
         (0 to disable, 0-3000 when enabled). Required for cell wash flow rates 1-2.
 
     Raises:
@@ -1286,7 +1286,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
 
       [0]      Plate type (wire byte, e.g. 0x04=96-well)
       [1]      Buffer letter: A=0x41, B=0x42, C=0x43, D=0x44 (ASCII char)
-      [2-3]    Volume: 2 bytes, LE, in µL (25-3000)
+      [2-3]    Volume: 2 bytes, LE, in uL (25-3000)
       [4]      Flow rate: 1-11 (1-2 = cell wash, requires vacuum delay)
       [5]      Offset X: signed byte (-60..60)
       [6]      Offset Y: signed byte (-40..40)
@@ -1300,15 +1300,15 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
           Vacuum delay is enabled when vacuum_delay_volume > 0.
 
     Args:
-      volume: Dispense volume in µL.
+      volume: Dispense volume in uL.
       buffer: Buffer valve (A, B, C, D).
       flow_rate: Flow rate (1-11; 1-2 = cell wash, requires vacuum delay).
       offset_x: X offset (signed, steps, -60..60).
       offset_y: Y offset (signed, steps, -40..40).
       offset_z: Z offset (steps, 1-210).
-      pre_dispense_volume: Pre-dispense volume in µL (0 to disable).
+      pre_dispense_volume: Pre-dispense volume in uL (0 to disable).
       pre_dispense_flow_rate: Pre-dispense flow rate (3-11).
-      vacuum_delay_volume: Vacuum delay volume in µL (0 to disable).
+      vacuum_delay_volume: Vacuum delay volume in uL (0 to disable).
 
     Returns:
       Command bytes (20 bytes).

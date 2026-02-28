@@ -120,7 +120,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       (offset_z, flow_rate_enum, column_mask)
     """
     if not 1 <= volume <= 3000:
-      raise ValueError(f"Peri-pump dispense volume must be 1-3000 µL, got {volume}")
+      raise ValueError(f"Peri-pump dispense volume must be 1-3000 uL, got {volume}")
     validate_peristaltic_flow_rate(flow_rate)
     if not -125 <= offset_x <= 125:
       raise ValueError(f"Peri-pump dispense X-axis offset must be -125..125, got {offset_x}")
@@ -177,7 +177,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       if volume is None:
         volume = 1000.0
       if not 1 <= volume <= 3000:
-        raise ValueError("volume must be 1-3000 µL (GUI limit)")
+        raise ValueError("volume must be 1-3000 uL (GUI limit)")
       prime_volume = volume
       prime_duration = 0
 
@@ -226,7 +226,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       offset_y: Y offset in 0.1mm units (-40 to 40).
       offset_z: Z offset in 0.1mm units (1-1500). Default depends on plate type:
         336 for 96/384-well, 254 for 1536-well.
-      pre_dispense_volume: Pre-dispense volume in µL (0 to disable).
+      pre_dispense_volume: Pre-dispense volume in uL (0 to disable).
       num_pre_dispenses: Number of pre-dispenses (default 2).
       cassette: Cassette type ("Any", "1uL", "5uL", "10uL").
       columns: List of 1-indexed column numbers to dispense to, or None for all.
@@ -312,7 +312,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     else:
       assert volume is not None  # guaranteed by the mutual-exclusion check above
       if not 1 <= volume <= 3000:
-        raise ValueError("volume must be 1-3000 µL (GUI limit)")
+        raise ValueError("volume must be 1-3000 uL (GUI limit)")
       purge_volume = volume
       purge_duration = 0
 
@@ -434,7 +434,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
       offset_x: X offset (signed, 0.1mm units).
       offset_y: Y offset (signed, 0.1mm units).
       offset_z: Z offset (0.1mm units).
-      pre_dispense_volume: Pre-dispense volume in µL.
+      pre_dispense_volume: Pre-dispense volume in uL.
       num_pre_dispenses: Number of pre-dispenses (default 2).
       column_mask: List of column indices (0-47) or None for all columns.
       rows: List of row numbers (1-4) or None for all rows.

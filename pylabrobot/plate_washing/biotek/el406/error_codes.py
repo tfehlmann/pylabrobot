@@ -42,7 +42,7 @@ ERROR_CODES: dict[int, str] = {
   0x1355: "The Peri-pump module is not configured",  # 4949
   0x1356: "Invalid Peri-pump dispense position",  # 4950
   0x1357: "The second Peri-pump module is required",  # 4951
-  0x1358: "This instrument does not support 0.5 µL Peri-pump dispense volume",  # 4952
+  0x1358: "This instrument does not support 0.5 uL Peri-pump dispense volume",  # 4952
   0x1400: "No vacuum pressure detected after turning on the vacuum pump",  # 5120
   0x1401: "The waste bottles must be emptied before continuing",  # 5121
   0x1402: "The valve to be cycle is invalid",  # 5122

@@ -84,22 +84,22 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       plate: PLR Plate resource.
       volume: Dispense volume in microliters per well.
         Volume range depends on plate type:
-        - 96-well: 10-3000 µL
-        - 384-well: 5-1500 µL
-        - 1536-well: 3-3000 µL
+        - 96-well: 10-3000 uL
+        - 384-well: 5-1500 uL
+        - 1536-well: 3-3000 uL
       syringe: Syringe selection — "A", "B", or "Both".
       flow_rate: Flow rate (1-5). Maximum rate depends on volume and plate type.
-        For 96-well: rate 1 for 10+ µL, rate 2 for 20+ µL, rate 3 for 50+ µL,
-        rate 4 for 60+ µL, rate 5 for 80+ µL.
-        For 384-well: rate 1 for 5+ µL, rate 2 for 10+ µL, rate 3 for 25+ µL,
-        rate 4 for 30+ µL, rate 5 for 40+ µL.
-        For 1536-well: all rates for 3+ µL.
+        For 96-well: rate 1 for 10+ uL, rate 2 for 20+ uL, rate 3 for 50+ uL,
+        rate 4 for 60+ uL, rate 5 for 80+ uL.
+        For 384-well: rate 1 for 5+ uL, rate 2 for 10+ uL, rate 3 for 25+ uL,
+        rate 4 for 30+ uL, rate 5 for 40+ uL.
+        For 1536-well: all rates for 3+ uL.
       offset_x: X offset (signed, 0.1mm units).
       offset_y: Y offset (signed, 0.1mm units).
       offset_z: Z offset (0.1mm units, default 336 for 96-well, 254 for 1536-well).
       pump_delay: Post-dispense delay in seconds (0-5). Wire resolution: 1 ms.
       pre_dispense: Whether to enable pre-dispense mode.
-      pre_dispense_volume: Pre-dispense volume in µL/tube (only used if pre_dispense=True).
+      pre_dispense_volume: Pre-dispense volume in uL/tube (only used if pre_dispense=True).
       num_pre_dispenses: Number of pre-dispenses (default 2).
       columns: List of 1-indexed column numbers to dispense to, or None for all columns.
         For 96-well: 1-12, for 384-well: 1-24, for 1536-well: 1-48.
@@ -259,7 +259,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       offset_z: Z offset (0.1mm units).
       pump_delay_ms: Post-dispense delay in milliseconds.
       pre_dispense: Whether to enable pre-dispense mode.
-      pre_dispense_volume: Pre-dispense volume in µL/tube (only used if pre_dispense=True).
+      pre_dispense_volume: Pre-dispense volume in uL/tube (only used if pre_dispense=True).
       num_pre_dispenses: Number of pre-dispenses (default 2).
       column_mask: List of column indices (0-47) or None for all columns.
 
