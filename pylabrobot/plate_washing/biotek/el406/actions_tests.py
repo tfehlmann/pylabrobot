@@ -13,21 +13,11 @@ from pylabrobot.plate_washing.biotek.el406 import (
   EL406StepType,
   EL406WasherManifold,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
 
 
-class TestEL406BackendAbort(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendAbort(EL406TestCase):
   """Test EL406 abort functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_abort_command_byte(self):
     """Abort command should be 0x89 in framed message."""
@@ -54,18 +44,8 @@ class TestEL406BackendAbort(unittest.IsolatedAsyncioTestCase):
       await backend.abort()
 
 
-class TestEL406BackendPause(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendPause(EL406TestCase):
   """Test EL406 pause functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_pause_command_byte(self):
     """Pause command should be 0x8A in framed message."""
@@ -81,23 +61,14 @@ class TestEL406BackendPause(unittest.IsolatedAsyncioTestCase):
 
   async def test_pause_raises_on_timeout(self):
     """Pause should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")
     with self.assertRaises(TimeoutError):
       await self.backend.pause()
 
 
-class TestEL406BackendResume(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendResume(EL406TestCase):
   """Test EL406 resume functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_resume_command_byte(self):
     """Resume command should be 0x8B in framed message."""
@@ -113,23 +84,14 @@ class TestEL406BackendResume(unittest.IsolatedAsyncioTestCase):
 
   async def test_resume_raises_on_timeout(self):
     """Resume should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")
     with self.assertRaises(TimeoutError):
       await self.backend.resume()
 
 
-class TestEL406BackendReset(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendReset(EL406TestCase):
   """Test EL406 reset functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_reset_command_byte(self):
     """Reset command should be 0x70 in framed message."""
@@ -145,23 +107,14 @@ class TestEL406BackendReset(unittest.IsolatedAsyncioTestCase):
 
   async def test_reset_raises_on_timeout(self):
     """Reset should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")
     with self.assertRaises(TimeoutError):
       await self.backend.reset()
 
 
-class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendHomeMotors(EL406TestCase):
   """Test EL406 motor homing functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_home_motors_sends_command(self):
     """home_motors should send a command to the device."""
@@ -179,18 +132,8 @@ class TestEL406BackendHomeMotors(unittest.IsolatedAsyncioTestCase):
       await backend.home_motors(home_type=EL406MotorHomeType.HOME_XYZ_MOTORS)
 
 
-class TestRunSelfCheck(unittest.IsolatedAsyncioTestCase):
+class TestRunSelfCheck(EL406TestCase):
   """Test run_self_check functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_run_self_check_has_success_key(self):
     """run_self_check result should have a success key."""
@@ -217,18 +160,8 @@ class TestRunSelfCheck(unittest.IsolatedAsyncioTestCase):
       await backend.run_self_check()
 
 
-class TestSetWasherManifold(unittest.IsolatedAsyncioTestCase):
+class TestSetWasherManifold(EL406TestCase):
   """Test set_washer_manifold functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_set_washer_manifold_sends_correct_command_byte(self):
     """set_washer_manifold should send command byte 0xD9 in framed message."""

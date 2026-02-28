@@ -10,21 +10,11 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase
 
 
-class TestEL406BackendShake(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendShake(EL406TestCase):
   """Test EL406 shake functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_shake_sends_command(self):
     """Shake should send correct command."""
@@ -88,11 +78,11 @@ class TestShakeCommandEncoding(unittest.TestCase):
       [8-11]   Padding/reserved: 4 bytes (0x00)
 
   Field mapping:
-    - move_home_first (bool) → byte[1]: combined with shake_enabled for byte[1]
-    - shake_enabled (bool) → byte[1]: combined with move_home_first for byte[1]
-    - shake duration (total seconds) → bytes[2-3]: 16-bit LE total seconds
-    - frequency → byte[4]: (Slow=0x02, Medium=0x03, Fast=0x04)
-    - soak duration (total seconds) → bytes[6-7]: 16-bit LE total seconds
+    - move_home_first (bool) -> byte[1]: combined with shake_enabled for byte[1]
+    - shake_enabled (bool) -> byte[1]: combined with move_home_first for byte[1]
+    - shake duration (total seconds) -> bytes[2-3]: 16-bit LE total seconds
+    - frequency -> byte[4]: (Slow=0x02, Medium=0x03, Fast=0x04)
+    - soak duration (total seconds) -> bytes[6-7]: 16-bit LE total seconds
   """
 
   def setUp(self):

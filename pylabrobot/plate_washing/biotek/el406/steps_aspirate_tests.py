@@ -11,21 +11,11 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase
 
 
-class TestEL406BackendAspirate(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendAspirate(EL406TestCase):
   """Test EL406 aspirate functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_aspirate_sends_command(self):
     """Aspirate should send correct command."""

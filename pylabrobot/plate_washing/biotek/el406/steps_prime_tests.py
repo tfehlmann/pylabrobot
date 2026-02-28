@@ -14,21 +14,11 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase
 
 
-class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendPeristalticPrime(EL406TestCase):
   """Test EL406 peristaltic prime functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)  # Multiple ACKs
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_peristaltic_prime_sends_correct_command(self):
     """Peristaltic prime should send correct step type and parameters."""
@@ -44,7 +34,7 @@ class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
       await self.backend.peristaltic_prime(flow_rate="Invalid")  # Invalid flow rate
 
   async def test_peristaltic_prime_validates_volume(self):
-    """Peristaltic prime should validate volume range (1-3000 µL)."""
+    """Peristaltic prime should validate volume range (1-3000 uL)."""
     with self.assertRaises(ValueError):
       await self.backend.peristaltic_prime(volume=-100.0)
     with self.assertRaises(ValueError):
@@ -81,18 +71,8 @@ class TestEL406BackendPeristalticPrime(unittest.IsolatedAsyncioTestCase):
       await self.backend.peristaltic_prime(volume=100.0, duration=10)
 
 
-class TestEL406BackendSyringePrime(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendSyringePrime(EL406TestCase):
   """Test EL406 syringe prime functionality."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_syringe_prime_sends_command(self):
     """syringe_prime should send a command to the device."""
@@ -197,6 +177,7 @@ class TestEL406BackendSyringePrime(unittest.IsolatedAsyncioTestCase):
 
   async def test_syringe_prime_raises_on_timeout(self):
     """syringe_prime should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")
     with self.assertRaises(TimeoutError):
       await self.backend.syringe_prime(volume=5000.0, syringe="A")
@@ -214,7 +195,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
     [6-7]  Pump delay: 2 bytes, little-endian, in ms
     [8]    Submerge tips (0 or 1)
     [9-10] Submerge duration in minutes (LE uint16)
-    [11]   Bottle (ar-1): derived from syringe (A→0, B→2)
+    [11]   Bottle (ar-1): derived from syringe (A->0, B->2)
     [12]   Padding
   """
 
@@ -351,7 +332,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[8], 1)  # Submerge tips = True
     self.assertEqual(cmd[9], 0x5A)  # Submerge duration low (90 min = 0x005A)
     self.assertEqual(cmd[10], 0x00)  # Submerge duration high
-    self.assertEqual(cmd[11], 2)  # Bottle (B → 2)
+    self.assertEqual(cmd[11], 2)  # Bottle (B -> 2)
     self.assertEqual(cmd[12], 0)  # Padding
 
   def test_syringe_prime_bottle_encoding(self):
@@ -366,8 +347,8 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
       syringe="B",
       flow_rate=5,
     )
-    self.assertEqual(cmd_a[11], 0)  # A → bottle=0
-    self.assertEqual(cmd_b[11], 2)  # B → bottle=2
+    self.assertEqual(cmd_a[11], 0)  # A -> bottle=0
+    self.assertEqual(cmd_b[11], 2)  # B -> bottle=2
 
   def test_syringe_prime_submerge_duration(self):
     """Test syringe prime encodes submerge duration at bytes 9-10."""
@@ -379,7 +360,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
       submerge_tips=True,
       submerge_duration=90,
     )
-    # 90 minutes = 0x005A LE → [0x5A, 0x00]
+    # 90 minutes = 0x005A LE -> [0x5A, 0x00]
     self.assertEqual(cmd[9], 0x5A)
     self.assertEqual(cmd[10], 0x00)
 
@@ -405,27 +386,17 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
       submerge_tips=True,
       submerge_duration=1439,
     )
-    # 1439 = 0x059F LE → [0x9F, 0x05]
+    # 1439 = 0x059F LE -> [0x9F, 0x05]
     self.assertEqual(cmd[9], 0x9F)
     self.assertEqual(cmd[10], 0x05)
 
 
-class TestEL406BackendManifoldPrime(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendManifoldPrime(EL406TestCase):
   """Test EL406 manifold prime functionality.
 
   The manifold prime operation (eMPrime = 9) fills the wash manifold
   tubing with liquid. This is used to prepare the manifold for washing.
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_manifold_prime_sends_command(self):
     """manifold_prime should send a command to the device."""
@@ -488,6 +459,7 @@ class TestEL406BackendManifoldPrime(unittest.IsolatedAsyncioTestCase):
 
   async def test_manifold_prime_raises_on_timeout(self):
     """manifold_prime should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.manifold_prime(volume=500.0, buffer="A")
@@ -634,22 +606,12 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[4], 5)  # Flow rate
 
 
-class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendAutoClean(EL406TestCase):
   """Test EL406 manifold auto-clean functionality.
 
   The auto-clean operation (eMAutoClean = 10) runs an automatic
   cleaning cycle of the manifold.
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_auto_clean_sends_command(self):
     """auto_clean should send a command to the device."""
@@ -690,6 +652,7 @@ class TestEL406BackendAutoClean(unittest.IsolatedAsyncioTestCase):
 
   async def test_auto_clean_raises_on_timeout(self):
     """auto_clean should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.manifold_auto_clean(buffer="A")

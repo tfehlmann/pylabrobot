@@ -12,25 +12,15 @@ from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
   EL406PlateType,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
 
 
-class TestEL406BackendPeristalticDispense(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendPeristalticDispense(EL406TestCase):
   """Test EL406 peristaltic dispense functionality.
 
   The peristaltic dispense operation (ePDispense = 1) uses the peristaltic pump
   to dispense liquid to wells. This is different from manifold dispense (M_DISPENSE).
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_peristaltic_dispense_sends_command(self):
     """peristaltic_dispense should send a command to the device."""
@@ -279,18 +269,8 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[11], 2)  # Number of pre-dispenses (default)
 
 
-class TestPeristalticDispenseColumnsAndRows(unittest.IsolatedAsyncioTestCase):
+class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
   """Test peristaltic_dispense with columns and rows parameters."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_peristaltic_dispense_accepts_columns(self):
     """peristaltic_dispense should accept columns parameter (1-indexed)."""
@@ -508,7 +488,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
     self.assertEqual(cmd[19], 2)
 
 
-class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendPeristalticPurge(EL406TestCase):
   """Test EL406 peristaltic purge functionality.
 
   The peristaltic purge operation uses the peristaltic pump to expel/clear
@@ -517,16 +497,6 @@ class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
   Current API:
     peristaltic_purge(volume, flow_rate="High", cassette="Any")
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_peristaltic_purge_sends_command(self):
     """peristaltic_purge should send a command to the device."""
@@ -601,6 +571,7 @@ class TestEL406BackendPeristalticPurge(unittest.IsolatedAsyncioTestCase):
 
   async def test_peristaltic_purge_raises_on_timeout(self):
     """peristaltic_purge should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.peristaltic_purge(volume=1000.0)

@@ -1,16 +1,33 @@
-"""Mock FTDI IO for EL406 testing.
+"""Mock FTDI IO for EL406 testing."""
 
-This module provides the MockFTDI class for testing the BioTek EL406
-plate washer backend without actual hardware.
+import asyncio
+import unittest
+from unittest.mock import patch
 
-Usage:
-  from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406 import BioTekEL406Backend
 
-  mock_io = MockFTDI()
-  backend = BioTekEL406Backend(timeout=0.5)
-  backend.io = mock_io
-  await backend.setup()
-"""
+_real_sleep = asyncio.sleep
+
+
+async def _noop(*a, **kw):
+  await _real_sleep(0)
+
+
+class EL406TestCase(unittest.IsolatedAsyncioTestCase):
+  """Base test case with mock FTDI IO and patched asyncio.sleep."""
+
+  async def asyncSetUp(self):
+    self._sleep_patcher = patch("asyncio.sleep", side_effect=_noop)
+    self._sleep_patcher.start()
+    self.backend = BioTekEL406Backend()
+    self.backend.io = MockFTDI()
+    await self.backend.setup()
+    self.backend.io.set_read_buffer(b"\x06" * 100)
+
+  async def asyncTearDown(self):
+    self._sleep_patcher.stop()
+    if self.backend.io is not None:
+      await self.backend.stop()
 
 
 class MockFTDI:

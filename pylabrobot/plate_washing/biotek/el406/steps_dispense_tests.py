@@ -12,10 +12,10 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase
 
 
-class TestEL406BackendDispense(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendDispense(EL406TestCase):
   """Test EL406 manifold dispense functionality.
 
   Parameter limits:
@@ -28,16 +28,6 @@ class TestEL406BackendDispense(unittest.IsolatedAsyncioTestCase):
     Pre-dispense flow rate: 3-11
     Vacuum delay volume: 0-3000
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_dispense_sends_command(self):
     """Dispense should send correct command."""
@@ -155,28 +145,19 @@ class TestEL406BackendDispense(unittest.IsolatedAsyncioTestCase):
 
   async def test_dispense_raises_on_timeout(self):
     """Dispense should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")
     with self.assertRaises(TimeoutError):
       await self.backend.manifold_dispense(volume=300.0)
 
 
-class TestEL406BackendSyringeDispense(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendSyringeDispense(EL406TestCase):
   """Test EL406 syringe dispense functionality.
 
   The syringe dispense operation uses the syringe pump to dispense liquid
   to wells. This provides more precise volume control than peristaltic
   dispensing.
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_syringe_dispense_sends_command(self):
     """syringe_dispense should send a command to the device."""
@@ -273,6 +254,7 @@ class TestEL406BackendSyringeDispense(unittest.IsolatedAsyncioTestCase):
 
   async def test_syringe_dispense_raises_on_timeout(self):
     """syringe_dispense should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No ACK response
     with self.assertRaises(TimeoutError):
       await self.backend.syringe_dispense(volume=50.0, syringe="A")

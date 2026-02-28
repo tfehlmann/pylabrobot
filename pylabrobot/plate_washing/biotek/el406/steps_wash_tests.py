@@ -11,21 +11,11 @@ from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
   EL406PlateType,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
 
 
-class TestEL406BackendWash(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendWash(EL406TestCase):
   """Test EL406 wash functionality (consolidated wash method)."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_wash_sends_command(self):
     """Wash should send correct command."""
@@ -514,18 +504,8 @@ class TestWashBottomWash(unittest.TestCase):
     self.assertEqual(cmd[71], 7)  # main flow rate
 
 
-class TestWashBottomWashValidation(unittest.IsolatedAsyncioTestCase):
+class TestWashBottomWashValidation(EL406TestCase):
   """Test bottom wash parameter validation."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_bottom_wash_validates_volume(self):
     """Bottom wash should validate volume range (25-3000)."""
@@ -588,18 +568,8 @@ class TestWashPreDispenseBetweenCycles(unittest.TestCase):
     self.assertEqual(cmd[78], 5)
 
 
-class TestWashPreDispenseBetweenCyclesValidation(unittest.IsolatedAsyncioTestCase):
+class TestWashPreDispenseBetweenCyclesValidation(EL406TestCase):
   """Test pre-dispense between cycles validation."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_midcyc_validates_volume(self):
     """Pre-dispense between cycles should validate volume (0 or 25-3000)."""
@@ -840,18 +810,8 @@ class TestWash384WellPlateSupport(unittest.TestCase):
     self.assertEqual(len(cmd), 102)
 
 
-class TestWash384WellValidation(unittest.IsolatedAsyncioTestCase):
+class TestWash384WellValidation(EL406TestCase):
   """Test validation of 384-well parameters in wash() API."""
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_wash_format_invalid(self):
     """wash() should reject invalid wash_format values."""

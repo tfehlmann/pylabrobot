@@ -10,19 +10,15 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
 
 
-class TestTestCommunication(unittest.IsolatedAsyncioTestCase):
+class TestTestCommunication(EL406TestCase):
   """Test communication verification.
 
   The _test_communication() method should send a query command
   and verify the device responds with ACK (0x06).
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    # Don't call setup() yet - we want to test _test_communication() directly
 
   async def test_communication_sends_query_command(self):
     """Test communication should send a query command."""

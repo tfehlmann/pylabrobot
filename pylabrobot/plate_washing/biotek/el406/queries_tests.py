@@ -14,10 +14,10 @@ from pylabrobot.plate_washing.biotek.el406 import (
   EL406SyringeManifold,
   EL406WasherManifold,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
 
 
-class TestEL406BackendGetWasherManifold(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendGetWasherManifold(EL406TestCase):
   """Test EL406 get washer manifold query.
 
   The GetWasherManifoldInstalled operation queries the installed washer manifold type.
@@ -34,15 +34,6 @@ class TestEL406BackendGetWasherManifold(unittest.IsolatedAsyncioTestCase):
     4: 96 Deep Pin
     255: Not Installed
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_get_washer_manifold_returns_enum(self):
     """get_washer_manifold should return an EL406WasherManifold enum value."""
@@ -120,6 +111,7 @@ class TestEL406BackendGetWasherManifold(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_washer_manifold_raises_on_timeout(self):
     """get_washer_manifold should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No response
 
     with self.assertRaises(TimeoutError):
@@ -137,7 +129,7 @@ class TestEL406BackendGetWasherManifold(unittest.IsolatedAsyncioTestCase):
     self.assertIn("Unknown", str(ctx.exception))
 
 
-class TestEL406BackendGetSyringeManifold(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendGetSyringeManifold(EL406TestCase):
   """Test EL406 get syringe manifold query.
 
   The GetSyringeManifoldInstalled operation queries the installed syringe manifold type.
@@ -159,15 +151,6 @@ class TestEL406BackendGetSyringeManifold(unittest.IsolatedAsyncioTestCase):
     8: 24 Well Plate
     9: 48 Well Plate
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_get_syringe_manifold_returns_enum(self):
     """get_syringe_manifold should return an EL406SyringeManifold enum value."""
@@ -286,6 +269,7 @@ class TestEL406BackendGetSyringeManifold(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_syringe_manifold_raises_on_timeout(self):
     """get_syringe_manifold should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No response
 
     with self.assertRaises(TimeoutError):
@@ -303,7 +287,7 @@ class TestEL406BackendGetSyringeManifold(unittest.IsolatedAsyncioTestCase):
     self.assertIn("Unknown", str(ctx.exception))
 
 
-class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendGetSerialNumber(EL406TestCase):
   """Test EL406 get serial number query.
 
   The GetInstSerialNumber operation queries the device serial number.
@@ -313,15 +297,6 @@ class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
   Response format: [ASCII bytes...][ACK_byte]
   - The device sends ASCII bytes of the serial number, then ACK
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_get_serial_number_various_formats(self):
     """get_serial_number should handle various serial number formats."""
@@ -359,6 +334,7 @@ class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_serial_number_raises_on_timeout(self):
     """get_serial_number should raise TimeoutError when device does not respond."""
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No response
 
     with self.assertRaises(TimeoutError):
@@ -374,7 +350,7 @@ class TestEL406BackendGetSerialNumber(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(result, "")
 
 
-class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendGetSensorEnabled(EL406TestCase):
   """Test EL406 get sensor enabled query.
 
   The GetSensorEnabled operation queries whether a specific sensor is enabled.
@@ -391,15 +367,6 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
     [0] Enabled byte: 0 = disabled, 1 = enabled
     [1] ACK (0x06)
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_get_sensor_enabled_returns_true_when_enabled(self):
     """get_sensor_enabled should return True when sensor is enabled."""
@@ -482,30 +449,20 @@ class TestEL406BackendGetSensorEnabled(unittest.IsolatedAsyncioTestCase):
 
   async def test_get_sensor_enabled_raises_on_timeout(self):
     """get_sensor_enabled should raise TimeoutError when device does not respond."""
-
+    self.backend.timeout = 0.01
     self.backend.io.set_read_buffer(b"")  # No response
 
     with self.assertRaises(TimeoutError):
       await self.backend.get_sensor_enabled(EL406Sensor.VACUUM)
 
 
-class TestGetSyringeBoxInfo(unittest.IsolatedAsyncioTestCase):
+class TestGetSyringeBoxInfo(EL406TestCase):
   """Test get_syringe_box_info functionality.
 
   get_syringe_box_info retrieves syringe box configuration.
   Response reads two bytes: box_type then box_size.
   Response format: [box_type, box_size, ACK] = 3 bytes
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_get_syringe_box_info_parses_response_correctly(self):
     """get_syringe_box_info should correctly parse box_type and box_size."""
@@ -538,21 +495,11 @@ class TestGetSyringeBoxInfo(unittest.IsolatedAsyncioTestCase):
       await backend.get_syringe_box_info()
 
 
-class TestGetPeristalticInstalled(unittest.IsolatedAsyncioTestCase):
+class TestGetPeristalticInstalled(EL406TestCase):
   """Test get_peristaltic_installed functionality.
 
   get_peristaltic_installed checks if a peristaltic pump is installed.
   """
-
-  async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_get_peristaltic_installed_true_when_installed(self):
     """get_peristaltic_installed should return True when pump is installed."""
@@ -605,7 +552,7 @@ if __name__ == "__main__":
   unittest.main()
 
 
-class TestGetInstrumentSettings(unittest.IsolatedAsyncioTestCase):
+class TestGetInstrumentSettings(EL406TestCase):
   """Test get_instrument_settings functionality.
 
   get_instrument_settings queries hardware configuration by calling
@@ -638,14 +585,8 @@ class TestGetInstrumentSettings(unittest.IsolatedAsyncioTestCase):
     return buf
 
   async def asyncSetUp(self):
-    self.backend = BioTekEL406Backend(timeout=0.5)
-    self.backend.io = MockFTDI()
-    await self.backend.setup()
+    await super().asyncSetUp()
     self.backend.io.read_buffer = self._build_multi_query_buffer()
-
-  async def asyncTearDown(self):
-    if self.backend.io is not None:
-      await self.backend.stop()
 
   async def test_get_instrument_settings_returns_dict(self):
     """get_instrument_settings should return a dictionary."""

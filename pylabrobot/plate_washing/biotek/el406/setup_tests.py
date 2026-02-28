@@ -13,15 +13,15 @@ from pylabrobot.plate_washing.biotek.el406 import (
   EL406PlateType,
 )
 from pylabrobot.plate_washing.biotek.el406.helpers import validate_plate_type
-from pylabrobot.plate_washing.biotek.el406.mock_tests import MockFTDI
+from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
 
 
-class TestEL406BackendSetup(unittest.IsolatedAsyncioTestCase):
+class TestEL406BackendSetup(EL406TestCase):
   """Test EL406 backend setup and teardown."""
 
   async def test_setup_creates_io(self):
     """Setup should create and configure FTDI IO wrapper."""
-    backend = BioTekEL406Backend(timeout=0.5)
+    backend = BioTekEL406Backend(timeout=0.01)
     backend.io = MockFTDI()
     await backend.setup()
 
@@ -29,7 +29,7 @@ class TestEL406BackendSetup(unittest.IsolatedAsyncioTestCase):
 
   async def test_stop_closes_device(self):
     """Stop should close the FTDI device."""
-    backend = BioTekEL406Backend(timeout=0.5)
+    backend = BioTekEL406Backend(timeout=0.01)
     backend.io = MockFTDI()
     await backend.setup()
 
@@ -92,7 +92,7 @@ class TestPlateTypeConfiguration(unittest.TestCase):
 
   def test_set_plate_type_does_not_send_command(self):
     """set_plate_type should NOT send any command to the device."""
-    backend = BioTekEL406Backend(timeout=0.5)
+    backend = BioTekEL406Backend(timeout=0.01)
     backend.io = MockFTDI()
     initial_count = len(backend.io.written_data)
     backend.set_plate_type(EL406PlateType.PLATE_384_WELL)

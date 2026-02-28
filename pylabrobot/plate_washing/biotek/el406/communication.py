@@ -157,7 +157,7 @@ class EL406CommunicationMixin:
 
     try:
       framed_command = build_framed_message(TEST_COMM_COMMAND)
-      response = await self._send_framed_command(framed_command, timeout=5.0)
+      response = await self._send_framed_command(framed_command, timeout=self.timeout)
       if ACK_BYTE not in response:
         raise RuntimeError(
           f"EL406 communication test failed: expected ACK (0x06), got {response!r}"
@@ -170,7 +170,7 @@ class EL406CommunicationMixin:
     # Send INIT_STATE (0xA0) command to clear device state
     logger.info("Sending INIT_STATE command (0xA0) to clear device state")
     init_state_cmd = build_framed_message(INIT_STATE_COMMAND)
-    init_response = await self._send_framed_command(init_state_cmd, timeout=5.0)
+    init_response = await self._send_framed_command(init_state_cmd, timeout=self.timeout)
     logger.debug("INIT_STATE sent, response: %s", init_response.hex())
 
   async def start_batch(self) -> None:
@@ -196,7 +196,7 @@ class EL406CommunicationMixin:
     for cmd in pre_batch_commands:
       cmd_frame = build_framed_message(cmd)
       try:
-        resp = await self._send_framed_command(cmd_frame, timeout=2.0)
+        resp = await self._send_framed_command(cmd_frame, timeout=self.timeout)
         logger.debug("Command 0x%04X response: %s", cmd, resp.hex())
       except Exception as e:
         logger.warning("Pre-batch command 0x%04X failed: %s", cmd, e)
@@ -204,7 +204,7 @@ class EL406CommunicationMixin:
     # Data byte is the plate type value (e.g., 0x04 for 96-well, 0x01 for 384-well).
     start_step_data = bytes([self.plate_type.value])
     start_step_cmd = build_framed_message(START_STEP_COMMAND, start_step_data)
-    response = await self._send_framed_command(start_step_cmd, timeout=5.0)
+    response = await self._send_framed_command(start_step_cmd, timeout=self.timeout)
     logger.debug("START_STEP sent, response: %s", response.hex())
 
   async def _send_framed_command(
@@ -314,7 +314,7 @@ class EL406CommunicationMixin:
       t0 = time.time()
 
       # Step 1: Wait for ACK (short timeout)
-      await self._wait_for_ack(5.0, t0)
+      await self._wait_for_ack(min(timeout, self.timeout), t0)
       logger.debug("Got ACK, waiting for completion...")
 
       # Step 2: Wait for completion frame (11-byte header + data)
@@ -425,7 +425,7 @@ class EL406CommunicationMixin:
       EL406CommunicationError: If poll response is too short to parse.
     """
     poll_command = build_framed_message(STATUS_POLL_COMMAND)
-    poll_response = await self._send_framed_command(poll_command, timeout=2.0)
+    poll_response = await self._send_framed_command(poll_command, timeout=self.timeout)
     logger.debug("Status poll response (%d bytes): %s", len(poll_response), poll_response.hex())
 
     if len(poll_response) < 21:
@@ -508,11 +508,11 @@ class EL406CommunicationMixin:
     logger.debug("Starting step command with timeout=%ss", timeout)
 
     # 1. Wait for device to be ready (not RUNNING)
-    await self._wait_until_ready(timeout=5.0)
+    await self._wait_until_ready(timeout=min(timeout, self.timeout))
 
     # 2. Send the step command
     logger.debug("Sending step command: %s", framed_message.hex())
-    response = await self._send_framed_command(framed_message, timeout=5.0)
+    response = await self._send_framed_command(framed_message, timeout=min(timeout, self.timeout))
     logger.debug("Step command sent, got initial response: %s", response.hex())
 
     # 3. Initial delay before polling
