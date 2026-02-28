@@ -233,8 +233,11 @@ class TestItemizedResource(unittest.TestCase):
 class TestItemizedResource1536(unittest.TestCase):
   """Test ItemizedResource with a 1536-well plate (>26 rows)."""
 
-  def setUp(self) -> None:
-    self.plate = Plate(
+  plate: Plate
+
+  @classmethod
+  def setUpClass(cls) -> None:
+    cls.plate = Plate(
       "plate_1536",
       size_x=127.8,
       size_y=85.5,
