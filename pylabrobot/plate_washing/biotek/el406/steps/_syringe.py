@@ -13,27 +13,59 @@ from pylabrobot.io.binary import Writer
 
 from ..constants import (
   SYRINGE_DISPENSE_COMMAND,
+  SYRINGE_MAX_FLOW_RATE,
+  SYRINGE_MAX_PUMP_DELAY,
+  SYRINGE_MAX_SUBMERGE_DURATION,
+  SYRINGE_MAX_VOLUME,
+  SYRINGE_MIN_FLOW_RATE,
+  SYRINGE_MIN_VOLUME,
   SYRINGE_PRIME_COMMAND,
+  VALID_SYRINGES,
 )
 from ..helpers import (
   columns_to_column_mask,
   encode_column_mask,
   plate_type_well_count,
   syringe_to_byte,
-  validate_num_pre_dispenses,
-  validate_offset_xy,
-  validate_offset_z,
-  validate_pump_delay,
-  validate_submerge_duration,
-  validate_syringe,
-  validate_syringe_flow_rate,
-  validate_syringe_volume,
-  validate_volume,
 )
 from ..protocol import build_framed_message
 from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
+
+
+def validate_syringe(syringe: str) -> None:
+  if syringe.upper() not in VALID_SYRINGES:
+    raise ValueError(
+      f"Invalid syringe '{syringe}'. Must be one of: {', '.join(sorted(VALID_SYRINGES))}"
+    )
+
+
+def validate_syringe_flow_rate(flow_rate: int) -> None:
+  if not SYRINGE_MIN_FLOW_RATE <= flow_rate <= SYRINGE_MAX_FLOW_RATE:
+    raise ValueError(
+      f"Syringe flow rate must be {SYRINGE_MIN_FLOW_RATE}-{SYRINGE_MAX_FLOW_RATE}, "
+      f"got {flow_rate}"
+    )
+
+
+def validate_syringe_volume(volume: float) -> None:
+  if not SYRINGE_MIN_VOLUME <= volume <= SYRINGE_MAX_VOLUME:
+    raise ValueError(
+      f"Syringe volume must be {SYRINGE_MIN_VOLUME}-{SYRINGE_MAX_VOLUME} uL, got {volume}"
+    )
+
+
+def validate_pump_delay(delay: int) -> None:
+  if not 0 <= delay <= SYRINGE_MAX_PUMP_DELAY:
+    raise ValueError(f"Pump delay must be 0-{SYRINGE_MAX_PUMP_DELAY} ms, got {delay}")
+
+
+def validate_submerge_duration(duration: int) -> None:
+  if not 0 <= duration <= SYRINGE_MAX_SUBMERGE_DURATION:
+    raise ValueError(
+      f"Submerge duration must be 0-{SYRINGE_MAX_SUBMERGE_DURATION} minutes, got {duration}"
+    )
 
 
 class EL406SyringeStepsMixin(EL406StepsBaseMixin):
@@ -84,14 +116,11 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     # Convert PLR units (seconds) to wire units (ms)
     pump_delay_ms = round(pump_delay * 1000)
 
-    validate_volume(volume)
+    if volume <= 0:
+      raise ValueError(f"volume must be positive, got {volume}")
     validate_syringe(syringe)
     validate_syringe_flow_rate(flow_rate)
-    validate_offset_xy(offset_x, "offset_x")
-    validate_offset_xy(offset_y, "offset_y")
-    validate_offset_z(offset_z, "offset_z")
     validate_pump_delay(pump_delay_ms)
-    validate_num_pre_dispenses(num_pre_dispenses)
 
     column_mask = columns_to_column_mask(
       columns, plate_wells=plate_type_well_count(self.plate_type)

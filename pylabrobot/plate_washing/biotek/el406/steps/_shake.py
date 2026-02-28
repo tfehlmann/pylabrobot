@@ -12,15 +12,20 @@ from pylabrobot.io.binary import Writer
 
 from ..constants import (
   SHAKE_SOAK_COMMAND,
+  VALID_INTENSITIES,
 )
 from ..helpers import (
   INTENSITY_TO_BYTE,
-  validate_intensity,
 )
 from ..protocol import build_framed_message
 from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
+
+
+def validate_intensity(intensity: str) -> None:
+  if intensity not in VALID_INTENSITIES:
+    raise ValueError(f"intensity must be one of {sorted(VALID_INTENSITIES)}, got {intensity!r}")
 
 
 class EL406ShakeStepsMixin(EL406StepsBaseMixin):

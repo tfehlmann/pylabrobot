@@ -15,6 +15,7 @@ from ..constants import (
   PERISTALTIC_DISPENSE_COMMAND,
   PERISTALTIC_PRIME_COMMAND,
   PERISTALTIC_PURGE_COMMAND,
+  VALID_PERISTALTIC_FLOW_RATES,
 )
 from ..helpers import (
   cassette_to_byte,
@@ -25,9 +26,6 @@ from ..helpers import (
   plate_type_max_columns,
   plate_type_max_rows,
   plate_type_well_count,
-  validate_num_pre_dispenses,
-  validate_peristaltic_flow_rate,
-  validate_volume,
 )
 from ..protocol import build_framed_message
 from ._base import EL406StepsBaseMixin
@@ -35,6 +33,11 @@ from ._base import EL406StepsBaseMixin
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
 PERISTALTIC_FLOW_RATE_MAP: dict[str, int] = {"Low": 0, "Medium": 1, "High": 2}
+
+
+def validate_peristaltic_flow_rate(flow_rate: str) -> None:
+  if flow_rate not in VALID_PERISTALTIC_FLOW_RATES:
+    raise ValueError(f"flow_rate must be one of {VALID_PERISTALTIC_FLOW_RATES}, got {flow_rate!r}")
 
 
 class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
@@ -89,7 +92,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     if not 1 <= offset_z <= 1500:
       raise ValueError(f"Peri-pump dispense Z-axis offset must be 1..1500, got {offset_z}")
 
-    validate_volume(pre_dispense_volume, allow_zero=True)
+    if pre_dispense_volume < 0:
+      raise ValueError(f"pre_dispense_volume must be non-negative, got {pre_dispense_volume}")
 
     column_mask = self._validate_peristaltic_well_selection(columns, rows)
 
@@ -187,7 +191,6 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     Raises:
       ValueError: If parameters are invalid.
     """
-    validate_num_pre_dispenses(num_pre_dispenses)
     offset_z, flow_rate_enum, column_mask = self._validate_peristaltic_dispense_params(
       volume=volume,
       flow_rate=flow_rate,

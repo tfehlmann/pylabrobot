@@ -1,11 +1,7 @@
-"""Tests for BioTek EL406 plate washer backend - Helper functions.
-
-This module contains tests for Helper functions.
-"""
+"""Tests for BioTek EL406 helper functions."""
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
@@ -20,7 +16,6 @@ class TestHelperFunctions(unittest.TestCase):
 
   def test_encode_volume_little_endian(self):
     """Volume should be encoded as little-endian 2 bytes."""
-    # Test helper method if it exists, otherwise test via command building
     cmd = self.backend._build_dispense_command(
       volume=1000.0,
       buffer="A",
@@ -29,8 +24,6 @@ class TestHelperFunctions(unittest.TestCase):
       offset_y=0,
       offset_z=100,
     )
-    # Current format: [0]=0x04, [1]=buffer, [2-3]=volume
-    # 1000 = 0x03E8, little-endian = [0xE8, 0x03]
     self.assertEqual(cmd[2], 0xE8)
     self.assertEqual(cmd[3], 0x03)
 
@@ -43,7 +36,6 @@ class TestHelperFunctions(unittest.TestCase):
       offset_y=30,
       offset_z=29,
     )
-    # Current format: [5]=offset_x, [6]=offset_y (signed bytes)
     self.assertEqual(cmd[5], 50)
     self.assertEqual(cmd[6], 30)
 
@@ -56,21 +48,14 @@ class TestHelperFunctions(unittest.TestCase):
       offset_y=-50,
       offset_z=29,
     )
-    # Current format: [5]=offset_x, [6]=offset_y (signed bytes)
-    # -30 as unsigned byte: 256 - 30 = 226 = 0xE2
+    # -30 as two's complement
     self.assertEqual(cmd[5], 226)
-    # -50 as unsigned byte: 256 - 50 = 206 = 0xCE
+    # -50 as two's complement
     self.assertEqual(cmd[6], 206)
 
 
 class TestColumnMaskEncoding(unittest.TestCase):
-  """Test column mask encoding helper function.
-
-  Column mask encodes 48 column selections into 6 bytes (48 bits).
-  - columns is a list of column indices (0-47)
-  - Each index sets the corresponding bit to 1
-  - Bytes are in little-endian order
-  """
+  """Test column mask encoding helper function."""
 
   def test_encode_column_mask_none_returns_all_ones(self):
     """encode_column_mask(None) should return all 1s (all wells selected)."""
@@ -94,7 +79,6 @@ class TestColumnMaskEncoding(unittest.TestCase):
 
     mask = encode_column_mask([0])
 
-    # Well 0 = bit 0 = 0b00000001 = 0x01 in byte 0
     self.assertEqual(mask[0], 0x01)
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
 
@@ -103,7 +87,6 @@ class TestColumnMaskEncoding(unittest.TestCase):
 
     mask = encode_column_mask([7])
 
-    # Well 7 = bit 7 = 0b10000000 = 0x80 in byte 0
     self.assertEqual(mask[0], 0x80)
     self.assertEqual(mask[1:], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
 
@@ -112,7 +95,6 @@ class TestColumnMaskEncoding(unittest.TestCase):
 
     mask = encode_column_mask([8])
 
-    # Well 8 = bit 8 = bit 0 of byte 1 = 0x01
     self.assertEqual(mask[0], 0x00)
     self.assertEqual(mask[1], 0x01)
     self.assertEqual(mask[2:], bytes([0x00, 0x00, 0x00, 0x00]))
@@ -122,14 +104,13 @@ class TestColumnMaskEncoding(unittest.TestCase):
 
     mask = encode_column_mask([47])
 
-    # Well 47 = bit 47 = bit 7 of byte 5 = 0x80
     self.assertEqual(mask[:5], bytes([0x00, 0x00, 0x00, 0x00, 0x00]))
     self.assertEqual(mask[5], 0x80)
 
   def test_encode_column_mask_multiple_wells(self):
     """encode_column_mask with multiple wells should set multiple bits."""
 
-    # Wells 0, 1, 2, 3 = bits 0-3 in byte 0 = 0b00001111 = 0x0F
+    # Wells 0-3 = bits 0-3 of byte 0 = 0x0F
     mask = encode_column_mask([0, 1, 2, 3])
 
     self.assertEqual(mask[0], 0x0F)

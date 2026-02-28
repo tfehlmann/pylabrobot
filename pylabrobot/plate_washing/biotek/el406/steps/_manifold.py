@@ -17,26 +17,50 @@ from ..constants import (
   MANIFOLD_DISPENSE_COMMAND,
   MANIFOLD_PRIME_COMMAND,
   MANIFOLD_WASH_COMMAND,
+  MAX_FLOW_RATE,
+  MIN_FLOW_RATE,
+  VALID_BUFFERS,
 )
 from ..helpers import (
   INTENSITY_TO_BYTE,
   VALID_TRAVEL_RATES,
   get_plate_type_wash_defaults,
   travel_rate_to_byte,
-  validate_buffer,
-  validate_cycles,
-  validate_delay_ms,
-  validate_flow_rate,
-  validate_intensity,
-  validate_offset_xy,
-  validate_offset_z,
-  validate_travel_rate,
-  validate_volume,
 )
 from ..protocol import build_framed_message
 from ._base import EL406StepsBaseMixin
+from ._shake import validate_intensity
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
+
+
+def validate_buffer(buffer: str) -> None:
+  if buffer.upper() not in VALID_BUFFERS:
+    raise ValueError(
+      f"Invalid buffer '{buffer}'. Must be one of: {', '.join(sorted(VALID_BUFFERS))}"
+    )
+
+
+def validate_flow_rate(flow_rate: int) -> None:
+  if not MIN_FLOW_RATE <= flow_rate <= MAX_FLOW_RATE:
+    raise ValueError(
+      f"Invalid flow rate {flow_rate}. Must be between {MIN_FLOW_RATE} and {MAX_FLOW_RATE}."
+    )
+
+
+def validate_cycles(cycles: int) -> None:
+  if not 1 <= cycles <= 250:
+    raise ValueError(f"cycles must be 1-250, got {cycles}")
+
+
+def validate_delay_ms(delay_ms: int) -> None:
+  if not 0 <= delay_ms <= 65535:
+    raise ValueError(f"delay_ms must be 0-65535, got {delay_ms}")
+
+
+def validate_travel_rate(rate: int) -> None:
+  if not 1 <= rate <= 9:
+    raise ValueError(f"travel_rate must be 1-9, got {rate}")
 
 
 class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
@@ -233,22 +257,17 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   ) -> None:
     """Validate core wash dispense/aspirate parameters."""
     validate_cycles(cycles)
-    validate_volume(dispense_volume)
+    if dispense_volume <= 0:
+      raise ValueError(f"dispense_volume must be positive, got {dispense_volume}")
     validate_buffer(buffer)
     validate_flow_rate(dispense_flow_rate)
-    validate_offset_xy(dispense_x, "Wash dispense X")
-    validate_offset_xy(dispense_y, "Wash dispense Y")
-    validate_offset_z(dispense_z, "Wash dispense Z")
     validate_travel_rate(aspirate_travel_rate)
     if wash_format not in ("Plate", "Sector"):
       raise ValueError(f"wash_format must be 'Plate' or 'Sector', got '{wash_format}'")
     if not 0 <= sector_mask <= 0xFFFF:
       raise ValueError(f"sector_mask must be 0x0000-0xFFFF, got 0x{sector_mask:04X}")
-    validate_offset_z(aspirate_z, "Wash aspirate Z")
     validate_flow_rate(pre_dispense_flow_rate)
     validate_delay_ms(aspirate_delay_ms)
-    validate_offset_xy(aspirate_x, "Wash aspirate X")
-    validate_offset_xy(aspirate_y, "Wash aspirate Y")
 
   @staticmethod
   def _validate_wash_final_and_extras(
@@ -263,10 +282,6 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     shake_intensity: str,
   ) -> None:
     """Validate final-aspirate, pre-dispense, soak/shake parameters."""
-    if final_aspirate_z is not None:
-      validate_offset_z(final_aspirate_z, "Final aspirate Z")
-    validate_offset_xy(final_aspirate_x, "Final aspirate X")
-    validate_offset_xy(final_aspirate_y, "Final aspirate Y")
     validate_delay_ms(final_aspirate_delay_ms)
     if pre_dispense_volume != 0 and not 25 <= pre_dispense_volume <= 3000:
       raise ValueError(
@@ -295,10 +310,8 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   ) -> None:
     """Validate secondary and final-secondary aspirate offsets."""
     if secondary_aspirate:
-      validate_offset_z(secondary_z, "Wash secondary aspirate Z")
       cls._validate_manifold_xy(secondary_x, secondary_y, "Secondary")
     if final_secondary_aspirate:
-      validate_offset_z(final_secondary_z, "Final secondary aspirate Z")
       cls._validate_manifold_xy(final_secondary_x, final_secondary_y, "Final secondary")
 
   @staticmethod

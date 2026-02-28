@@ -23,12 +23,10 @@ from .errors import EL406CommunicationError, EL406DeviceError
 from .helpers import (
   encode_column_mask,
   syringe_to_byte,
-  validate_buffer,
-  validate_flow_rate,
   validate_plate_type,
-  validate_syringe,
-  validate_volume,
 )
 from .protocol import build_framed_message
 from .queries import EL406QueriesMixin
 from .steps import EL406StepsMixin
+from .steps._manifold import validate_buffer, validate_flow_rate
+from .steps._syringe import validate_syringe
