@@ -55,15 +55,26 @@ def label_to_row_index(label: str) -> int:
 def split_identifier(identifier: str) -> Tuple[str, str]:
   """Split a well identifier into its row-letter and column-number parts.
 
+  Validates that the identifier is in transposed Excel style notation
+  (one or more letters followed by one or more digits, e.g. 'A1', 'AF48').
+
   >>> split_identifier('A1')
   ('A', '1')
   >>> split_identifier('AF48')
   ('AF', '48')
+
+  Raises:
+    ValueError: If the identifier is not in transposed Excel style notation.
   """
   for i, ch in enumerate(identifier):
     if ch.isdigit():
-      return identifier[:i], identifier[i:]
-  raise ValueError(f"Identifier has no column number: '{identifier}'")
+      row_part, col_part = identifier[:i], identifier[i:]
+      if row_part.isalpha() and col_part.isdigit():
+        return row_part, col_part
+      break
+  raise ValueError(
+    f"Identifier '{identifier}' is not in transposed Excel style notation, e.g. 'A1'."
+  )
 
 
 def create_equally_spaced_2d(

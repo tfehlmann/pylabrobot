@@ -110,14 +110,7 @@ class ItemizedResource(Resource, Generic[T], metaclass=ABCMeta):
 
     # validate that ordering is in the transposed Excel style notation
     for identifier in self._ordering:
-      try:
-        row_part, col_part = split_identifier(identifier)
-      except ValueError:
-        raise ValueError(
-          "Ordering must be in the transposed Excel style notation, e.g. 'A1'."
-        ) from None
-      if not row_part.isalpha() or not col_part.isdigit():
-        raise ValueError("Ordering must be in the transposed Excel style notation, e.g. 'A1'.")
+      split_identifier(identifier)
 
   def __getitem__(
     self,
