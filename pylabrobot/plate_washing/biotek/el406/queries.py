@@ -90,19 +90,19 @@ class EL406QueriesMixin:
     logger.info("%s: %s (0x%02X)", label.capitalize(), result.name, result.value)
     return result
 
-  async def get_washer_manifold(self) -> EL406WasherManifold:
+  async def request_washer_manifold(self) -> EL406WasherManifold:
     """Query the installed washer manifold type."""
     return await self._query_enum(
       command=0xD8, enum_cls=EL406WasherManifold, label="washer manifold type"
     )
 
-  async def get_syringe_manifold(self) -> EL406SyringeManifold:
+  async def request_syringe_manifold(self) -> EL406SyringeManifold:
     """Query the installed syringe manifold type."""
     return await self._query_enum(
       command=0xBB, enum_cls=EL406SyringeManifold, label="syringe manifold type"
     )
 
-  async def get_serial_number(self) -> str:
+  async def request_serial_number(self) -> str:
     """Query the product serial number."""
     logger.info("Querying product serial number")
     response_data = await self._send_framed_query(command=0x0100)
@@ -110,7 +110,7 @@ class EL406QueriesMixin:
     logger.info("Product serial number: %s", serial_number)
     return serial_number
 
-  async def get_sensor_enabled(self, sensor: EL406Sensor) -> bool:
+  async def request_sensor_enabled(self, sensor: EL406Sensor) -> bool:
     """Query whether a specific sensor is enabled."""
     logger.info("Querying sensor enabled status: %s", sensor.name)
     response_data = await self._send_framed_query(command=0xD2, data=bytes([sensor.value]))
@@ -119,7 +119,7 @@ class EL406QueriesMixin:
     logger.info("Sensor %s enabled: %s", sensor.name, enabled)
     return enabled
 
-  async def get_syringe_box_info(self) -> SyringeBoxInfo:
+  async def request_syringe_box_info(self) -> SyringeBoxInfo:
     """Get syringe box information."""
     logger.info("Querying syringe box info")
     response_data = await self._send_framed_query(command=0xF6)
@@ -137,7 +137,7 @@ class EL406QueriesMixin:
     logger.info("Syringe box info: %s", info)
     return info
 
-  async def get_peristaltic_installed(self, selector: int) -> bool:
+  async def request_peristaltic_installed(self, selector: int) -> bool:
     """Check if a peristaltic pump is installed."""
     if selector < 0 or selector > 1:
       raise ValueError(f"Invalid selector {selector}. Must be 0 (primary) or 1 (secondary).")
@@ -151,15 +151,15 @@ class EL406QueriesMixin:
     logger.info("Peristaltic pump %d installed: %s", selector, installed)
     return installed
 
-  async def get_instrument_settings(self) -> InstrumentSettings:
+  async def request_instrument_settings(self) -> InstrumentSettings:
     """Get current instrument hardware configuration."""
     logger.info("Querying instrument settings from hardware")
 
-    washer_manifold = await self.get_washer_manifold()
-    syringe_manifold = await self.get_syringe_manifold()
-    syringe_box = await self.get_syringe_box_info()
-    peristaltic_1 = await self.get_peristaltic_installed(0)
-    peristaltic_2 = await self.get_peristaltic_installed(1)
+    washer_manifold = await self.request_washer_manifold()
+    syringe_manifold = await self.request_syringe_manifold()
+    syringe_box = await self.request_syringe_box_info()
+    peristaltic_1 = await self.request_peristaltic_installed(0)
+    peristaltic_2 = await self.request_peristaltic_installed(1)
 
     settings = InstrumentSettings(
       washer_manifold=washer_manifold,
