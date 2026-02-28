@@ -75,19 +75,7 @@ class TestEL406BackendPeristalticDispense(EL406TestCase):
 
 
 class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
-  """Test peristaltic dispense command binary encoding.
-
-  Protocol format for peristaltic dispense (P_DISPENSE = 1):
-    [0]   Step type: 0x01 (P_DISPENSE)
-    [1-2] Volume: 2 bytes, little-endian, in uL
-    [3]   Buffer valve: A=0, B=1, C=2, D=3
-    [4]   Cassette type: byte (default 0)
-    [5]   Offset X: signed byte (-128 to +127)
-    [6]   Offset Y: signed byte (-128 to +127)
-    [7-8] Offset Z: 2 bytes, little-endian
-    [9-10] Prime volume: 2 bytes, little-endian
-    [11]  Flow rate: 1-9
-  """
+  """Test peristaltic dispense command binary encoding."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -230,22 +218,7 @@ class TestPeristalticDispenseCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[11], 5)
 
   def test_peristaltic_dispense_full_command(self):
-    """Test complete peristaltic dispense command with all parameters.
-
-    Wire format:
-      [0]     plate type prefix (0x04=96-well) (step type marker)
-      [1-2]   Volume: 2 bytes, little-endian, in uL
-      [3]     Flow rate
-      [4]     Offset X: signed byte
-      [5]     Offset Y: signed byte
-      [6]     Reserved
-      [7-8]   Offset Z: 2 bytes, little-endian
-      [9-10]  Pre-dispense volume: 2 bytes, little-endian
-      [11]    Number of pre-dispenses
-      [12-17] Well mask: 6 bytes
-      [18]    Reserved
-      [19]    Quadrant
-    """
+    """Test complete peristaltic dispense command with all parameters."""
     cmd = self.backend._build_peristaltic_dispense_command(
       volume=500.0,
       flow_rate=7,
@@ -350,22 +323,7 @@ class TestPeristalticDispenseColumnsAndRows(EL406TestCase):
 
 
 class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
-  """Test peristaltic dispense command encoding with well and row masks.
-
-  Protocol format:
-    [0]     plate type prefix (0x04=96-well)
-    [1-2]   Volume (LE)
-    [3]     Flow rate (0=Low, 1=Med, 2=High)
-    [4]     Cassette type
-    [5]     Offset X (signed byte)
-    [6]     Offset Y (signed byte)
-    [7-8]   Offset Z (LE)
-    [9-10]  Pre-dispense volume (LE)
-    [11]    Num pre-dispenses
-    [12-17] Well mask: 6 bytes (48 bits, 1=selected)
-    [18]    Row mask: 1 byte (4 bits, INVERTED: 0=selected)
-    [19]    Pump (1=Primary, 2=Secondary)
-  """
+  """Test peristaltic dispense command encoding with well and row masks."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -489,14 +447,7 @@ class TestPeristalticDispenseCommandEncodingWithMasks(unittest.TestCase):
 
 
 class TestEL406BackendPeristalticPurge(EL406TestCase):
-  """Test EL406 peristaltic purge functionality.
-
-  The peristaltic purge operation uses the peristaltic pump to expel/clear
-  liquid from the fluid lines. This is used for cleaning or changing buffers.
-
-  Current API:
-    peristaltic_purge(volume, flow_rate="High", cassette="Any")
-  """
+  """Test EL406 peristaltic purge functionality."""
 
   async def test_peristaltic_purge_sends_command(self):
     """peristaltic_purge should send a command to the device."""

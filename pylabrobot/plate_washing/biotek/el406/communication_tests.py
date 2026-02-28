@@ -1,12 +1,8 @@
 # mypy: disable-error-code="union-attr,assignment,arg-type"
-"""Tests for BioTek EL406 plate washer backend - Communication and protocol functionality.
-
-This module contains tests for Communication and protocol functionality.
-"""
+"""Tests for BioTek EL406 communication functionality."""
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
@@ -14,11 +10,7 @@ from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, Mock
 
 
 class TestTestCommunication(EL406TestCase):
-  """Test communication verification.
-
-  The _test_communication() method should send a query command
-  and verify the device responds with ACK (0x06).
-  """
+  """Test communication verification."""
 
   async def test_communication_sends_query_command(self):
     """Test communication should send a query command."""

@@ -1,8 +1,5 @@
 # mypy: disable-error-code="union-attr,assignment,arg-type"
-"""Tests for BioTek EL406 plate washer backend - Action methods.
-
-This module contains tests for Action methods.
-"""
+"""Tests for BioTek EL406 action methods."""
 
 import unittest
 
@@ -20,7 +17,7 @@ class TestEL406BackendAbort(EL406TestCase):
   """Test EL406 abort functionality."""
 
   async def test_abort_command_byte(self):
-    """Abort command should be 0x89 in framed message."""
+    """Abort command byte should be 0x89."""
     await self.backend.abort()
     last_header = self.backend.io.written_data[-2]
     self.assertEqual(last_header[2], 0x89)
@@ -48,7 +45,7 @@ class TestEL406BackendPause(EL406TestCase):
   """Test EL406 pause functionality."""
 
   async def test_pause_command_byte(self):
-    """Pause command should be 0x8A in framed message."""
+    """Pause command byte should be 0x8A."""
     await self.backend.pause()
     last_command = self.backend.io.written_data[-1]
     self.assertEqual(last_command[2], 0x8A)
@@ -71,7 +68,7 @@ class TestEL406BackendResume(EL406TestCase):
   """Test EL406 resume functionality."""
 
   async def test_resume_command_byte(self):
-    """Resume command should be 0x8B in framed message."""
+    """Resume command byte should be 0x8B."""
     await self.backend.resume()
     last_command = self.backend.io.written_data[-1]
     self.assertEqual(last_command[2], 0x8B)
@@ -94,7 +91,7 @@ class TestEL406BackendReset(EL406TestCase):
   """Test EL406 reset functionality."""
 
   async def test_reset_command_byte(self):
-    """Reset command should be 0x70 in framed message."""
+    """Reset command byte should be 0x70."""
     await self.backend.reset()
     last_command = self.backend.io.written_data[-1]
     self.assertEqual(last_command[2], 0x70)
@@ -164,7 +161,7 @@ class TestSetWasherManifold(EL406TestCase):
   """Test set_washer_manifold functionality."""
 
   async def test_set_washer_manifold_sends_correct_command_byte(self):
-    """set_washer_manifold should send command byte 0xD9 in framed message."""
+    """set_washer_manifold should send command byte 0xD9."""
     await self.backend.set_washer_manifold(EL406WasherManifold.TUBE_96_DUAL)
     last_header = self.backend.io.written_data[-2]
     self.assertEqual(last_header[2], 0xD9)

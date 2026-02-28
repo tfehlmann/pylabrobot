@@ -184,20 +184,7 @@ class TestEL406BackendSyringePrime(EL406TestCase):
 
 
 class TestSyringePrimeCommandEncoding(unittest.TestCase):
-  """Test syringe prime command binary encoding.
-
-  Protocol format (13 bytes):
-    [0]    plate type prefix (0x04=96-well) (step type for syringe operations)
-    [1]    Syringe: A=0, B=1
-    [2-3]  Volume: 2 bytes, little-endian, in uL
-    [4]    Flow rate: 1-5
-    [5]    Refills: byte (number of prime cycles)
-    [6-7]  Pump delay: 2 bytes, little-endian, in ms
-    [8]    Submerge tips (0 or 1)
-    [9-10] Submerge duration in minutes (LE uint16)
-    [11]   Bottle (ar-1): derived from syringe (A->0, B->2)
-    [12]   Padding
-  """
+  """Test syringe prime command binary encoding."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -392,11 +379,7 @@ class TestSyringePrimeCommandEncoding(unittest.TestCase):
 
 
 class TestEL406BackendManifoldPrime(EL406TestCase):
-  """Test EL406 manifold prime functionality.
-
-  The manifold prime operation (eMPrime = 9) fills the wash manifold
-  tubing with liquid. This is used to prepare the manifold for washing.
-  """
+  """Test EL406 manifold prime functionality."""
 
   async def test_manifold_prime_sends_command(self):
     """manifold_prime should send a command to the device."""
@@ -466,17 +449,7 @@ class TestEL406BackendManifoldPrime(EL406TestCase):
 
 
 class TestManifoldPrimeCommandEncoding(unittest.TestCase):
-  """Test manifold prime command binary encoding.
-
-  Protocol format for manifold prime (M_PRIME = 9):
-    [0]   Step type: 0x09 (M_PRIME)
-    [1]   Buffer letter: A=0x41, B=0x42, C=0x43, D=0x44 (ASCII char)
-    [2-3] Volume: 2 bytes, little-endian, in mL
-    [4]   Flow rate: 1-9
-    [5-6] Low flow volume: 2 bytes, little-endian, in mL (default 0)
-    [7-8] Submerge duration: 2 bytes, little-endian, in minutes (default 0)
-    [9-12] Padding zeros: 4 bytes
-  """
+  """Test manifold prime command binary encoding."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -499,7 +472,6 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
       flow_rate=9,
     )
 
-    # Buffer: A = 0x41 (ASCII 'A')
     self.assertEqual(cmd[1], ord("A"))
 
   def test_manifold_prime_buffer_b(self):
@@ -510,7 +482,6 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
       flow_rate=9,
     )
 
-    # Buffer: B = 0x42 (ASCII 'B')
     self.assertEqual(cmd[1], ord("B"))
 
   def test_manifold_prime_lowercase_buffer(self):
@@ -521,7 +492,6 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
       flow_rate=9,
     )
 
-    # Should encode as uppercase 'B'
     self.assertEqual(cmd[1], ord("B"))
 
   def test_manifold_prime_volume_encoding(self):
@@ -532,7 +502,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
       flow_rate=9,
     )
 
-    # Volume: 1000 mL = 0x03E8 little-endian = [0xE8, 0x03]
+    # 1000 = 0x03E8 LE
     self.assertEqual(cmd[2], 0xE8)
     self.assertEqual(cmd[3], 0x03)
 
@@ -544,7 +514,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
       flow_rate=9,
     )
 
-    # Volume: 500 mL = 0x01F4 little-endian = [0xF4, 0x01]
+    # 500 = 0x01F4 LE
     self.assertEqual(cmd[2], 0xF4)
     self.assertEqual(cmd[3], 0x01)
 
@@ -556,7 +526,6 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
       flow_rate=9,
     )
 
-    # Volume: 65535 mL = 0xFFFF little-endian = [0xFF, 0xFF]
     self.assertEqual(cmd[2], 0xFF)
     self.assertEqual(cmd[3], 0xFF)
 
@@ -568,7 +537,6 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
       flow_rate=7,
     )
 
-    # Flow rate: 7
     self.assertEqual(cmd[4], 7)
 
   def test_manifold_prime_flow_rate_min(self):
@@ -607,11 +575,7 @@ class TestManifoldPrimeCommandEncoding(unittest.TestCase):
 
 
 class TestEL406BackendAutoClean(EL406TestCase):
-  """Test EL406 manifold auto-clean functionality.
-
-  The auto-clean operation (eMAutoClean = 10) runs an automatic
-  cleaning cycle of the manifold.
-  """
+  """Test EL406 manifold auto-clean functionality."""
 
   async def test_auto_clean_sends_command(self):
     """auto_clean should send a command to the device."""
@@ -664,14 +628,7 @@ class TestEL406BackendAutoClean(EL406TestCase):
 
 
 class TestAutoCleanCommandEncoding(unittest.TestCase):
-  """Test auto-clean command binary encoding.
-
-  Protocol format for auto-clean (M_AUTO_CLEAN = 10):
-    [0]   Step type: 0x0A (M_AUTO_CLEAN)
-    [1]   Buffer letter: A=0x41, B=0x42, C=0x43, D=0x44 (ASCII char)
-    [2-3] Duration: 2 bytes, little-endian (in minutes)
-    [4-7] Padding zeros: 4 bytes
-  """
+  """Test auto-clean command binary encoding."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -686,28 +643,25 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
     """Auto-clean buffer A should encode as 'A' (0x41)."""
     cmd = self.backend._build_auto_clean_command(buffer="A")
 
-    # Buffer: A = 0x41 (ASCII 'A')
     self.assertEqual(cmd[1], ord("A"))
 
   def test_auto_clean_buffer_b(self):
     """Auto-clean buffer B should encode as 'B' (0x42)."""
     cmd = self.backend._build_auto_clean_command(buffer="B")
 
-    # Buffer: B = 0x42 (ASCII 'B')
     self.assertEqual(cmd[1], ord("B"))
 
   def test_auto_clean_lowercase_buffer(self):
     """Auto-clean should accept lowercase buffer and encode as uppercase."""
     cmd = self.backend._build_auto_clean_command(buffer="c")
 
-    # Should encode as uppercase 'C'
     self.assertEqual(cmd[1], ord("C"))
 
   def test_auto_clean_duration_encoding(self):
     """Auto-clean should encode duration as little-endian 2 bytes."""
     cmd = self.backend._build_auto_clean_command(buffer="A", duration_min=60.0)
 
-    # Duration: 60 minutes = 0x003C little-endian = [0x3C, 0x00]
+    # 60 = 0x003C LE
     self.assertEqual(cmd[2], 0x3C)
     self.assertEqual(cmd[3], 0x00)
 
@@ -715,7 +669,7 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
     """Auto-clean with 30 minute duration."""
     cmd = self.backend._build_auto_clean_command(buffer="A", duration_min=30.0)
 
-    # Duration: 30 minutes = 0x001E little-endian = [0x1E, 0x00]
+    # 30 = 0x001E LE
     self.assertEqual(cmd[2], 0x1E)
     self.assertEqual(cmd[3], 0x00)
 
@@ -723,7 +677,6 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
     """Auto-clean with zero duration (no additional cleaning time)."""
     cmd = self.backend._build_auto_clean_command(buffer="A", duration_min=0.0)
 
-    # Duration: 0 = [0x00, 0x00]
     self.assertEqual(cmd[2], 0x00)
     self.assertEqual(cmd[3], 0x00)
 
@@ -743,7 +696,6 @@ class TestAutoCleanCommandEncoding(unittest.TestCase):
     """Auto-clean without duration should use default 1 minute."""
     cmd = self.backend._build_auto_clean_command(buffer="A")
 
-    # Default duration: 1 = [0x01, 0x00]
     self.assertEqual(cmd[2], 0x01)
     self.assertEqual(cmd[3], 0x00)
 

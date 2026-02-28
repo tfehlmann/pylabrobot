@@ -90,24 +90,7 @@ class TestEL406BackendAspirate(EL406TestCase):
 
 
 class TestAspirateCommandEncoding(unittest.TestCase):
-  """Test aspirate command binary encoding.
-
-  Wire format (22 bytes):
-    [0]     plate type prefix (0x04=96-well)
-    [1]     vacuum_filtration
-    [2-3]   time_value (delay_ms or vacuum_time_sec) LE
-    [4]     travel_rate byte
-    [5]     x_offset (signed byte)
-    [6]     y_offset (signed byte)
-    [7-8]   z_offset LE
-    [9]     secondary_mode
-    [10]    secondary_x (signed byte)
-    [11]    secondary_y (signed byte)
-    [12-13] secondary_z LE
-    [14-15] reserved
-    [16-17] column_mask
-    [18-21] padding
-  """
+  """Test aspirate command binary encoding."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -137,7 +120,7 @@ class TestAspirateCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[18:22], bytes(4))  # padding
 
   def test_aspirate_command_vacuum_filtration(self):
-    """Vacuum filtration flag at byte 1."""
+    """Vacuum filtration flag should be set when enabled."""
     cmd = self.backend._build_aspirate_command(vacuum_filtration=True, time_value=30)
     self.assertEqual(cmd[1], 1)
     # time_value=30 at bytes 2-3
@@ -145,14 +128,14 @@ class TestAspirateCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[3], 0)
 
   def test_aspirate_command_delay_encoding(self):
-    """Delay encoded as LE uint16 at bytes 2-3."""
+    """Delay value should be encoded correctly."""
     cmd = self.backend._build_aspirate_command(time_value=5000)
     # 5000 = 0x1388
     self.assertEqual(cmd[2], 0x88)
     self.assertEqual(cmd[3], 0x13)
 
   def test_aspirate_command_travel_rate(self):
-    """Travel rate byte at position 4."""
+    """Travel rate should be encoded correctly."""
     # Normal rate "5" -> byte 5
     cmd = self.backend._build_aspirate_command(travel_rate_byte=5)
     self.assertEqual(cmd[4], 5)
@@ -161,29 +144,29 @@ class TestAspirateCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[4], 8)
 
   def test_aspirate_command_negative_offset_x(self):
-    """X offset at byte 5, signed byte encoding."""
+    """Negative X offset should be encoded as unsigned byte."""
     cmd = self.backend._build_aspirate_command(offset_x=-30)
     # -30 as unsigned byte = 226 = 0xE2
     self.assertEqual(cmd[5], 226)
 
   def test_aspirate_command_positive_offset_y(self):
-    """Y offset at byte 6."""
+    """Positive Y offset should be encoded correctly."""
     cmd = self.backend._build_aspirate_command(offset_y=5)
     self.assertEqual(cmd[6], 5)
 
   def test_aspirate_command_z_offset(self):
-    """Z offset as LE uint16 at bytes 7-8."""
+    """Z offset should be encoded correctly."""
     cmd = self.backend._build_aspirate_command(offset_z=121)
     self.assertEqual(cmd[7], 121)
     self.assertEqual(cmd[8], 0)
 
   def test_aspirate_command_secondary_mode(self):
-    """Secondary mode byte at position 9."""
+    """Secondary mode should be encoded correctly."""
     cmd = self.backend._build_aspirate_command(secondary_mode=1)
     self.assertEqual(cmd[9], 1)
 
   def test_aspirate_command_secondary_offsets(self):
-    """Secondary X/Y/Z offsets at positions 10-13."""
+    """Secondary offsets should be encoded correctly."""
     cmd = self.backend._build_aspirate_command(
       secondary_x=-5,
       secondary_y=3,
@@ -196,7 +179,7 @@ class TestAspirateCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[13], 0)
 
   def test_aspirate_command_column_mask_all(self):
-    """Column mask at bytes 16-17 is always all-selected for manifold aspirate."""
+    """Column mask should select all columns for manifold aspirate."""
     cmd = self.backend._build_aspirate_command()
     self.assertEqual(cmd[16], 0xFF)  # all 12 columns
     self.assertEqual(cmd[17], 0x0F)

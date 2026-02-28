@@ -1,11 +1,5 @@
 # mypy: disable-error-code="union-attr,assignment,arg-type"
-"""Tests for BioTek EL406 plate washer backend - Dispense operations.
-
-This module contains tests for dispense-related step methods:
-- dispense (M_DISPENSE)
-- syringe_dispense (S_DISPENSE)
-- strip_dispense (M_DISPENSE_STRIP)
-"""
+"""Tests for BioTek EL406 plate washer backend - Dispense operations."""
 
 import unittest
 
@@ -16,18 +10,7 @@ from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase
 
 
 class TestEL406BackendDispense(EL406TestCase):
-  """Test EL406 manifold dispense functionality.
-
-  Parameter limits:
-    Volume: 25-3000 uL (manifold-dependent: 50 for 96-tube, 25 for 192/128-tube)
-    Flow rate: 3-11
-    X offset: -60..60
-    Y offset: -40..40
-    Z offset: 1-210
-    Pre-dispense volume: 25-3000 (when enabled)
-    Pre-dispense flow rate: 3-11
-    Vacuum delay volume: 0-3000
-  """
+  """Test EL406 manifold dispense functionality."""
 
   async def test_dispense_sends_command(self):
     """Dispense should send correct command."""

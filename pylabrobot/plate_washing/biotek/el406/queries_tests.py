@@ -6,7 +6,6 @@ This module contains tests for Query methods.
 
 import unittest
 
-# Import the backend module (mock is already installed by test_el406_mock import)
 # Import the backend module
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
@@ -18,27 +17,10 @@ from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, Mock
 
 
 class TestEL406BackendGetWasherManifold(EL406TestCase):
-  """Test EL406 get washer manifold query.
-
-  The GetWasherManifoldInstalled operation queries the installed washer manifold type.
-  Command byte: 216 (0xD8)
-
-  Response format: [manifold_type_byte, ACK_byte]
-  - The device sends the manifold type first, then ACK
-
-  Manifold types (EnumWasherManifold):
-    0: 96-Tube Dual
-    1: 192-Tube
-    2: 128-Tube
-    3: 96-Tube Single
-    4: 96 Deep Pin
-    255: Not Installed
-  """
+  """Test EL406 get washer manifold query."""
 
   async def test_get_washer_manifold_returns_enum(self):
     """get_washer_manifold should return an EL406WasherManifold enum value."""
-    # Simulate device response: manifold type byte followed by ACK
-    # 0 = 96-Tube Dual manifold
     self.backend.io.set_read_buffer(bytes([0, 0x06]))
 
     result = await self.backend.get_washer_manifold()
@@ -48,7 +30,6 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
 
   async def test_get_washer_manifold_192_tube(self):
     """get_washer_manifold should correctly identify 192-Tube manifold."""
-    # 1 = 192-Tube manifold
     self.backend.io.set_read_buffer(bytes([1, 0x06]))
 
     result = await self.backend.get_washer_manifold()
@@ -57,7 +38,6 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
 
   async def test_get_washer_manifold_128_tube(self):
     """get_washer_manifold should correctly identify 128-Tube manifold."""
-    # 2 = 128-Tube manifold
     self.backend.io.set_read_buffer(bytes([2, 0x06]))
 
     result = await self.backend.get_washer_manifold()
@@ -66,7 +46,6 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
 
   async def test_get_washer_manifold_96_tube_single(self):
     """get_washer_manifold should correctly identify 96-Tube Single manifold."""
-    # 3 = 96-Tube Single manifold
     self.backend.io.set_read_buffer(bytes([3, 0x06]))
 
     result = await self.backend.get_washer_manifold()
@@ -75,7 +54,6 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
 
   async def test_get_washer_manifold_deep_pin_96(self):
     """get_washer_manifold should correctly identify 96 Deep Pin manifold."""
-    # 4 = 96 Deep Pin manifold
     self.backend.io.set_read_buffer(bytes([4, 0x06]))
 
     result = await self.backend.get_washer_manifold()
@@ -84,7 +62,6 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
 
   async def test_get_washer_manifold_not_installed(self):
     """get_washer_manifold should correctly identify when not installed."""
-    # 255 = Not Installed
     self.backend.io.set_read_buffer(bytes([255, 0x06]))
 
     result = await self.backend.get_washer_manifold()
@@ -92,19 +69,17 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
     self.assertEqual(result, EL406WasherManifold.NOT_INSTALLED)
 
   async def test_get_washer_manifold_sends_correct_command(self):
-    """get_washer_manifold should send command byte 216 (0xD8) in framed message."""
+    """get_washer_manifold should send the correct command byte."""
     self.backend.io.set_read_buffer(bytes([0, 0x06]))
 
     await self.backend.get_washer_manifold()
 
     last_command = self.backend.io.written_data[-1]
-    # Command byte is at position 2 in framed message
     self.assertEqual(last_command[2], 0xD8)
 
   async def test_get_washer_manifold_raises_when_device_not_initialized(self):
     """get_washer_manifold should raise RuntimeError if device not initialized."""
     backend = BioTekEL406Backend()
-    # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
       await backend.get_washer_manifold()
@@ -119,7 +94,6 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
 
   async def test_get_washer_manifold_invalid_value(self):
     """get_washer_manifold should raise ValueError for unknown manifold type."""
-    # 100 is not a valid manifold type
     self.backend.io.set_read_buffer(bytes([100, 0x06]))
 
     with self.assertRaises(ValueError) as ctx:
@@ -130,32 +104,10 @@ class TestEL406BackendGetWasherManifold(EL406TestCase):
 
 
 class TestEL406BackendGetSyringeManifold(EL406TestCase):
-  """Test EL406 get syringe manifold query.
-
-  The GetSyringeManifoldInstalled operation queries the installed syringe manifold type.
-  Command byte: 187 (0xBB)
-  Response byte contains manifold type.
-
-  Response format: [manifold_type_byte, ACK_byte]
-  - The device sends the manifold type first, then ACK
-
-  Syringe Manifold types (EL406SyringeManifold enum):
-    0: Not Installed
-    1: 16-Tube
-    2: 32-Tube Large Bore
-    3: 32-Tube Small Bore
-    4: 16-Tube 7
-    5: 8-Tube
-    6: 6 Well Plate
-    7: 12 Well Plate
-    8: 24 Well Plate
-    9: 48 Well Plate
-  """
+  """Test EL406 get syringe manifold query."""
 
   async def test_get_syringe_manifold_returns_enum(self):
     """get_syringe_manifold should return an EL406SyringeManifold enum value."""
-    # Simulate device response: manifold type byte followed by ACK
-    # 1 = 16-Tube manifold
     self.backend.io.set_read_buffer(bytes([1, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -165,7 +117,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_not_installed(self):
     """get_syringe_manifold should correctly identify when not installed."""
-    # 0 = Not Installed
     self.backend.io.set_read_buffer(bytes([0, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -174,7 +125,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_tube_32_large_bore(self):
     """get_syringe_manifold should correctly identify 32-Tube Large Bore manifold."""
-    # 2 = 32-Tube Large Bore
     self.backend.io.set_read_buffer(bytes([2, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -183,7 +133,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_tube_32_small_bore(self):
     """get_syringe_manifold should correctly identify 32-Tube Small Bore manifold."""
-    # 3 = 32-Tube Small Bore
     self.backend.io.set_read_buffer(bytes([3, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -192,7 +141,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_tube_16_7(self):
     """get_syringe_manifold should correctly identify 16-Tube 7 manifold."""
-    # 4 = 16-Tube 7
     self.backend.io.set_read_buffer(bytes([4, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -201,7 +149,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_tube_8(self):
     """get_syringe_manifold should correctly identify 8-Tube manifold."""
-    # 5 = 8-Tube
     self.backend.io.set_read_buffer(bytes([5, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -211,11 +158,8 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
   async def test_get_syringe_manifold_plate_6_well(self):
     """get_syringe_manifold should correctly identify 6 Well Plate manifold.
 
-    This test is critical because manifold type 6 equals ACK_BYTE (0x06).
-    The framed protocol handles this by including data length in the header.
+    Manifold type 6 has the same value as ACK_BYTE, so a framed response is needed.
     """
-    # 6 = 6 Well Plate (same value as ACK_BYTE 0x06)
-    # Use set_query_response to properly frame the data byte
     self.backend.io.set_query_response(bytes([6]))
 
     result = await self.backend.get_syringe_manifold()
@@ -224,7 +168,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_plate_12_well(self):
     """get_syringe_manifold should correctly identify 12 Well Plate manifold."""
-    # 7 = 12 Well Plate
     self.backend.io.set_read_buffer(bytes([7, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -233,7 +176,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_plate_24_well(self):
     """get_syringe_manifold should correctly identify 24 Well Plate manifold."""
-    # 8 = 24 Well Plate
     self.backend.io.set_read_buffer(bytes([8, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -242,7 +184,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_plate_48_well(self):
     """get_syringe_manifold should correctly identify 48 Well Plate manifold."""
-    # 9 = 48 Well Plate
     self.backend.io.set_read_buffer(bytes([9, 0x06]))
 
     result = await self.backend.get_syringe_manifold()
@@ -250,19 +191,17 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
     self.assertEqual(result, EL406SyringeManifold.PLATE_48_WELL)
 
   async def test_get_syringe_manifold_sends_correct_command(self):
-    """get_syringe_manifold should send command byte 187 (0xBB) in framed message."""
+    """get_syringe_manifold should send the correct command byte."""
     self.backend.io.set_read_buffer(bytes([0, 0x06]))
 
     await self.backend.get_syringe_manifold()
 
     last_command = self.backend.io.written_data[-1]
-    # Command byte is at position 2 in framed message
     self.assertEqual(last_command[2], 0xBB)
 
   async def test_get_syringe_manifold_raises_when_device_not_initialized(self):
     """get_syringe_manifold should raise RuntimeError if device not initialized."""
     backend = BioTekEL406Backend()
-    # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
       await backend.get_syringe_manifold()
@@ -277,7 +216,6 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
   async def test_get_syringe_manifold_invalid_value(self):
     """get_syringe_manifold should raise ValueError for unknown manifold type."""
-    # 100 is not a valid manifold type
     self.backend.io.set_read_buffer(bytes([100, 0x06]))
 
     with self.assertRaises(ValueError) as ctx:
@@ -288,15 +226,7 @@ class TestEL406BackendGetSyringeManifold(EL406TestCase):
 
 
 class TestEL406BackendGetSerialNumber(EL406TestCase):
-  """Test EL406 get serial number query.
-
-  The GetInstSerialNumber operation queries the device serial number.
-  Command: 256 (0x0100) - 16-bit command sent as [0x00, 0x01] little-endian
-  Response: ASCII string followed by ACK (0x06)
-
-  Response format: [ASCII bytes...][ACK_byte]
-  - The device sends ASCII bytes of the serial number, then ACK
-  """
+  """Test EL406 get serial number query."""
 
   async def test_get_serial_number_various_formats(self):
     """get_serial_number should handle various serial number formats."""
@@ -314,20 +244,18 @@ class TestEL406BackendGetSerialNumber(EL406TestCase):
       self.assertEqual(result, expected_serial)
 
   async def test_get_serial_number_sends_correct_command(self):
-    """get_serial_number should send 16-bit command 256 (0x0100) in framed message."""
+    """get_serial_number should send the correct command bytes."""
     self.backend.io.set_query_response(b"SN123")
 
     await self.backend.get_serial_number()
 
     last_command = self.backend.io.written_data[-1]
-    # Framed message has command at bytes [2-3] (little-endian)
-    self.assertEqual(last_command[2], 0x00)  # Low byte of 256
-    self.assertEqual(last_command[3], 0x01)  # High byte of 256
+    self.assertEqual(last_command[2], 0x00)
+    self.assertEqual(last_command[3], 0x01)
 
   async def test_get_serial_number_raises_when_device_not_initialized(self):
     """get_serial_number should raise RuntimeError if device not initialized."""
     backend = BioTekEL406Backend()
-    # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
       await backend.get_serial_number()
@@ -342,7 +270,6 @@ class TestEL406BackendGetSerialNumber(EL406TestCase):
 
   async def test_get_serial_number_empty_response(self):
     """get_serial_number should handle empty serial (just ACK)."""
-    # Device returns only ACK (empty serial)
     self.backend.io.set_read_buffer(b"\x06")
 
     result = await self.backend.get_serial_number()
@@ -351,27 +278,10 @@ class TestEL406BackendGetSerialNumber(EL406TestCase):
 
 
 class TestEL406BackendGetSensorEnabled(EL406TestCase):
-  """Test EL406 get sensor enabled query.
-
-  The GetSensorEnabled operation queries whether a specific sensor is enabled.
-  Command byte: 210 (0xD2)
-  Parameter: sensor type byte (0-5)
-  Response: [enabled_byte][ACK_byte]
-    - enabled_byte: 0 = disabled, 1 = enabled
-
-  Command format:
-    [0] Command byte: 210 (0xD2)
-    [1] Sensor type byte: 0-5 (EnumSensor value)
-
-  Response format:
-    [0] Enabled byte: 0 = disabled, 1 = enabled
-    [1] ACK (0x06)
-  """
+  """Test EL406 get sensor enabled query."""
 
   async def test_get_sensor_enabled_returns_true_when_enabled(self):
     """get_sensor_enabled should return True when sensor is enabled."""
-
-    # Enabled = 1
     self.backend.io.set_query_response(bytes([1]))
 
     result = await self.backend.get_sensor_enabled(EL406Sensor.WASTE)
@@ -380,8 +290,6 @@ class TestEL406BackendGetSensorEnabled(EL406TestCase):
 
   async def test_get_sensor_enabled_returns_false_when_disabled(self):
     """get_sensor_enabled should return False when sensor is disabled."""
-
-    # Disabled = 0
     self.backend.io.set_query_response(bytes([0]))
 
     result = await self.backend.get_sensor_enabled(EL406Sensor.FLUID)
@@ -389,36 +297,29 @@ class TestEL406BackendGetSensorEnabled(EL406TestCase):
     self.assertFalse(result)
 
   async def test_get_sensor_enabled_sends_correct_command(self):
-    """get_sensor_enabled should send command byte 210 (0xD2) in framed message."""
-
+    """get_sensor_enabled should send the correct command byte."""
     self.backend.io.set_query_response(bytes([1]))
 
     await self.backend.get_sensor_enabled(EL406Sensor.VACUUM)
 
-    # Header and data are sent as separate writes
     header = self.backend.io.written_data[-2]
-    # Command byte is at position 2 in the 11-byte header
     self.assertEqual(header[2], 0xD2)
 
   async def test_get_sensor_enabled_sends_sensor_type(self):
     """get_sensor_enabled should include sensor type in command data."""
-
     self.backend.io.set_query_response(bytes([1]))
 
     await self.backend.get_sensor_enabled(EL406Sensor.WASTE)
 
-    # Header and data are sent as separate writes
     header = self.backend.io.written_data[-2]
     data = self.backend.io.written_data[-1]
     full_command = header + data
-    # Framed message: 11-byte header + 1-byte data (sensor type)
     self.assertEqual(len(full_command), 12)
-    self.assertEqual(full_command[2], 0xD2)  # Command byte at position 2
-    self.assertEqual(full_command[11], 1)  # WASTE = 1 (data starts at byte 11)
+    self.assertEqual(full_command[2], 0xD2)
+    self.assertEqual(full_command[11], 1)  # WASTE = 1
 
   async def test_get_sensor_enabled_sensor_types_in_command(self):
     """get_sensor_enabled should send correct sensor type byte for each sensor."""
-
     test_cases = [
       (EL406Sensor.VACUUM, 0),
       (EL406Sensor.WASTE, 1),
@@ -432,7 +333,6 @@ class TestEL406BackendGetSensorEnabled(EL406TestCase):
       self.backend.io.set_query_response(bytes([1]))
       await self.backend.get_sensor_enabled(sensor)
 
-      # Data byte is in the separate data write (last write)
       data = self.backend.io.written_data[-1]
       self.assertEqual(
         data[0], expected_byte, f"Sensor {sensor.name} should send byte {expected_byte}"
@@ -440,9 +340,7 @@ class TestEL406BackendGetSensorEnabled(EL406TestCase):
 
   async def test_get_sensor_enabled_raises_when_device_not_initialized(self):
     """get_sensor_enabled should raise RuntimeError if device not initialized."""
-
     backend = BioTekEL406Backend()
-    # Note: no setup() called
 
     with self.assertRaises(RuntimeError):
       await backend.get_sensor_enabled(EL406Sensor.VACUUM)
@@ -457,16 +355,10 @@ class TestEL406BackendGetSensorEnabled(EL406TestCase):
 
 
 class TestGetSyringeBoxInfo(EL406TestCase):
-  """Test get_syringe_box_info functionality.
-
-  get_syringe_box_info retrieves syringe box configuration.
-  Response reads two bytes: box_type then box_size.
-  Response format: [box_type, box_size, ACK] = 3 bytes
-  """
+  """Test get_syringe_box_info functionality."""
 
   async def test_get_syringe_box_info_parses_response_correctly(self):
     """get_syringe_box_info should correctly parse box_type and box_size."""
-    # Mock response: [box_type=2, box_size=100, ACK]
     self.backend.io.set_read_buffer(b"\x02\x64\x06")
     result = await self.backend.get_syringe_box_info()
     self.assertEqual(result["box_type"], 2)
@@ -475,7 +367,6 @@ class TestGetSyringeBoxInfo(EL406TestCase):
 
   async def test_get_syringe_box_info_not_installed(self):
     """get_syringe_box_info should report not installed when box_type is 0."""
-    # Mock response: [box_type=0, box_size=0, ACK]
     self.backend.io.set_read_buffer(b"\x00\x00\x06")
     result = await self.backend.get_syringe_box_info()
     self.assertEqual(result["box_type"], 0)
@@ -496,10 +387,7 @@ class TestGetSyringeBoxInfo(EL406TestCase):
 
 
 class TestGetPeristalticInstalled(EL406TestCase):
-  """Test get_peristaltic_installed functionality.
-
-  get_peristaltic_installed checks if a peristaltic pump is installed.
-  """
+  """Test get_peristaltic_installed functionality."""
 
   async def test_get_peristaltic_installed_true_when_installed(self):
     """get_peristaltic_installed should return True when pump is installed."""
@@ -553,24 +441,10 @@ if __name__ == "__main__":
 
 
 class TestGetInstrumentSettings(EL406TestCase):
-  """Test get_instrument_settings functionality.
-
-  get_instrument_settings queries hardware configuration by calling
-  multiple sequential query commands.
-  """
+  """Test get_instrument_settings functionality."""
 
   def _build_multi_query_buffer(self):
-    """Build mock buffer with 5 sequential framed query responses.
-
-    get_instrument_settings calls in order:
-    1. get_washer_manifold -> manifold type byte
-    2. get_syringe_manifold -> manifold type byte
-    3. get_syringe_box_info -> box_type, box_size
-    4. get_peristaltic_installed(0) -> installed byte
-    5. get_peristaltic_installed(1) -> installed byte
-
-    Each response is: ACK + 11-byte header + 2-byte prefix + data
-    """
+    """Build mock buffer with 5 sequential query responses for get_instrument_settings."""
     buf = b""
     # 1. washer manifold: TUBE_96_DUAL (0)
     buf += MockFTDI.build_completion_frame(bytes([0x01, 0x00, 0x00]))

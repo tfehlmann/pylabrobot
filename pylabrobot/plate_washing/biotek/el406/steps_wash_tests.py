@@ -1,9 +1,5 @@
 # mypy: disable-error-code="union-attr,assignment,arg-type"
-"""Tests for BioTek EL406 plate washer backend - Wash operations.
-
-This module contains tests for wash-related step methods:
-- wash (MANIFOLD_WASH 0xA4, 102-byte composite command)
-"""
+"""Tests for BioTek EL406 plate washer backend - Wash operations."""
 
 import unittest
 
@@ -145,26 +141,18 @@ class TestEL406BackendWash(EL406TestCase):
 
 
 class TestWashCompositeCommandEncoding(unittest.TestCase):
-  """Test 102-byte MANIFOLD_WASH composite command encoding.
-
-  This tests _build_wash_composite_command() which produces the 102-byte
-  payload for the MANIFOLD_WASH (0xA4) wire command.
-  """
+  """Test wash composite command encoding."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
 
   def test_composite_command_length(self):
-    """Composite wash command should be exactly 102 bytes."""
+    """Composite wash command should produce the expected payload length."""
     cmd = self.backend._build_wash_composite_command()
     self.assertEqual(len(cmd), 102)
 
   def test_composite_command_aspirate_sections(self):
-    """Aspirate sections should encode travel rate and Z offsets.
-
-    Wire Aspirate1 [29-48] = "final aspirate" with fixed Z=29.
-    Wire Aspirate2 [49-67] = "primary aspirate" with user params.
-    """
+    """Aspirate sections should encode travel rate and Z offsets."""
     cmd = self.backend._build_wash_composite_command(aspirate_travel_rate=5, aspirate_z=40)
     # Aspirate section 1 (final aspirate, mirrors primary Z)
     self.assertEqual(cmd[29], 5)  # travel rate (propagated)
@@ -180,14 +168,13 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd[58], 0x1D)  # secondary Z low (default 29, independent)
 
   def test_composite_command_final_section(self):
-    """Final section should have shake intensity at [90]."""
+    """Final section should have shake intensity at the expected position."""
     cmd = self.backend._build_wash_composite_command(aspirate_travel_rate=3)
-    # Final section starts at [90]; [0] = shake intensity
     self.assertEqual(cmd[90], 3)  # shake intensity (default Medium=3)
-    self.assertEqual(cmd[91], 0x00)  # reserved
+    self.assertEqual(cmd[91], 0x00)
 
   def test_composite_command_final_aspirate_flag(self):
-    """Header byte [2] should reflect final_aspirate flag."""
+    """Final aspirate flag should be encoded in the header."""
     cmd_on = self.backend._build_wash_composite_command(final_aspirate=True)
     self.assertEqual(cmd_on[2], 0x01)
 
@@ -195,60 +182,49 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd_off[2], 0x00)
 
   def test_composite_command_pre_dispense_volume(self):
-    """Pre-dispense volume should appear at dispense section offsets [8-9]."""
+    """Pre-dispense volume should be encoded in both dispense sections."""
     cmd = self.backend._build_wash_composite_command(pre_dispense_volume=100.0)
-    # Dispense1 [7-28]: pre_disp_vol at [7+8]=15, [7+9]=16
+    # Dispense1
     self.assertEqual(cmd[15], 0x64)  # 100 low
     self.assertEqual(cmd[16], 0x00)  # 100 high
-    # Dispense2 [68-89]: pre_disp_vol at [68+8]=76, [68+9]=77
+    # Dispense2
     self.assertEqual(cmd[76], 0x64)
     self.assertEqual(cmd[77], 0x00)
 
   def test_composite_command_vacuum_delay_volume(self):
-    """Vacuum delay volume should appear at dispense section offsets [11-12]."""
+    """Vacuum delay volume should be encoded in both dispense sections."""
     cmd = self.backend._build_wash_composite_command(vacuum_delay_volume=200.0)
-    # Dispense1: vac_delay at [7+11]=18, [7+12]=19
+    # Dispense1
     self.assertEqual(cmd[18], 0xC8)  # 200 low
     self.assertEqual(cmd[19], 0x00)  # 200 high
-    # Dispense2: vac_delay at [68+11]=79, [68+12]=80
+    # Dispense2
     self.assertEqual(cmd[79], 0xC8)
     self.assertEqual(cmd[80], 0x00)
 
   def test_composite_command_aspirate_delay(self):
-    """Aspirate delay encoding.
-
-    Wire Aspirate1 uses fixed defaults (delay=0 always).
-    Wire Aspirate2 layout: [2]=X, [3]=Y, no delay field.
-    aspirate_delay_ms (wire unit) is accepted as parameter but not currently encoded.
-    """
+    """Final aspirate section should always have delay=0."""
     cmd = self.backend._build_wash_composite_command(aspirate_delay_ms=1000)
-    # Aspirate1 always has delay=0 (fixed defaults)
     self.assertEqual(cmd[30], 0x00)
     self.assertEqual(cmd[31], 0x00)
 
   def test_composite_command_aspirate_offsets(self):
-    """Aspirate X/Y offsets appear in wire Aspirate2 only (primary aspirate).
-
-    Wire Aspirate2 layout: [2]=X, [3]=Y.
-    Wire Aspirate1 (final aspirate) uses fixed X=0, Y=0.
-    """
+    """Aspirate X/Y offsets should only appear in the primary aspirate section."""
     cmd = self.backend._build_wash_composite_command(aspirate_x=15, aspirate_y=-10)
-    # Aspirate1 (final aspirate): X/Y fixed at 0
+    # Final aspirate: X/Y fixed at 0
     self.assertEqual(cmd[34], 0x00)
     self.assertEqual(cmd[35], 0x00)
-    # Aspirate2 (primary aspirate): X at [49+2]=51, Y at [49+3]=52
+    # Primary aspirate
     self.assertEqual(cmd[51], 15)
     self.assertEqual(cmd[52], 0xF6)  # -10 two's complement
 
   def test_composite_command_shake_duration(self):
-    """Shake duration should appear at wire [88-89] (bf section offset [1-2])."""
+    """Shake duration should be encoded correctly."""
     cmd = self.backend._build_wash_composite_command(shake_duration=30)
-    # Shake section [87-101]: shake_dur at [87+1]=88, [87+2]=89
     self.assertEqual(cmd[88], 30)
     self.assertEqual(cmd[89], 0x00)
 
   def test_composite_command_shake_intensity(self):
-    """Shake intensity should appear at wire [90] (bf section offset [3])."""
+    """Shake intensity should be encoded correctly for each level."""
     cmd_fast = self.backend._build_wash_composite_command(shake_duration=10, shake_intensity="Fast")
     self.assertEqual(cmd_fast[90], 0x04)
 
@@ -261,24 +237,19 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
     self.assertEqual(cmd_var[90], 0x01)
 
   def test_composite_command_shake_intensity_default_when_disabled(self):
-    """Shake intensity byte stays at default Medium (3) when shake_duration=0.
-
-    The intensity field is inert when shake_duration=0."""
+    """Shake intensity should stay at default when shake_duration=0."""
     cmd = self.backend._build_wash_composite_command(shake_duration=0, shake_intensity="Fast")
     self.assertEqual(cmd[90], 0x03)
 
   def test_composite_command_soak_duration(self):
-    """Soak duration should appear at wire [92-93] (bf section offset [5-6])."""
+    """Soak duration should be encoded correctly."""
     cmd = self.backend._build_wash_composite_command(soak_duration=90)
-    # Shake section [87-101]: soak_dur at [87+5]=92, [87+6]=93
     self.assertEqual(cmd[92], 90)
     self.assertEqual(cmd[93], 0x00)
 
   def test_composite_command_soak_duration_large(self):
     """Large soak duration should encode correctly as 16-bit LE."""
     cmd = self.backend._build_wash_composite_command(soak_duration=3599)
-    # 3599 = 0x0E0F -> low=0x0F, high=0x0E
-    # Soak is at [92-93] after the fix
     self.assertEqual(cmd[92], 0x0F)
     self.assertEqual(cmd[93], 0x0E)
 
@@ -308,27 +279,24 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
     self.assertEqual(len(cmd), 102)
     # Header
     self.assertEqual(cmd[2], 0x00)  # final_aspirate=False
-    self.assertEqual(cmd[4], 0x0F)  # sector_mask low byte (default)
-    self.assertEqual(cmd[5], 0x00)  # sector_mask high byte
+    self.assertEqual(cmd[4], 0x0F)  # sector_mask low
+    self.assertEqual(cmd[5], 0x00)  # sector_mask high
     self.assertEqual(cmd[6], 5)  # cycles
-    # Dispense1 pre_dispense_volume=150 at [15-16]
-    self.assertEqual(cmd[15], 150 & 0xFF)
+    # Dispense1
+    self.assertEqual(cmd[15], 150 & 0xFF)  # pre_dispense_volume
     self.assertEqual(cmd[16], 0x00)
-    # Dispense1 pre_dispense_flow_rate=7 at [17]
-    self.assertEqual(cmd[17], 7)
-    # Dispense1 vacuum_delay=100 at [18-19]
-    self.assertEqual(cmd[18], 100)
+    self.assertEqual(cmd[17], 7)  # pre_dispense_flow_rate
+    self.assertEqual(cmd[18], 100)  # vacuum_delay_volume
     self.assertEqual(cmd[19], 0x00)
-    # Aspirate1 (final aspirate) uses fixed defaults — delay/x/y not encoded
+    # Final aspirate uses fixed defaults
     self.assertEqual(cmd[30], 0x00)  # delay always 0
     self.assertEqual(cmd[31], 0x00)
     self.assertEqual(cmd[34], 0x00)  # X fixed 0
     self.assertEqual(cmd[35], 0x00)  # Y fixed 0
-    # Aspirate2 (primary aspirate): x=-20 at [51], y=15 at [52]
-    self.assertEqual(cmd[51], 0xEC)  # -20 two's complement
-    self.assertEqual(cmd[52], 15)
-    # bf section at [87-101]: shake=30 at [88-89], intensity=Slow at [90], soak=60 at [92-93]
-    # (shake comes before soak)
+    # Primary aspirate
+    self.assertEqual(cmd[51], 0xEC)  # x=-20 two's complement
+    self.assertEqual(cmd[52], 15)  # y=15
+    # Shake/soak
     self.assertEqual(cmd[88], 30)  # shake duration
     self.assertEqual(cmd[89], 0x00)
     self.assertEqual(cmd[90], 0x02)  # Slow
@@ -337,23 +305,23 @@ class TestWashCompositeCommandEncoding(unittest.TestCase):
 
 
 class TestWashMoveHomeFirst(unittest.TestCase):
-  """Test move_home_first parameter in 102-byte wash command."""
+  """Test move_home_first parameter in wash command."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
 
   def test_move_home_default_disabled(self):
-    """move_home_first defaults to False, wire [87] = 0x00."""
+    """move_home_first should default to False."""
     cmd = self.backend._build_wash_composite_command()
     self.assertEqual(cmd[87], 0x00)
 
   def test_move_home_enabled(self):
-    """move_home_first=True sets wire [87] = 0x01."""
+    """move_home_first=True should set the move-home flag."""
     cmd = self.backend._build_wash_composite_command(move_home_first=True)
     self.assertEqual(cmd[87], 0x01)
 
   def test_move_home_does_not_affect_other_bytes(self):
-    """Enabling move_home_first should only change byte [87]."""
+    """Enabling move_home_first should only change one byte."""
     cmd_off = self.backend._build_wash_composite_command(move_home_first=False)
     cmd_on = self.backend._build_wash_composite_command(move_home_first=True)
     # Only byte [87] should differ
@@ -366,51 +334,44 @@ class TestWashMoveHomeFirst(unittest.TestCase):
       move_home_first=True, shake_duration=15, shake_intensity="Fast", soak_duration=45
     )
     self.assertEqual(cmd[87], 0x01)  # move_home
-    # shake at [88-89], soak at [92-93]
-    self.assertEqual(cmd[88], 15)  # shake low
-    self.assertEqual(cmd[89], 0x00)  # shake high
+    self.assertEqual(cmd[88], 15)  # shake duration low
+    self.assertEqual(cmd[89], 0x00)  # shake duration high
     self.assertEqual(cmd[90], 0x04)  # Fast intensity
-    self.assertEqual(cmd[92], 45)  # soak low
-    self.assertEqual(cmd[93], 0x00)  # soak high
+    self.assertEqual(cmd[92], 45)  # soak duration low
+    self.assertEqual(cmd[93], 0x00)  # soak duration high
 
 
 class TestWashSecondaryAspirate(unittest.TestCase):
-  """Test secondary aspirate parameters in 102-byte wash command."""
+  """Test secondary aspirate parameters in wash command."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
 
   def test_secondary_aspirate_disabled_default(self):
-    """When secondary_aspirate=False (default), Asp1 sec_z mirrors final_asp_z,
-    Asp2 sec_z uses secondary_z default (29)."""
+    """Secondary aspirate offsets should use defaults when disabled."""
     cmd = self.backend._build_wash_composite_command(aspirate_z=40)
-    # Asp1 (final aspirate): sec_z mirrors final_asp_z (= aspirate_z)
-    self.assertEqual(cmd[37], 0x28)  # secondary Z = 40 (mirrors final_asp_z)
+    # Final aspirate: sec_z mirrors final_asp_z
+    self.assertEqual(cmd[37], 0x28)  # secondary Z = 40
     self.assertEqual(cmd[38], 0x00)
     self.assertEqual(cmd[39], 0x00)  # secondary mode disabled
-    # Asp2 (primary aspirate): sec_z = default 29, mode = 0
-    self.assertEqual(cmd[58], 0x1D)  # secondary Z = 29 (default, independent)
+    # Primary aspirate: sec_z = default 29, mode = 0
+    self.assertEqual(cmd[58], 0x1D)  # secondary Z = 29 (default)
     self.assertEqual(cmd[59], 0x00)
-    self.assertEqual(cmd[55], 0x00)  # secondary mode at Asp2[6]
+    self.assertEqual(cmd[55], 0x00)  # secondary mode disabled
 
   def test_secondary_aspirate_enabled(self):
-    """When secondary_aspirate=True, Asp2 gets secondary Z and mode.
-
-    Asp1 sec_z mirrors final_asp_z (final_secondary_aspirate is off by default).
-    Asp2 gets user's secondary_z and secondary mode enabled.
-    """
+    """When secondary_aspirate=True, primary aspirate gets secondary Z and mode enabled."""
     cmd = self.backend._build_wash_composite_command(
       aspirate_z=40, secondary_aspirate=True, secondary_z=100
     )
-    # Asp1 (final aspirate): primary Z = aspirate_z, sec_z = final_asp_z (not secondary_z),
-    # secondary mode stays off (final_secondary_aspirate=False)
+    # Final aspirate: secondary mode stays off by default
     self.assertEqual(cmd[32], 0x28)  # primary Z = 40
-    self.assertEqual(cmd[34], 0x00)  # final secondary mode at Asp1[5] = off
-    self.assertEqual(cmd[37], 0x28)  # secondary Z = 40 (mirrors final_asp_z, not secondary_z)
-    # Asp2 (primary aspirate): user params
+    self.assertEqual(cmd[34], 0x00)  # secondary mode off
+    self.assertEqual(cmd[37], 0x28)  # secondary Z mirrors final_asp_z, not secondary_z
+    # Primary aspirate: user params
     self.assertEqual(cmd[53], 0x28)  # primary Z = 40
     self.assertEqual(cmd[54], 0x00)
-    self.assertEqual(cmd[55], 0x01)  # secondary mode at Asp2[6] = enabled
+    self.assertEqual(cmd[55], 0x01)  # secondary mode enabled
     self.assertEqual(cmd[58], 0x64)  # secondary Z = 100
     self.assertEqual(cmd[59], 0x00)
 
@@ -424,12 +385,12 @@ class TestWashPreDispenseFlowRateEncoding(unittest.TestCase):
   def test_pre_dispense_flow_rate_encoding(self):
     """pre_dispense_flow_rate should encode at correct positions."""
     cmd = self.backend._build_wash_composite_command(pre_dispense_flow_rate=7)
-    self.assertEqual(cmd[17], 7)  # Dispense1 [10]
-    self.assertEqual(cmd[78], 7)  # Dispense2 [10]
+    self.assertEqual(cmd[17], 7)  # Dispense1
+    self.assertEqual(cmd[78], 7)  # Dispense2
 
 
 class TestWashSecondaryXY(unittest.TestCase):
-  """Test secondary aspirate X/Y parameters in 102-byte wash command."""
+  """Test secondary aspirate X/Y parameters in wash command."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -437,22 +398,22 @@ class TestWashSecondaryXY(unittest.TestCase):
   def test_secondary_xy_default_zero(self):
     """Secondary X/Y should default to 0 and not affect baseline output."""
     cmd = self.backend._build_wash_composite_command()
-    # Asp1 (final aspirate): always fixed 0
-    self.assertEqual(cmd[40], 0x00)  # Asp1[11] = secondary X (fixed)
-    self.assertEqual(cmd[41], 0x00)  # Asp1[12] = secondary Y (fixed)
-    # Asp2 (primary aspirate): secondary X at [7], Y at [8]
-    self.assertEqual(cmd[56], 0x00)  # Asp2[7] = secondary X
-    self.assertEqual(cmd[57], 0x00)  # Asp2[8] = secondary Y
+    # Final aspirate: always fixed 0
+    self.assertEqual(cmd[40], 0x00)  # secondary X
+    self.assertEqual(cmd[41], 0x00)  # secondary Y
+    # Primary aspirate
+    self.assertEqual(cmd[56], 0x00)  # secondary X
+    self.assertEqual(cmd[57], 0x00)  # secondary Y
 
   def test_secondary_xy_encoded_when_enabled(self):
-    """Secondary X/Y should be encoded in wire Aspirate2 when secondary_aspirate=True."""
+    """Secondary X/Y should be encoded in primary aspirate when secondary_aspirate=True."""
     cmd = self.backend._build_wash_composite_command(
       secondary_aspirate=True, secondary_x=15, secondary_y=-10, secondary_z=50
     )
-    # Asp1 (final aspirate): always fixed 0
+    # Final aspirate: always fixed 0
     self.assertEqual(cmd[40], 0x00)
     self.assertEqual(cmd[41], 0x00)
-    # Asp2 (primary aspirate): secondary X at [7]=56, Y at [8]=57
+    # Primary aspirate
     self.assertEqual(cmd[56], 15)
     self.assertEqual(cmd[57], 0xF6)  # -10 two's complement
 
@@ -461,14 +422,14 @@ class TestWashSecondaryXY(unittest.TestCase):
     cmd = self.backend._build_wash_composite_command(
       secondary_aspirate=False, secondary_x=15, secondary_y=-10
     )
-    self.assertEqual(cmd[40], 0x00)  # Asp1 (always fixed)
+    self.assertEqual(cmd[40], 0x00)  # final aspirate (always fixed)
     self.assertEqual(cmd[41], 0x00)
-    self.assertEqual(cmd[56], 0x00)  # Asp2 secondary X
-    self.assertEqual(cmd[57], 0x00)  # Asp2 secondary Y
+    self.assertEqual(cmd[56], 0x00)  # primary aspirate secondary X
+    self.assertEqual(cmd[57], 0x00)  # primary aspirate secondary Y
 
 
 class TestWashBottomWash(unittest.TestCase):
-  """Test bottom wash parameters in 102-byte wash command."""
+  """Test bottom wash parameters in wash command."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -476,11 +437,11 @@ class TestWashBottomWash(unittest.TestCase):
   def test_bottom_wash_disabled_dispense1_mirrors_main(self):
     """When bottom_wash=False, Dispense1 should mirror main dispense volume/flow."""
     cmd = self.backend._build_wash_composite_command(dispense_volume=500.0, dispense_flow_rate=5)
-    # Dispense1 [7-28]: vol at [8-9], flow at [10]
+    # Dispense1
     self.assertEqual(cmd[8], 0xF4)  # 500 low
     self.assertEqual(cmd[9], 0x01)  # 500 high
     self.assertEqual(cmd[10], 5)  # flow rate
-    # Dispense2 [68-89]: vol at [69-70], flow at [71]
+    # Dispense2
     self.assertEqual(cmd[69], 0xF4)  # 500 low
     self.assertEqual(cmd[70], 0x01)  # 500 high
     self.assertEqual(cmd[71], 5)  # flow rate
@@ -494,11 +455,11 @@ class TestWashBottomWash(unittest.TestCase):
       bottom_wash_volume=200.0,
       bottom_wash_flow_rate=5,
     )
-    # Dispense1 [7-28]: bottom wash vol=200 at [8-9], flow=5 at [10]
+    # Dispense1: bottom wash params
     self.assertEqual(cmd[8], 0xC8)  # 200 low
     self.assertEqual(cmd[9], 0x00)  # 200 high
     self.assertEqual(cmd[10], 5)  # bottom wash flow rate
-    # Dispense2 [68-89]: main vol=300 at [69-70], flow=7 at [71]
+    # Dispense2: main params
     self.assertEqual(cmd[69], 0x2C)  # 300 low
     self.assertEqual(cmd[70], 0x01)  # 300 high
     self.assertEqual(cmd[71], 7)  # main flow rate
@@ -531,7 +492,7 @@ class TestWashBottomWashValidation(EL406TestCase):
 
 
 class TestWashPreDispenseBetweenCycles(unittest.TestCase):
-  """Test pre-dispense between cycles parameters in 102-byte wash command."""
+  """Test pre-dispense between cycles parameters in wash command."""
 
   def setUp(self):
     self.backend = BioTekEL406Backend()
@@ -541,11 +502,11 @@ class TestWashPreDispenseBetweenCycles(unittest.TestCase):
     cmd = self.backend._build_wash_composite_command(
       pre_dispense_volume=100.0, pre_dispense_flow_rate=7
     )
-    # Dispense1 pre-disp at [15-16], flow at [17]
+    # Dispense1
     self.assertEqual(cmd[15], 100)
     self.assertEqual(cmd[16], 0x00)
     self.assertEqual(cmd[17], 7)
-    # Dispense2 pre-disp at [76-77], flow at [78]
+    # Dispense2
     self.assertEqual(cmd[76], 100)
     self.assertEqual(cmd[77], 0x00)
     self.assertEqual(cmd[78], 7)
@@ -558,11 +519,11 @@ class TestWashPreDispenseBetweenCycles(unittest.TestCase):
       pre_dispense_between_cycles_volume=50.0,
       pre_dispense_between_cycles_flow_rate=5,
     )
-    # Dispense1 pre-disp: main values (100, flow 7)
+    # Dispense1: main pre-dispense values
     self.assertEqual(cmd[15], 100)
     self.assertEqual(cmd[16], 0x00)
     self.assertEqual(cmd[17], 7)
-    # Dispense2 pre-disp: midcyc values (50, flow 5)
+    # Dispense2: midcyc values override
     self.assertEqual(cmd[76], 50)
     self.assertEqual(cmd[77], 0x00)
     self.assertEqual(cmd[78], 5)
@@ -619,7 +580,7 @@ class TestWashCaptureVectors(unittest.TestCase):
     self.assertEqual(cmd, expected)
 
   def test_secondary_aspirate_capture(self):
-    """Secondary aspirate enabled — mode byte at Asp2[6]."""
+    """Secondary aspirate enabled."""
     expected = bytes.fromhex(
       "040001000f0003412c01070000790000000900000000000000000000000300001d000000001d"
       "0000000000000000000000000300001d000100001d000000000000000000412c010700007900"
@@ -643,7 +604,7 @@ class TestWashCaptureVectors(unittest.TestCase):
     self.assertEqual(cmd, expected)
 
   def test_bottom_wash_capture(self):
-    """Bottom wash: header[1]=1, Dispense1 vol=200, flow=5."""
+    """Bottom wash with vol=200, flow=5."""
     expected = bytes.fromhex(
       "040101000f000341c800050000790000000900000000000000000000000300001d000000001d"
       "0000000000000000000000000300001d000000001d000000000000000000412c010700007900"
@@ -655,7 +616,7 @@ class TestWashCaptureVectors(unittest.TestCase):
     self.assertEqual(cmd, expected)
 
   def test_pre_dispense_between_cycles_capture(self):
-    """Pre-dispense between cycles: Dispense2 pre-disp vol=50 at [76]."""
+    """Pre-dispense between cycles with vol=50."""
     expected = bytes.fromhex(
       "040001000f0003412c01070000790000000900000000000000000000000300001d000000001d"
       "0000000000000000000000000300001d000000001d000000000000000000412c010700007900"
@@ -667,12 +628,7 @@ class TestWashCaptureVectors(unittest.TestCase):
     self.assertEqual(cmd, expected)
 
   def test_aspirate_delay_capture(self):
-    """Aspirate delay: aspirate_delay=0.001s, final_aspirate_delay=0.002s (wire: 1ms, 2ms).
-
-    384-well plate (prefix=0x01). Uses 384-well backend for full byte-exact match.
-    Delay encoding: wire [48-49]=delay LE (spans Asp1[19] + Asp2[0]).
-    Secondary Z = 22 (explicitly set, independent of aspirate_z).
-    """
+    """Aspirate delay on 384-well plate."""
     capture_hex = (
       "010001000f0003"
       "4164000700007800000009000000000000000000020003000016000000001600000000000000"
@@ -698,15 +654,10 @@ class TestWashCaptureVectors(unittest.TestCase):
     self.assertEqual(cmd, expected)
 
   def test_p384_sector_plate_format_capture(self):
-    """384-well sector wash: 2 commands with different sector masks and formats.
-
-    384-well plate (prefix=0x01). Uses 384-well backend with sector_mask
-    and wash_format for full byte-exact match.
-    All share: vol=100, flow=7, dispZ=120, aspZ=22, secZ=22, travelRate=3.
-    """
+    """384-well sector wash with different sector masks and formats."""
     backend_384 = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_384_WELL)
 
-    # Command 0: Plate format, sector_mask=0x0E (Q2+Q3+Q4), 1 cycle
+    # Plate format, sector_mask=0x0E (Q2+Q3+Q4), 1 cycle
     cap0 = bytes.fromhex(
       "010001000e00014164000700007800000009000000000000000000000003000016000000001600"
       "000000000000000000000003000016000000001600000000000000000041640007000078000000"
@@ -726,7 +677,7 @@ class TestWashCaptureVectors(unittest.TestCase):
     )
     self.assertEqual(cmd0, cap0)
 
-    # Command 2: Sector format, sector_mask=0x0F, 1 cycle — byte [3]=0x01
+    # Sector format, sector_mask=0x0F, 1 cycle
     cap2 = bytes.fromhex(
       "010001010f00014164000700007800000009000000000000000000000003000016000000001600"
       "000000000000000000000003000016000000001600000000000000000041640007000078000000"
@@ -752,43 +703,43 @@ class TestWash384WellPlateSupport(unittest.TestCase):
   """Test 384-well plate support: plate_type prefix, wash_format, sector_mask."""
 
   def test_384_well_plate_type_byte(self):
-    """384-well backend should produce byte [0] = 0x01."""
+    """384-well backend should produce the correct plate type prefix."""
     backend = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_384_WELL)
     cmd = backend._build_wash_composite_command()
     self.assertEqual(cmd[0], 0x01)
 
   def test_96_well_plate_type_byte(self):
-    """96-well backend (default) should produce byte [0] = 0x04."""
+    """96-well backend (default) should produce the correct plate type prefix."""
     backend = BioTekEL406Backend()
     cmd = backend._build_wash_composite_command()
     self.assertEqual(cmd[0], 0x04)
 
   def test_wash_format_plate_default(self):
-    """Default wash_format='Plate' should produce byte [3] = 0x00."""
+    """Default wash_format='Plate' should encode as 0."""
     backend = BioTekEL406Backend()
     cmd = backend._build_wash_composite_command()
     self.assertEqual(cmd[3], 0x00)
 
   def test_wash_format_sector(self):
-    """wash_format='Sector' should produce byte [3] = 0x01."""
+    """wash_format='Sector' should encode as 1."""
     backend = BioTekEL406Backend()
     cmd = backend._build_wash_composite_command(wash_format="Sector")
     self.assertEqual(cmd[3], 0x01)
 
   def test_cycles_at_byte6(self):
-    """cycles should be encoded at byte [6] (bg.a8)."""
+    """cycles should be encoded at the expected position."""
     backend = BioTekEL406Backend()
     cmd = backend._build_wash_composite_command(cycles=5)
     self.assertEqual(cmd[6], 5)
 
   def test_cycles_default(self):
-    """Default cycles=3 should produce byte [6] = 0x03."""
+    """Default cycles=3 should be encoded correctly."""
     backend = BioTekEL406Backend()
     cmd = backend._build_wash_composite_command()
     self.assertEqual(cmd[6], 3)
 
   def test_sector_mask_le_encoding(self):
-    """Sector mask should be encoded as 16-bit LE at bytes [4-5] (bg.a7)."""
+    """Sector mask should be encoded as 16-bit LE."""
     backend = BioTekEL406Backend()
     cmd = backend._build_wash_composite_command(sector_mask=0x0E)
     self.assertEqual(cmd[4], 0x0E)
@@ -802,11 +753,11 @@ class TestWash384WellPlateSupport(unittest.TestCase):
     )
     self.assertEqual(cmd[0], 0x01)  # plate type
     self.assertEqual(cmd[3], 0x01)  # wash format = Sector
-    self.assertEqual(cmd[4], 0x0E)  # sector mask low byte
-    self.assertEqual(cmd[5], 0x00)  # sector mask high byte
-    self.assertEqual(cmd[6], 1)  # wash cycles
-    self.assertEqual(cmd[29], 3)  # Asp1 travel rate
-    self.assertEqual(cmd[50], 3)  # Asp2 travel rate
+    self.assertEqual(cmd[4], 0x0E)  # sector mask low
+    self.assertEqual(cmd[5], 0x00)  # sector mask high
+    self.assertEqual(cmd[6], 1)  # cycles
+    self.assertEqual(cmd[29], 3)  # final aspirate travel rate
+    self.assertEqual(cmd[50], 3)  # primary aspirate travel rate
     self.assertEqual(len(cmd), 102)
 
 
@@ -833,29 +784,22 @@ class TestWash384WellValidation(EL406TestCase):
 
 
 class TestWashPlateTypeDefaults(unittest.TestCase):
-  """Test plate-type-aware defaults for wash parameters.
-
-  Wash defaults are based on plate type:
-  - dispense_volume: 300 uL for 96-well (well_count==96), 100 uL for others
-  - dispense_z: plate-type-specific manifold dispense Z
-  - aspirate_z: plate-type-specific manifold aspirate Z
-  - secondary_z: same as aspirate_z default (independent of user-provided aspirate_z)
-  """
+  """Test plate-type-aware defaults for wash parameters."""
 
   def test_96_well_defaults(self):
     """96-well plate should use 96-well defaults (300uL, dispZ=121, aspZ=29)."""
     backend = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_96_WELL)
     cmd = backend._build_wash_composite_command()
-    # dispense_volume=300 -> 0x012C LE at Dispense1[1-2] = wire [8-9]
+    # dispense_volume=300
     self.assertEqual(cmd[8], 0x2C)
     self.assertEqual(cmd[9], 0x01)
-    # dispense_z=121 -> 0x0079 LE at Dispense1[6-7] = wire [13-14]
+    # dispense_z=121
     self.assertEqual(cmd[13], 0x79)
     self.assertEqual(cmd[14], 0x00)
-    # aspirate_z=29 -> 0x001D at Asp2[4-5] = wire [53-54]
+    # aspirate_z=29
     self.assertEqual(cmd[53], 0x1D)
     self.assertEqual(cmd[54], 0x00)
-    # secondary_z=29 at Asp2[9-10] = wire [58-59]
+    # secondary_z=29
     self.assertEqual(cmd[58], 0x1D)
     self.assertEqual(cmd[59], 0x00)
 
@@ -863,18 +807,17 @@ class TestWashPlateTypeDefaults(unittest.TestCase):
     """384-well plate should use 384-well defaults (100uL, dispZ=120, aspZ=22)."""
     backend = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_384_WELL)
     cmd = backend._build_wash_composite_command()
-    # plate type prefix
-    self.assertEqual(cmd[0], 0x01)
-    # dispense_volume=100 -> 0x0064 LE at wire [8-9]
+    self.assertEqual(cmd[0], 0x01)  # plate type
+    # dispense_volume=100
     self.assertEqual(cmd[8], 0x64)
     self.assertEqual(cmd[9], 0x00)
-    # dispense_z=120 -> 0x0078 LE at wire [13-14]
+    # dispense_z=120
     self.assertEqual(cmd[13], 0x78)
     self.assertEqual(cmd[14], 0x00)
-    # aspirate_z=22 -> 0x0016 at wire [53-54]
+    # aspirate_z=22
     self.assertEqual(cmd[53], 0x16)
     self.assertEqual(cmd[54], 0x00)
-    # secondary_z=22 at wire [58-59]
+    # secondary_z=22
     self.assertEqual(cmd[58], 0x16)
     self.assertEqual(cmd[59], 0x00)
     # Dispense2 mirrors
@@ -892,32 +835,32 @@ class TestWashPlateTypeDefaults(unittest.TestCase):
     self.assertEqual(cmd[58], 0x02)  # secondary_z=2
 
   def test_1536_well_defaults(self):
-    """1536-well plate: 100uL (1536 wells != 96), dispZ=94, aspZ=42."""
+    """1536-well plate should use its specific defaults."""
     backend = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_1536_WELL)
     cmd = backend._build_wash_composite_command()
     self.assertEqual(cmd[0], 0x00)  # plate type
-    # dispense_volume=100 (1536 wells != 96)
+    # dispense_volume=100
     self.assertEqual(cmd[8], 0x64)
     self.assertEqual(cmd[9], 0x00)
-    # dispense_z=94 -> 0x005E
+    # dispense_z=94
     self.assertEqual(cmd[13], 0x5E)
     self.assertEqual(cmd[14], 0x00)
-    # aspirate_z=42 -> 0x002A
+    # aspirate_z=42
     self.assertEqual(cmd[53], 0x2A)
     self.assertEqual(cmd[54], 0x00)
 
   def test_1536_flange_defaults(self):
-    """1536 flange plate: 100uL (1536 wells != 96), dispZ=93, aspZ=13."""
+    """1536 flange plate should use its specific defaults."""
     backend = BioTekEL406Backend(plate_type=EL406PlateType.PLATE_1536_FLANGE)
     cmd = backend._build_wash_composite_command()
-    self.assertEqual(cmd[0], 0x0E)  # plate type = 14
-    # dispense_volume=100 (1536 wells != 96)
+    self.assertEqual(cmd[0], 0x0E)  # plate type
+    # dispense_volume=100
     self.assertEqual(cmd[8], 0x64)
     self.assertEqual(cmd[9], 0x00)
-    # dispense_z=93 -> 0x005D
+    # dispense_z=93
     self.assertEqual(cmd[13], 0x5D)
     self.assertEqual(cmd[14], 0x00)
-    # aspirate_z=13 -> 0x000D
+    # aspirate_z=13
     self.assertEqual(cmd[53], 0x0D)
     self.assertEqual(cmd[54], 0x00)
 
