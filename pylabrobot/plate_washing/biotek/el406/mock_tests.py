@@ -22,12 +22,13 @@ class EL406TestCase(unittest.IsolatedAsyncioTestCase):
     self.backend = BioTekEL406Backend()
     self.backend.io = MockFTDI()
     await self.backend.setup()
-    self.backend.io.set_read_buffer(b"\x06" * 100)
+    self.backend.io.set_read_buffer(b"\x06" * 500)
 
   async def asyncTearDown(self):
-    self._sleep_patcher.stop()
     if self.backend.io is not None:
+      self.backend.io.set_read_buffer(b"\x06" * 500)
       await self.backend.stop()
+    self._sleep_patcher.stop()
 
 
 class MockFTDI:
@@ -44,7 +45,7 @@ class MockFTDI:
     """Create default buffer with proper response frames."""
     header = bytes([0x01, 0x02, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
     single_response = b"\x06" + header
-    return single_response * 20
+    return single_response * 200
 
   async def setup(self):
     pass

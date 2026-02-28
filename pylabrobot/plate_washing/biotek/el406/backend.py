@@ -78,7 +78,7 @@ class BioTekEL406Backend(
     self.plate_type = plate_type
     self._device_id = device_id
     self.io: FTDI | None = None
-    self._command_lock = asyncio.Lock()  # Protect against concurrent commands
+    self._command_lock: asyncio.Lock | None = None
 
   async def setup(self, skip_reset: bool = False) -> None:
     """Set up communication with the EL406.
@@ -94,6 +94,8 @@ class BioTekEL406Backend(
     Raises:
       RuntimeError: If pylibftdi is not installed or communication fails.
     """
+    self._command_lock = asyncio.Lock()
+
     logger.info("BioTekEL406Backend setting up")
     logger.info("  Timeout: %.1f seconds", self.timeout)
     logger.info("  Plate type: %s", self.plate_type.name if self.plate_type else "not set")
