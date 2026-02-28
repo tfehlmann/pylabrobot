@@ -10,7 +10,7 @@ from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-  from ..enums import EL406PlateType
+  from pylabrobot.resources import Plate
 
 
 class EL406StepsBaseMixin:
@@ -29,6 +29,6 @@ class EL406StepsBaseMixin:
 
     def batch(
       self,
-      plate_type: EL406PlateType = ...,
+      plate: Plate = ...,
     ) -> AbstractAsyncContextManager[None]:
       ...

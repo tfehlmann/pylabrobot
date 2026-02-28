@@ -9,16 +9,6 @@ from __future__ import annotations
 import enum
 
 
-class EL406PlateType(enum.IntEnum):
-  """Plate types supported by the EL406."""
-
-  PLATE_1536_WELL = 0
-  PLATE_384_WELL = 1
-  PLATE_384_PCR = 2
-  PLATE_96_WELL = 4
-  PLATE_1536_FLANGE = 14
-
-
 class EL406WasherManifold(enum.IntEnum):
   """Washer manifold types."""
 

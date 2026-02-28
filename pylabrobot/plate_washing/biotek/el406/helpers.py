@@ -2,58 +2,44 @@
 
 from __future__ import annotations
 
-from .enums import EL406PlateType
+from pylabrobot.resources import Plate
 
+# Threshold for distinguishing standard-height vs low-profile plates (in mm).
+# Standard microplates are ~14mm tall; PCR/flanged plates are typically <12mm.
+_LOW_PROFILE_THRESHOLD_MM = 12.0
 
-def validate_plate_type(plate_type: EL406PlateType | int) -> EL406PlateType:
-  if isinstance(plate_type, EL406PlateType):
-    return plate_type
-
-  if isinstance(plate_type, int):
-    try:
-      return EL406PlateType(plate_type)
-    except ValueError:
-      valid_values = [f"{pt.value} ({pt.name})" for pt in EL406PlateType]
-      raise ValueError(
-        f"Invalid plate type value: {plate_type}. Valid values are: {', '.join(valid_values)}"
-      ) from None
-
-  raise TypeError(
-    f"Invalid plate type type: {type(plate_type).__name__}. Expected EL406PlateType or int."
-  )
-
-
-# Plate type defaults for the EL406 instrument.
-PLATE_TYPE_DEFAULTS: dict[EL406PlateType, dict[str, int]] = {
-  EL406PlateType.PLATE_1536_WELL: {
+# Wire byte → physical defaults for each EL406 plate format.
+# Keys are the raw byte values sent on the wire protocol.
+_WIRE_BYTE_DEFAULTS: dict[int, dict[str, int]] = {
+  0: {  # 1536-well standard
     "dispenser_height": 250,
     "dispense_z": 94,
     "aspirate_z": 42,
     "rows": 32,
     "cols": 48,
   },
-  EL406PlateType.PLATE_384_WELL: {
+  1: {  # 384-well standard
     "dispenser_height": 333,
     "dispense_z": 120,
     "aspirate_z": 22,
     "rows": 16,
     "cols": 24,
   },
-  EL406PlateType.PLATE_384_PCR: {
+  2: {  # 384-well PCR (low profile)
     "dispenser_height": 230,
     "dispense_z": 83,
     "aspirate_z": 2,
     "rows": 16,
     "cols": 24,
   },
-  EL406PlateType.PLATE_96_WELL: {
+  4: {  # 96-well
     "dispenser_height": 336,
     "dispense_z": 121,
     "aspirate_z": 29,
     "rows": 8,
     "cols": 12,
   },
-  EL406PlateType.PLATE_1536_FLANGE: {
+  14: {  # 1536-well flanged (low profile)
     "dispenser_height": 196,
     "dispense_z": 93,
     "aspirate_z": 13,
@@ -63,28 +49,56 @@ PLATE_TYPE_DEFAULTS: dict[EL406PlateType, dict[str, int]] = {
 }
 
 
-def plate_type_max_columns(plate_type) -> int:
-  """Return the maximum number of columns for a plate type."""
-  return PLATE_TYPE_DEFAULTS[plate_type]["cols"]
+def plate_to_wire_byte(plate: Plate) -> int:
+  """Resolve a PLR Plate to the EL406 wire protocol byte.
+
+  Determines the format from well count, and uses plate height (``size_z``)
+  to distinguish standard vs low-profile variants for 384 and 1536 plates.
+
+  Args:
+    plate: A PyLabRobot Plate resource.
+
+  Returns:
+    Integer byte value for the EL406 wire protocol.
+
+  Raises:
+    ValueError: If the plate well count is not 96, 384, or 1536.
+  """
+  wells = plate.num_items
+  if wells == 96:
+    return 4
+  if wells == 384:
+    return 2 if plate.get_size_z() < _LOW_PROFILE_THRESHOLD_MM else 1
+  if wells == 1536:
+    return 14 if plate.get_size_z() < _LOW_PROFILE_THRESHOLD_MM else 0
+  raise ValueError(f"Unsupported plate well count: {wells}. EL406 supports 96, 384, or 1536.")
 
 
-def plate_type_max_rows(plate_type) -> int:
-  """Return the maximum number of row groups for a plate type.
+def plate_defaults(plate: Plate) -> dict[str, int]:
+  """Return the physical defaults dict for a plate."""
+  return _WIRE_BYTE_DEFAULTS[plate_to_wire_byte(plate)]
+
+
+def plate_max_columns(plate: Plate) -> int:
+  """Return the number of columns for a plate."""
+  return plate.num_items_x
+
+
+def plate_max_row_groups(plate: Plate) -> int:
+  """Return the number of row groups for a plate.
 
   96-well: 1 row group (no row selection).
   384-well: 2 row groups.
   1536-well: 4 row groups.
   """
-  cols = PLATE_TYPE_DEFAULTS[plate_type]["cols"]
-  return {12: 1, 24: 2, 48: 4}[cols]
+  return {12: 1, 24: 2, 48: 4}[plate.num_items_x]
 
 
-def plate_type_well_count(plate_type) -> int:
-  """Return the well count for a plate type (96, 384, or 1536)."""
-  cols = PLATE_TYPE_DEFAULTS[plate_type]["cols"]
-  return {12: 96, 24: 384, 48: 1536}[cols]
+def plate_well_count(plate: Plate) -> int:
+  """Return the well count for a plate (96, 384, or 1536)."""
+  return plate.num_items
 
 
-def plate_type_default_z(plate_type) -> int:
-  """Return the default dispenser Z height for a plate type."""
-  return PLATE_TYPE_DEFAULTS[plate_type]["dispenser_height"]
+def plate_default_z(plate: Plate) -> int:
+  """Return the default dispenser Z height for a plate."""
+  return plate_defaults(plate)["dispenser_height"]

@@ -5,12 +5,48 @@ import unittest
 from unittest.mock import patch
 
 from pylabrobot.plate_washing.biotek.el406 import BioTekEL406Backend
+from pylabrobot.resources import Plate
+from pylabrobot.resources.utils import create_ordered_items_2d
+from pylabrobot.resources.well import Well
 
 _real_sleep = asyncio.sleep
 
 
 async def _noop(*a, **kw):
   await _real_sleep(0)
+
+
+def _make_plate(name: str, num_wells: int, size_z: float = 14.0) -> Plate:
+  """Create a minimal Plate for testing with the given total well count."""
+  _GRID = {96: (12, 8), 384: (24, 16), 1536: (48, 32)}
+  num_x, num_y = _GRID[num_wells]
+  return Plate(
+    name=name,
+    size_x=127.0,
+    size_y=85.0,
+    size_z=size_z,
+    ordered_items=create_ordered_items_2d(
+      Well,
+      num_items_x=num_x,
+      num_items_y=num_y,
+      dx=10.0,
+      dy=7.0,
+      dz=1.0,
+      item_dx=9.0 if num_x == 12 else 4.5 if num_x == 24 else 2.25,
+      item_dy=9.0 if num_y == 8 else 4.5 if num_y == 16 else 2.25,
+      size_x=6.0,
+      size_y=6.0,
+      size_z=10.0,
+    ),
+  )
+
+
+# Pre-built test plate fixtures
+PT96 = _make_plate("test_96", 96)
+PT384 = _make_plate("test_384", 384)
+PT384PCR = _make_plate("test_384_pcr", 384, size_z=10.0)
+PT1536 = _make_plate("test_1536", 1536)
+PT1536F = _make_plate("test_1536_flange", 1536, size_z=10.0)
 
 
 class EL406TestCase(unittest.IsolatedAsyncioTestCase):

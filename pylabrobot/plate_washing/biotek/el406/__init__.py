@@ -4,7 +4,6 @@ from .backend import BioTekEL406Backend
 from .enums import (
   EL406Motor,
   EL406MotorHomeType,
-  EL406PlateType,
   EL406Sensor,
   EL406StepType,
   EL406SyringeManifold,

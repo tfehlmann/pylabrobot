@@ -10,10 +10,11 @@ import logging
 from typing import Literal
 
 from pylabrobot.io.binary import Writer
+from pylabrobot.resources import Plate
 
-from ..enums import EL406PlateType
 from ..helpers import (
-  plate_type_well_count,
+  plate_to_wire_byte,
+  plate_well_count,
 )
 from ..protocol import build_framed_message, columns_to_column_mask, encode_column_mask
 from ._base import EL406StepsBaseMixin
@@ -64,7 +65,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
   async def syringe_dispense(
     self,
-    plate_type: EL406PlateType,
+    plate: Plate,
     volume: float,
     syringe: Syringe = "A",
     flow_rate: int = 2,
@@ -80,6 +81,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     """Dispense liquid using the syringe pump.
 
     Args:
+      plate: PLR Plate resource.
       volume: Dispense volume in microliters per well.
         Volume range depends on plate type:
         - 96-well: 10-3000 µL
@@ -114,7 +116,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     validate_syringe_flow_rate(flow_rate)
     validate_pump_delay(pump_delay_ms)
 
-    column_mask = columns_to_column_mask(columns, plate_wells=plate_type_well_count(plate_type))
+    column_mask = columns_to_column_mask(columns, plate_wells=plate_well_count(plate))
 
     logger.info(
       "Syringe dispense: %.1f uL from syringe %s, flow rate %d",
@@ -124,7 +126,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_syringe_dispense_command(
-      plate_type=plate_type,
+      plate=plate,
       volume=volume,
       syringe=syringe,
       flow_rate=flow_rate,
@@ -138,12 +140,12 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
       column_mask=column_mask,
     )
     framed_command = build_framed_message(command=0xA1, data=data)
-    async with self.batch(plate_type):
+    async with self.batch(plate):
       await self._send_step_command(framed_command)
 
   async def syringe_prime(
     self,
-    plate_type: EL406PlateType,
+    plate: Plate,
     syringe: Literal["A", "B"] = "A",
     volume: float = 5000.0,
     flow_rate: int = 5,
@@ -157,6 +159,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     Fills the syringe tubing by drawing and expelling liquid.
 
     Args:
+      plate: PLR Plate resource.
       syringe: Syringe selection — "A" or "B".
       volume: Volume to prime in microliters (80-9999).
       flow_rate: Flow rate (1-5).
@@ -196,7 +199,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_syringe_prime_command(
-      plate_type=plate_type,
+      plate=plate,
       volume=volume,
       syringe=syringe,
       flow_rate=flow_rate,
@@ -208,7 +211,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     framed_command = build_framed_message(command=0xA2, data=data)
     # Timeout: base for priming + submerge duration + buffer
     prime_timeout = self.timeout + submerge_duration + 30
-    async with self.batch(plate_type):
+    async with self.batch(plate):
       await self._send_step_command(framed_command, timeout=prime_timeout)
 
   # =========================================================================
@@ -217,7 +220,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
   def _build_syringe_dispense_command(
     self,
-    plate_type: EL406PlateType,
+    plate: Plate,
     volume: float,
     syringe: Syringe,
     flow_rate: int,
@@ -233,7 +236,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     """Build syringe dispense command bytes.
 
     Wire format (26 bytes):
-      [0]     Plate type (EL406PlateType enum value, e.g. 0x04=96-well)
+      [0]     Plate type (wire byte, e.g. 0x04=96-well)
       [1]     Syringe: A=0, B=1, Both=2
       [2-3]   Volume: 2 bytes, little-endian, in uL
       [4]     Flow rate: 1-5
@@ -268,7 +271,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
     return (
       Writer()
-      .u8(plate_type.value)                    # [0] Plate type
+      .u8(plate_to_wire_byte(plate))             # [0] Plate type
       .u8(syringe_to_byte(syringe))            # [1] Syringe
       .u16(int(volume))                        # [2-3] Volume (LE)
       .u8(flow_rate)                           # [4] Flow rate
@@ -286,7 +289,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
   def _build_syringe_prime_command(
     self,
-    plate_type: EL406PlateType,
+    plate: Plate,
     volume: float,
     syringe: Literal["A", "B"],
     flow_rate: int,
@@ -298,7 +301,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     """Build syringe prime command bytes.
 
     Protocol format (13 bytes):
-      [0]    Plate type (EL406PlateType enum value, e.g. 0x04=96-well)
+      [0]    Plate type (wire byte, e.g. 0x04=96-well)
       [1]    Syringe: A=0, B=1
       [2-3]  Volume: 2 bytes, little-endian, in uL
       [4]    Flow rate: 1-5
@@ -327,7 +330,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
 
     return (
       Writer()
-      .u8(plate_type.value)                    # [0] Plate type
+      .u8(plate_to_wire_byte(plate))             # [0] Plate type
       .u8(syringe_to_byte(syringe))            # [1] Syringe (A=0, B=1)
       .u16(int(volume))                        # [2-3] Volume (LE)
       .u8(flow_rate)                           # [4] Flow rate

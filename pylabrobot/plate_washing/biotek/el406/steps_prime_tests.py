@@ -11,13 +11,8 @@ This module contains tests for prime-related step methods:
 
 import unittest
 
-from pylabrobot.plate_washing.biotek.el406 import (
-  BioTekEL406Backend,
-  EL406PlateType,
-)
-from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase
-
-PT96 = EL406PlateType.PLATE_96_WELL
+from pylabrobot.plate_washing.biotek.el406 import BioTekEL406Backend
+from pylabrobot.plate_washing.biotek.el406.mock_tests import PT96, EL406TestCase
 
 
 class TestEL406BackendPeristalticPrime(EL406TestCase):

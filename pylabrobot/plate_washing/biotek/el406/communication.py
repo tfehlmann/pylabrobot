@@ -13,8 +13,6 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from pylabrobot.io.binary import Reader
 
-from .enums import EL406PlateType
-
 LONG_READ_TIMEOUT = 120.0  # seconds, for long operations (wash cycles can take >30s)
 
 STATE_INITIAL = 1
@@ -168,7 +166,7 @@ class EL406CommunicationMixin:
     init_response = await self._send_framed_command(init_state_cmd, timeout=self.timeout)
     logger.debug("INIT_STATE sent, response: %s", init_response.hex())
 
-  async def start_batch(self, plate_type: EL406PlateType) -> None:
+  async def start_batch(self, wire_byte: int) -> None:
     """Send START_STEP command to begin a batch of step operations.
 
     Use this function at the beginning of a protocol, before executing any step
@@ -182,7 +180,7 @@ class EL406CommunicationMixin:
     - Only once per batch of operations (not before each individual step)
 
     Args:
-      plate_type: Plate type to configure for this batch.
+      wire_byte: EL406 plate-type byte for the wire protocol.
     """
     if self.io is None:
       raise RuntimeError("Device not initialized - call setup() first")
@@ -200,7 +198,7 @@ class EL406CommunicationMixin:
         logger.warning("Pre-batch command 0x%04X failed: %s", cmd, e)
 
     # Data byte is the plate type value (e.g., 0x04 for 96-well, 0x01 for 384-well).
-    start_step_data = bytes([plate_type.value])
+    start_step_data = bytes([wire_byte])
     start_step_cmd = build_framed_message(command=0x8D, data=start_step_data)
     response = await self._send_framed_command(start_step_cmd, timeout=self.timeout)
     logger.debug("START_STEP sent, response: %s", response.hex())

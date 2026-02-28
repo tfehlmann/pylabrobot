@@ -3,17 +3,16 @@
 
 import unittest
 
-from pylabrobot.plate_washing.biotek.el406 import (
-  BioTekEL406Backend,
-  EL406PlateType,
+from pylabrobot.plate_washing.biotek.el406 import BioTekEL406Backend
+from pylabrobot.plate_washing.biotek.el406.mock_tests import (
+  PT96,
+  PT384,
+  PT384PCR,
+  PT1536,
+  PT1536F,
+  EL406TestCase,
+  MockFTDI,
 )
-from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
-
-PT96 = EL406PlateType.PLATE_96_WELL
-PT384 = EL406PlateType.PLATE_384_WELL
-PT384PCR = EL406PlateType.PLATE_384_PCR
-PT1536 = EL406PlateType.PLATE_1536_WELL
-PT1536F = EL406PlateType.PLATE_1536_FLANGE
 
 
 class TestEL406BackendWash(EL406TestCase):
@@ -910,10 +909,18 @@ class TestWashPlateTypeDefaults(unittest.TestCase):
   def test_all_plate_types_produce_102_bytes(self):
     """Every plate type should produce exactly 102 bytes with defaults."""
     backend = BioTekEL406Backend()
-    for pt in EL406PlateType:
-      cmd = backend._build_wash_composite_command(pt)
-      self.assertEqual(len(cmd), 102, f"Wrong length for {pt.name}")
-      self.assertEqual(cmd[0], pt.value, f"Wrong prefix for {pt.name}")
+    plate_types = [PT96, PT384, PT384PCR, PT1536, PT1536F]
+    expected_prefixes = {
+      "test_96": 0x04,
+      "test_384": 0x01,
+      "test_384_pcr": 0x02,
+      "test_1536": 0x00,
+      "test_1536_flange": 0x0E,
+    }
+    for plate in plate_types:
+      cmd = backend._build_wash_composite_command(plate)
+      self.assertEqual(len(cmd), 102, f"Wrong length for {plate.name}")
+      self.assertEqual(cmd[0], expected_prefixes[plate.name], f"Wrong prefix for {plate.name}")
 
 
 if __name__ == "__main__":

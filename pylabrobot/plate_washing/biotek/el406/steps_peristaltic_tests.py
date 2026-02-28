@@ -8,14 +8,8 @@ This module contains tests for peristaltic pump-related step methods:
 
 import unittest
 
-from pylabrobot.plate_washing.biotek.el406 import (
-  BioTekEL406Backend,
-  EL406PlateType,
-)
-from pylabrobot.plate_washing.biotek.el406.mock_tests import EL406TestCase, MockFTDI
-
-PT96 = EL406PlateType.PLATE_96_WELL
-PT1536 = EL406PlateType.PLATE_1536_WELL
+from pylabrobot.plate_washing.biotek.el406 import BioTekEL406Backend
+from pylabrobot.plate_washing.biotek.el406.mock_tests import PT96, PT1536, EL406TestCase
 
 
 class TestEL406BackendPeristalticDispense(EL406TestCase):

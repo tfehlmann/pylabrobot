@@ -9,8 +9,9 @@ import logging
 from typing import Literal
 
 from pylabrobot.io.binary import Writer
+from pylabrobot.resources import Plate
 
-from ..enums import EL406PlateType
+from ..helpers import plate_to_wire_byte
 from ..protocol import build_framed_message
 
 INTENSITY_TO_BYTE: dict[str, int] = {
@@ -42,7 +43,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
   async def shake(
     self,
-    plate_type: EL406PlateType,
+    plate: Plate,
     duration: int = 0,
     intensity: Intensity = "Medium",
     soak_duration: int = 0,
@@ -57,6 +58,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     to prevent manifold drip contamination. Our default of True matches this.
 
     Args:
+      plate: PLR Plate resource.
       duration: Shake duration in seconds (0-3599). 0 to disable shake.
       intensity: Shake intensity - "Variable", "Slow" (3.5 Hz),
                  "Medium" (5 Hz), or "Fast" (8 Hz).
@@ -87,7 +89,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     )
 
     data = self._build_shake_command(
-      plate_type=plate_type,
+      plate=plate,
       shake_duration=duration,
       soak_duration=soak_duration,
       intensity=intensity,
@@ -96,7 +98,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     )
     framed_command = build_framed_message(command=0xA3, data=data)
     total_timeout = duration + soak_duration + self.timeout
-    async with self.batch(plate_type):
+    async with self.batch(plate):
       await self._send_step_command(framed_command, timeout=total_timeout)
 
   # =========================================================================
@@ -105,7 +107,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
   def _build_shake_command(
     self,
-    plate_type: EL406PlateType,
+    plate: Plate,
     shake_duration: int = 0,
     soak_duration: int = 0,
     intensity: Intensity = "Medium",
@@ -124,6 +126,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
       [8-11]   Padding (4 bytes)
 
     Args:
+      plate: PLR Plate resource.
       shake_duration: Shake duration in seconds.
       soak_duration: Soak duration in seconds.
       intensity: Shake intensity ("Variable", "Slow", "Medium", "Fast").
@@ -137,7 +140,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
 
     return (
       Writer()
-      .u8(plate_type.value)                             # [0] Plate type
+      .u8(plate_to_wire_byte(plate))                    # [0] Plate type
       .u8(0x01 if move_home_first else 0x00)           # [1] move_home_first
       .u16(shake_total_seconds)                        # [2-3] Shake duration (seconds)
       .u8(INTENSITY_TO_BYTE.get(intensity, 0x03))      # [4] Intensity

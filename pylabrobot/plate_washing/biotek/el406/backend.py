@@ -20,11 +20,12 @@ from contextlib import asynccontextmanager
 
 from pylabrobot.io.ftdi import FTDI
 from pylabrobot.plate_washing.backend import PlateWasherBackend
+from pylabrobot.resources import Plate
 
 from .actions import EL406ActionsMixin
 from .communication import EL406CommunicationMixin
-from .enums import EL406PlateType
 from .errors import EL406CommunicationError
+from .helpers import plate_to_wire_byte
 from .queries import EL406QueriesMixin
 from .steps import EL406StepsMixin
 
@@ -53,8 +54,8 @@ class BioTekEL406Backend(
     ...   backend=backend
     ... )
     >>> await washer.setup()
-    >>> await backend.peristaltic_prime(volume=300.0, flow_rate="High")
-    >>> await backend.manifold_wash(cycles=3)
+    >>> await backend.peristaltic_prime(plate, volume=300.0, flow_rate="High")
+    >>> await backend.manifold_wash(plate, cycles=3)
   """
 
   def __init__(
@@ -162,9 +163,7 @@ class BioTekEL406Backend(
       self.io = None
 
   @asynccontextmanager
-  async def batch(
-    self, plate_type: EL406PlateType = EL406PlateType.PLATE_96_WELL
-  ) -> AsyncIterator[None]:
+  async def batch(self, plate: Plate) -> AsyncIterator[None]:
     """Context manager for batching step commands.
 
     Each step command (manifold_wash, syringe_prime, etc.) automatically wraps
@@ -174,13 +173,13 @@ class BioTekEL406Backend(
     If already inside a batch, this is a no-op passthrough.
 
     Args:
-      plate_type: Plate type to configure for this batch.
+      plate: PLR Plate to configure for this batch.
 
     Example:
-      >>> async with backend.batch(EL406PlateType.PLATE_96_WELL):
-      ...     await backend.manifold_prime(PT96, volume=5000)
-      ...     await backend.manifold_wash(PT96, cycles=3)
-      ...     await backend.syringe_dispense(PT96, volume=50)
+      >>> async with backend.batch(plate_96):
+      ...     await backend.manifold_prime(plate_96, volume=5000)
+      ...     await backend.manifold_wash(plate_96, cycles=3)
+      ...     await backend.syringe_dispense(plate_96, volume=50)
     """
     if self._in_batch:
       yield
@@ -188,7 +187,7 @@ class BioTekEL406Backend(
 
     self._in_batch = True
     try:
-      await self.start_batch(plate_type)
+      await self.start_batch(plate_to_wire_byte(plate))
       yield
     finally:
       try:
