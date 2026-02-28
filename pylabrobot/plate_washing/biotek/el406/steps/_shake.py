@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from pylabrobot.io.binary import Writer
+
 from ..constants import (
   SHAKE_SOAK_COMMAND,
 )
@@ -116,38 +118,16 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (12 bytes).
     """
-    # Shake duration as 16-bit little-endian total seconds
-    # Only encode if shake_enabled=True (sets to 0 when disabled)
-    if shake_enabled:
-      shake_total_seconds = int(shake_duration)
-    else:
-      shake_total_seconds = 0
-    shake_low = shake_total_seconds & 0xFF
-    shake_high = (shake_total_seconds >> 8) & 0xFF
+    shake_total_seconds = int(shake_duration) if shake_enabled else 0
 
-    # Soak duration as 16-bit little-endian total seconds
-    soak_total_seconds = int(soak_duration)
-    soak_low = soak_total_seconds & 0xFF
-    soak_high = (soak_total_seconds >> 8) & 0xFF
-
-    # Map intensity to byte value
-    intensity_byte = INTENSITY_TO_BYTE.get(intensity, 0x03)
-
-    byte0 = 0x01 if move_home_first else 0x00
-
-    return bytes(
-      [
-        self.plate_type.value,  # byte[0]: Plate type prefix
-        byte0,  # byte[1]: move_home_first
-        shake_low,  # byte[2]: Shake duration (low byte)
-        shake_high,  # byte[3]: Shake duration (high byte)
-        intensity_byte,  # byte[4]: Frequency/intensity
-        0,  # byte[5]: Reserved
-        soak_low,  # byte[6]: Soak duration (low byte)
-        soak_high,  # byte[7]: Soak duration (high byte)
-        0,
-        0,
-        0,
-        0,  # bytes[8-11]: Padding/reserved
-      ]
-    )
+    return (
+      Writer()
+      .u8(self.plate_type.value)                       # [0] Plate type
+      .u8(0x01 if move_home_first else 0x00)           # [1] move_home_first
+      .u16(shake_total_seconds)                        # [2-3] Shake duration (seconds)
+      .u8(INTENSITY_TO_BYTE.get(intensity, 0x03))      # [4] Intensity
+      .u8(0x00)                                        # [5] Reserved
+      .u16(int(soak_duration))                         # [6-7] Soak duration (seconds)
+      .raw_bytes(b'\x00' * 4)                          # [8-11] Padding
+      .finish()
+    )  # fmt: skip

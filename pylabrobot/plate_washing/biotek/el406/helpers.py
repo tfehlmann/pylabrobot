@@ -225,38 +225,6 @@ def syringe_to_byte(syringe: str) -> int:
   raise ValueError(f"Invalid syringe: {syringe}")
 
 
-def encode_volume_16bit(volume_ul: float) -> tuple[int, int]:
-  """Encode volume as 16-bit little-endian (2 bytes).
-
-  Args:
-    volume_ul: Volume in microliters.
-
-  Returns:
-    Tuple of (low_byte, high_byte).
-
-  Raises:
-    ValueError: If volume exceeds uint16 range (65535).
-  """
-  vol_int = int(volume_ul)
-  if vol_int < 0 or vol_int > 0xFFFF:
-    raise ValueError(f"Volume {volume_ul} uL exceeds 16-bit encoding range (0-65535)")
-  return (vol_int & 0xFF, (vol_int >> 8) & 0xFF)
-
-
-def encode_signed_byte(value: int) -> int:
-  """Encode a signed value as unsigned byte (two's complement).
-
-  Args:
-    value: Signed value (-128 to 127).
-
-  Returns:
-    Unsigned byte value (0-255).
-  """
-  if value < 0:
-    return (256 + value) & 0xFF
-  return value & 0xFF
-
-
 def encode_column_mask(columns: list[int] | None) -> bytes:
   """Encode list of column indices to 6-byte (48-bit) column mask.
 

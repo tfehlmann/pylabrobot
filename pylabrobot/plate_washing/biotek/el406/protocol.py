@@ -6,9 +6,10 @@ properly formatted messages for the BioTek EL406 plate washer.
 
 from __future__ import annotations
 
+from pylabrobot.io.binary import Writer
+
 from .constants import (
   MSG_CONSTANT,
-  MSG_HEADER_SIZE,
   MSG_START_MARKER,
   MSG_VERSION_MARKER,
 )
@@ -36,23 +37,20 @@ def build_framed_message(command: int, data: bytes = b"") -> bytes:
   Returns:
     Complete framed message with header and checksum
   """
-  header = bytearray(MSG_HEADER_SIZE)
-  header[0] = MSG_START_MARKER
-  header[1] = MSG_VERSION_MARKER
-  header[2] = command & 0xFF  # Command low byte
-  header[3] = (command >> 8) & 0xFF  # Command high byte
-  header[4] = MSG_CONSTANT
-  header[5] = 0x00  # Reserved low
-  header[6] = 0x00  # Reserved high
-  header[7] = len(data) & 0xFF  # Data length low
-  header[8] = (len(data) >> 8) & 0xFF  # Data length high
+  # Build header bytes 0-8 (checksum placeholder filled after)
+  header_prefix = (
+    Writer()
+    .u8(MSG_START_MARKER)      # [0] Start marker
+    .u8(MSG_VERSION_MARKER)    # [1] Version marker
+    .u16(command)              # [2-3] Command (LE)
+    .u8(MSG_CONSTANT)          # [4] Constant
+    .u16(0x0000)               # [5-6] Reserved
+    .u16(len(data))            # [7-8] Data length (LE)
+    .finish()
+  )  # fmt: skip
 
-  # Calculate checksum
-  # Sum of header bytes 0-8 + all data bytes, then two's complement
-  checksum_sum = sum(header[:9]) + sum(data)
+  # Checksum: two's complement of sum of header bytes 0-8 + all data bytes
+  checksum_sum = sum(header_prefix) + sum(data)
   checksum = (0xFFFF - checksum_sum + 1) & 0xFFFF
 
-  header[9] = checksum & 0xFF  # Checksum low
-  header[10] = (checksum >> 8) & 0xFF  # Checksum high
-
-  return bytes(header) + data
+  return header_prefix + Writer().u16(checksum).finish() + data

@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from pylabrobot.io.binary import Writer
+
 from ..constants import (
   MANIFOLD_ASPIRATE_COMMAND,
   MANIFOLD_AUTO_CLEAN_COMMAND,
@@ -19,8 +21,6 @@ from ..constants import (
 from ..helpers import (
   INTENSITY_TO_BYTE,
   VALID_TRAVEL_RATES,
-  encode_signed_byte,
-  encode_volume_16bit,
   get_plate_type_wash_defaults,
   travel_rate_to_byte,
   validate_buffer,
@@ -969,153 +969,6 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   # COMMAND BUILDERS
   # =========================================================================
 
-  def _encode_wash_byte_values(
-    self,
-    buffer: str,
-    dispense_volume: float | None,
-    dispense_z: int | None,
-    aspirate_z: int | None,
-    dispense_x: int,
-    dispense_y: int,
-    aspirate_x: int,
-    aspirate_y: int,
-    final_aspirate_z: int | None,
-    final_aspirate_x: int,
-    final_aspirate_y: int,
-    secondary_aspirate: bool,
-    secondary_x: int,
-    secondary_y: int,
-    secondary_z: int | None,
-    final_secondary_aspirate: bool,
-    final_secondary_x: int,
-    final_secondary_y: int,
-    final_secondary_z: int | None,
-    pre_dispense_volume: float,
-    pre_dispense_flow_rate: int,
-    vacuum_delay_volume: float,
-    aspirate_delay_ms: int,
-    final_aspirate_delay_ms: int,
-    shake_duration: int,
-    shake_intensity: str,
-    soak_duration: int,
-    dispense_flow_rate: int,
-    bottom_wash: bool,
-    bottom_wash_volume: float,
-    bottom_wash_flow_rate: int,
-    pre_dispense_between_cycles_volume: float,
-    pre_dispense_between_cycles_flow_rate: int,
-  ) -> dict[str, int]:
-    """Pre-compute all byte-level wire values for a wash command.
-
-    Returns a dict of named byte values used by the section builders in
-    ``_build_wash_composite_command``.
-    """
-    (
-      dispense_volume,
-      dispense_z,
-      aspirate_z,
-      secondary_z,
-      final_secondary_z,
-    ) = self._resolve_wash_defaults(
-      dispense_volume,
-      dispense_z,
-      aspirate_z,
-      secondary_z,
-      final_secondary_z,
-    )
-
-    vol_low, vol_high = encode_volume_16bit(dispense_volume)
-
-    final_asp_z = final_aspirate_z if final_aspirate_z is not None else aspirate_z
-
-    # Pre-dispense volume (16-bit LE, 0 = disabled)
-    pre_disp_int = int(pre_dispense_volume) if pre_dispense_volume > 0 else 0
-    # Vacuum delay volume (16-bit LE, 0 = disabled)
-    vac_delay_int = int(vacuum_delay_volume) if vacuum_delay_volume > 0 else 0
-
-    # Primary secondary aspirate
-    sec_mode_byte = 0x01 if secondary_aspirate else 0x00
-    sec_x_byte = encode_signed_byte(secondary_x) if secondary_aspirate else 0x00
-    sec_y_byte = encode_signed_byte(secondary_y) if secondary_aspirate else 0x00
-
-    # Final secondary aspirate
-    final_sec_mode_byte = 0x01 if final_secondary_aspirate else 0x00
-    final_sec_x_byte = encode_signed_byte(final_secondary_x) if final_secondary_aspirate else 0x00
-    final_sec_y_byte = encode_signed_byte(final_secondary_y) if final_secondary_aspirate else 0x00
-    final_sec_z = final_secondary_z if final_secondary_aspirate else final_asp_z
-
-    # Shake intensity byte (only encode when shake is actually enabled)
-    intensity_byte = INTENSITY_TO_BYTE.get(shake_intensity, 0x03) if shake_duration > 0 else 0x00
-
-    # Bottom wash: when enabled, Dispense1 gets bottom wash params
-    if bottom_wash:
-      bw_vol = int(bottom_wash_volume)
-      bw_vol_low = bw_vol & 0xFF
-      bw_vol_high = (bw_vol >> 8) & 0xFF
-      bw_flow = bottom_wash_flow_rate
-    else:
-      bw_vol_low = vol_low
-      bw_vol_high = vol_high
-      bw_flow = dispense_flow_rate
-
-    # Pre-dispense between cycles
-    if pre_dispense_between_cycles_volume > 0:
-      midcyc_vol = int(pre_dispense_between_cycles_volume)
-      midcyc_vol_low = midcyc_vol & 0xFF
-      midcyc_vol_high = (midcyc_vol >> 8) & 0xFF
-      midcyc_flow = pre_dispense_between_cycles_flow_rate
-    else:
-      midcyc_vol_low = pre_disp_int & 0xFF
-      midcyc_vol_high = (pre_disp_int >> 8) & 0xFF
-      midcyc_flow = pre_dispense_flow_rate
-
-    return {
-      "buffer_char": ord(buffer.upper()),
-      "vol_low": vol_low,
-      "vol_high": vol_high,
-      "disp_z_low": dispense_z & 0xFF,
-      "disp_z_high": (dispense_z >> 8) & 0xFF,
-      "asp_z_low": aspirate_z & 0xFF,
-      "asp_z_high": (aspirate_z >> 8) & 0xFF,
-      "disp_x_byte": encode_signed_byte(dispense_x),
-      "disp_y_byte": encode_signed_byte(dispense_y),
-      "asp_x_byte": encode_signed_byte(aspirate_x),
-      "asp_y_byte": encode_signed_byte(aspirate_y),
-      "final_asp_z_low": final_asp_z & 0xFF,
-      "final_asp_z_high": (final_asp_z >> 8) & 0xFF,
-      "final_asp_x_byte": encode_signed_byte(final_aspirate_x),
-      "final_asp_y_byte": encode_signed_byte(final_aspirate_y),
-      "sec_mode_byte": sec_mode_byte,
-      "sec_x_byte": sec_x_byte,
-      "sec_y_byte": sec_y_byte,
-      "sec_z_low": secondary_z & 0xFF,
-      "sec_z_high": (secondary_z >> 8) & 0xFF,
-      "final_sec_mode_byte": final_sec_mode_byte,
-      "final_sec_x_byte": final_sec_x_byte,
-      "final_sec_y_byte": final_sec_y_byte,
-      "final_sec_z_low": final_sec_z & 0xFF,
-      "final_sec_z_high": (final_sec_z >> 8) & 0xFF,
-      "pre_disp_low": pre_disp_int & 0xFF,
-      "pre_disp_high": (pre_disp_int >> 8) & 0xFF,
-      "vac_delay_low": vac_delay_int & 0xFF,
-      "vac_delay_high": (vac_delay_int >> 8) & 0xFF,
-      "asp_delay_low": aspirate_delay_ms & 0xFF,
-      "asp_delay_high": (aspirate_delay_ms >> 8) & 0xFF,
-      "final_asp_delay_low": final_aspirate_delay_ms & 0xFF,
-      "final_asp_delay_high": (final_aspirate_delay_ms >> 8) & 0xFF,
-      "shake_dur_low": shake_duration & 0xFF,
-      "shake_dur_high": (shake_duration >> 8) & 0xFF,
-      "soak_dur_low": soak_duration & 0xFF,
-      "soak_dur_high": (soak_duration >> 8) & 0xFF,
-      "intensity_byte": intensity_byte,
-      "bw_vol_low": bw_vol_low,
-      "bw_vol_high": bw_vol_high,
-      "bw_flow": bw_flow,
-      "midcyc_vol_low": midcyc_vol_low,
-      "midcyc_vol_high": midcyc_vol_high,
-      "midcyc_flow": midcyc_flow,
-    }
-
   def _build_wash_composite_command(
     self,
     cycles: int = 3,
@@ -1161,7 +1014,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     """Build 102-byte MANIFOLD_WASH (0xA4) command payload.
 
     Structure: header(7) + dispense1(22) + final_aspirate(20) + primary_aspirate(19)
-               + dispense2(22) + shake_soak(12) = 102 bytes.
+               + dispense2(19) + shake_soak(15) = 102 bytes.
 
     Header [0-6]:
       [0] plate_type (from self.plate_type.value)
@@ -1180,187 +1033,117 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Returns:
       102-byte command payload.
     """
-    v = self._encode_wash_byte_values(
-      buffer=buffer,
-      dispense_volume=dispense_volume,
-      dispense_z=dispense_z,
-      aspirate_z=aspirate_z,
-      dispense_x=dispense_x,
-      dispense_y=dispense_y,
-      aspirate_x=aspirate_x,
-      aspirate_y=aspirate_y,
-      final_aspirate_z=final_aspirate_z,
-      final_aspirate_x=final_aspirate_x,
-      final_aspirate_y=final_aspirate_y,
-      secondary_aspirate=secondary_aspirate,
-      secondary_x=secondary_x,
-      secondary_y=secondary_y,
-      secondary_z=secondary_z,
-      final_secondary_aspirate=final_secondary_aspirate,
-      final_secondary_x=final_secondary_x,
-      final_secondary_y=final_secondary_y,
-      final_secondary_z=final_secondary_z,
-      pre_dispense_volume=pre_dispense_volume,
-      pre_dispense_flow_rate=pre_dispense_flow_rate,
-      vacuum_delay_volume=vacuum_delay_volume,
-      aspirate_delay_ms=aspirate_delay_ms,
-      final_aspirate_delay_ms=final_aspirate_delay_ms,
-      shake_duration=shake_duration,
-      shake_intensity=shake_intensity,
-      soak_duration=soak_duration,
-      dispense_flow_rate=dispense_flow_rate,
-      bottom_wash=bottom_wash,
-      bottom_wash_volume=bottom_wash_volume,
-      bottom_wash_flow_rate=bottom_wash_flow_rate,
-      pre_dispense_between_cycles_volume=pre_dispense_between_cycles_volume,
-      pre_dispense_between_cycles_flow_rate=pre_dispense_between_cycles_flow_rate,
+    # Resolve plate-type defaults
+    (
+      dispense_volume,
+      dispense_z,
+      aspirate_z,
+      secondary_z,
+      final_secondary_z,
+    ) = self._resolve_wash_defaults(
+      dispense_volume, dispense_z, aspirate_z, secondary_z, final_secondary_z
     )
 
-    # Header [0-6] (7 bytes)
-    config_flags = 0x01 if final_aspirate else 0x00
-    bw_flag = 0x01 if bottom_wash else 0x00
-    wash_format_byte = {"Plate": 0x00, "Sector": 0x01}[wash_format]
-    header = bytes(
-      [
-        self.plate_type.value,  # [0] Plate type
-        bw_flag,  # [1] Bottom wash enable
-        config_flags,  # [2] Config flags
-        wash_format_byte,  # [3] Wash format: 0=Plate, 1=Sector
-        sector_mask & 0xFF,  # [4] Sector mask low byte
-        (sector_mask >> 8) & 0xFF,  # [5] Sector mask high byte
-        cycles,  # [6] Number of wash cycles
-      ]
-    )
+    # Derived values
+    buffer_char = ord(buffer.upper())
+    disp_vol = int(dispense_volume)
+    final_asp_z = final_aspirate_z if final_aspirate_z is not None else aspirate_z
+    pre_disp = int(pre_dispense_volume) if pre_dispense_volume > 0 else 0
+    vac_delay = int(vacuum_delay_volume) if vacuum_delay_volume > 0 else 0
+    intensity_byte = INTENSITY_TO_BYTE.get(shake_intensity, 0x03) if shake_duration > 0 else 0x00
 
-    # Dispense section 1 [7-28] (22 bytes) — bottom wash or mirror of main
-    disp1 = bytes(
-      [
-        v["buffer_char"],  # [0] Buffer ASCII
-        v["bw_vol_low"],
-        v["bw_vol_high"],  # [1-2] Volume LE
-        v["bw_flow"],  # [3] Flow rate
-        v["disp_x_byte"],
-        v["disp_y_byte"],  # [4-5] Offset X, Y (signed)
-        v["disp_z_low"],
-        v["disp_z_high"],  # [6-7] Dispense Z LE
-        v["pre_disp_low"],
-        v["pre_disp_high"],  # [8-9] Pre-dispense volume LE
-        pre_dispense_flow_rate,  # [10] Pre-dispense flow rate
-        v["vac_delay_low"],
-        v["vac_delay_high"],  # [11-12] Vacuum delay volume LE
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,  # [13-19] Padding (7 bytes)
-        v["final_asp_delay_low"],
-        v["final_asp_delay_high"],  # [20-21] Final aspirate delay ms LE
-      ]
-    )
+    # Secondary aspirate offsets (0 when disabled)
+    sec_x = secondary_x if secondary_aspirate else 0
+    sec_y = secondary_y if secondary_aspirate else 0
+    final_sec_x = final_secondary_x if final_secondary_aspirate else 0
+    final_sec_y = final_secondary_y if final_secondary_aspirate else 0
+    final_sec_z = final_secondary_z if final_secondary_aspirate else final_asp_z
 
-    # Final aspirate section [29-48] (20 bytes)
-    asp1 = bytes(
-      [
-        aspirate_travel_rate,  # [0] Travel rate (propagated)
-        0x00,
-        0x00,  # [1-2] Delay ms LE (always 0 here)
-        v["final_asp_z_low"],
-        v["final_asp_z_high"],  # [3-4] Final aspirate Z LE
-        v["final_sec_mode_byte"],  # [5] Final secondary mode
-        v["final_asp_x_byte"],  # [6] Final aspirate X offset
-        v["final_asp_y_byte"],  # [7] Final aspirate Y offset
-        v["final_sec_z_low"],
-        v["final_sec_z_high"],  # [8-9] Final secondary Z LE
-        0x00,  # [10] Reserved
-        v["final_sec_x_byte"],  # [11] Final secondary X
-        v["final_sec_y_byte"],  # [12] Final secondary Y
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,  # [13-17] Reserved (5 bytes)
-        0x00,  # [18] vac_filt (always 0 in wash)
-        v["asp_delay_low"],  # [19] aspirate_delay_ms low byte
-      ]
-    )
+    # Bottom wash: Dispense1 gets bottom wash params when enabled, else mirrors main
+    bw_vol = int(bottom_wash_volume) if bottom_wash else disp_vol
+    bw_flow = bottom_wash_flow_rate if bottom_wash else dispense_flow_rate
 
-    # Primary aspirate section [49-67] (19 bytes)
-    asp2 = bytes(
-      [
-        v["asp_delay_high"],  # [0] aspirate_delay_ms high byte
-        aspirate_travel_rate,  # [1] Travel rate
-        v["asp_x_byte"],  # [2] Aspirate X offset
-        v["asp_y_byte"],  # [3] Aspirate Y offset
-        v["asp_z_low"],
-        v["asp_z_high"],  # [4-5] Aspirate Z LE
-        v["sec_mode_byte"],  # [6] Secondary aspirate mode (0=off, 1=on)
-        v["sec_x_byte"],  # [7] Secondary X offset
-        v["sec_y_byte"],  # [8] Secondary Y offset
-        v["sec_z_low"],
-        v["sec_z_high"],  # [9-10] Secondary Z LE
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,  # [11-18] Reserved
-      ]
-    )
+    # Pre-dispense between cycles: override or fall back to main pre-dispense
+    if pre_dispense_between_cycles_volume > 0:
+      midcyc_vol = int(pre_dispense_between_cycles_volume)
+      midcyc_flow = pre_dispense_between_cycles_flow_rate
+    else:
+      midcyc_vol = pre_disp
+      midcyc_flow = pre_dispense_flow_rate
 
-    # Dispense section 2 [68-86] (19 bytes) -- main dispense
-    disp2 = bytes(
-      [
-        v["buffer_char"],  # [0] Buffer ASCII
-        v["vol_low"],
-        v["vol_high"],  # [1-2] Volume LE (main dispense)
-        dispense_flow_rate,  # [3] Flow rate (main)
-        v["disp_x_byte"],
-        v["disp_y_byte"],  # [4-5] Offset X, Y (signed)
-        v["disp_z_low"],
-        v["disp_z_high"],  # [6-7] Dispense Z LE
-        v["midcyc_vol_low"],
-        v["midcyc_vol_high"],  # [8-9] Pre-disp between cycles vol LE
-        v["midcyc_flow"],  # [10] Pre-disp between cycles flow rate
-        v["vac_delay_low"],
-        v["vac_delay_high"],  # [11-12] Vacuum delay volume LE
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,  # [13-18] Padding (6 bytes)
-      ]
-    )
+    w = Writer()
 
-    # Shake/soak section [87-101] (15 bytes = 11 + 4 trailing)
-    move_home_byte = 0x01 if move_home_first else 0x00
-    shake_soak = bytes(
-      [
-        move_home_byte,  # [0] move_home_first
-        v["shake_dur_low"],
-        v["shake_dur_high"],  # [1-2] shake duration LE (seconds)
-        v["intensity_byte"] if shake_duration > 0 else 0x03,
-        # [3] shake intensity (default 3=Medium)
-        0x00,  # [4] shake type (always 0)
-        v["soak_dur_low"],
-        v["soak_dur_high"],  # [5-6] soak duration LE (seconds)
-        0x00,
-        0x00,
-        0x00,
-        0x00,  # [7-10] padding
-        0x00,
-        0x00,
-        0x00,
-        0x00,  # trailing padding (4 bytes)
-      ]
-    )
+    # --- Header [0-6] (7 bytes) ---
+    w.u8(self.plate_type.value)  # [0] Plate type
+    w.u8(0x01 if bottom_wash else 0x00)  # [1] Bottom wash enable
+    w.u8(0x01 if final_aspirate else 0x00)  # [2] Config flags
+    w.u8({"Plate": 0x00, "Sector": 0x01}[wash_format])  # [3] Wash format
+    w.u16(sector_mask)  # [4-5] Sector mask (LE)
+    w.u8(cycles)  # [6] Wash cycles
 
-    data = header + disp1 + asp1 + asp2 + disp2 + shake_soak
+    # --- Dispense section 1 [7-28] (22 bytes) — bottom wash or mirror of main ---
+    w.u8(buffer_char)  # [7] Buffer (ASCII)
+    w.u16(bw_vol)  # [8-9] Volume (LE)
+    w.u8(bw_flow)  # [10] Flow rate
+    w.i8(dispense_x)  # [11] Offset X
+    w.i8(dispense_y)  # [12] Offset Y
+    w.u16(dispense_z)  # [13-14] Dispense Z (LE)
+    w.u16(pre_disp)  # [15-16] Pre-dispense vol (LE)
+    w.u8(pre_dispense_flow_rate)  # [17] Pre-dispense flow rate
+    w.u16(vac_delay)  # [18-19] Vacuum delay vol (LE)
+    w.raw_bytes(b"\x00" * 7)  # [20-26] Padding
+    w.u16(final_aspirate_delay_ms)  # [27-28] Final asp delay (LE)
 
+    # --- Final aspirate section [29-48] (20 bytes) ---
+    w.u8(aspirate_travel_rate)  # [29] Travel rate
+    w.u16(0x0000)  # [30-31] Delay (always 0 here)
+    w.u16(final_asp_z)  # [32-33] Final aspirate Z (LE)
+    w.u8(0x01 if final_secondary_aspirate else 0x00)  # [34] Final secondary mode
+    w.i8(final_aspirate_x)  # [35] Final aspirate X
+    w.i8(final_aspirate_y)  # [36] Final aspirate Y
+    w.u16(final_sec_z)  # [37-38] Final secondary Z (LE)
+    w.u8(0x00)  # [39] Reserved
+    w.i8(final_sec_x)  # [40] Final secondary X
+    w.i8(final_sec_y)  # [41] Final secondary Y
+    w.raw_bytes(b"\x00" * 5)  # [42-46] Reserved
+    w.u8(0x00)  # [47] vac_filt (always 0 in wash)
+    # aspirate_delay_ms split: low byte here, high byte starts next section
+    w.u8(aspirate_delay_ms & 0xFF)  # [48] asp delay low
+
+    # --- Primary aspirate section [49-67] (19 bytes) ---
+    w.u8((aspirate_delay_ms >> 8) & 0xFF)  # [49] asp delay high
+    w.u8(aspirate_travel_rate)  # [50] Travel rate
+    w.i8(aspirate_x)  # [51] Aspirate X
+    w.i8(aspirate_y)  # [52] Aspirate Y
+    w.u16(aspirate_z)  # [53-54] Aspirate Z (LE)
+    w.u8(0x01 if secondary_aspirate else 0x00)  # [55] Secondary mode
+    w.i8(sec_x)  # [56] Secondary X
+    w.i8(sec_y)  # [57] Secondary Y
+    w.u16(secondary_z)  # [58-59] Secondary Z (LE)
+    w.raw_bytes(b"\x00" * 8)  # [60-67] Reserved
+
+    # --- Dispense section 2 [68-86] (19 bytes) — main dispense ---
+    w.u8(buffer_char)  # [68] Buffer (ASCII)
+    w.u16(disp_vol)  # [69-70] Volume (LE)
+    w.u8(dispense_flow_rate)  # [71] Flow rate
+    w.i8(dispense_x)  # [72] Offset X
+    w.i8(dispense_y)  # [73] Offset Y
+    w.u16(dispense_z)  # [74-75] Dispense Z (LE)
+    w.u16(midcyc_vol)  # [76-77] Mid-cycle vol (LE)
+    w.u8(midcyc_flow)  # [78] Mid-cycle flow rate
+    w.u16(vac_delay)  # [79-80] Vacuum delay vol (LE)
+    w.raw_bytes(b"\x00" * 6)  # [81-86] Padding
+
+    # --- Shake/soak section [87-101] (15 bytes) ---
+    w.u8(0x01 if move_home_first else 0x00)  # [87] move_home_first
+    w.u16(shake_duration)  # [88-89] Shake duration (LE)
+    w.u8(intensity_byte if shake_duration > 0 else 0x03)  # [90] Intensity
+    w.u8(0x00)  # [91] Shake type (always 0)
+    w.u16(soak_duration)  # [92-93] Soak duration (LE)
+    w.raw_bytes(b"\x00" * 4)  # [94-97] Padding
+    w.raw_bytes(b"\x00" * 4)  # [98-101] Trailing padding
+
+    data = w.finish()
     assert len(data) == 102, f"Wash command should be 102 bytes, got {len(data)}"
 
     logger.debug("Wash command data (%d bytes): %s", len(data), data.hex())
@@ -1412,33 +1195,24 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (22 bytes).
     """
-    # Column mask: always all columns selected for manifold aspirate
-    column_mask_bytes = bytes([0xFF, 0x0F])
-
     return (
-      bytes(
-        [
-          self.plate_type.value,  # [0]  plate type prefix
-          1 if vacuum_filtration else 0,  # [1]  vacuum_filtration
-          time_value & 0xFF,  # [2]  time/delay low
-          (time_value >> 8) & 0xFF,  # [3]  time/delay high
-          travel_rate_byte & 0xFF,  # [4]  travel rate
-          encode_signed_byte(offset_x),  # [5]  x offset
-          encode_signed_byte(offset_y),  # [6]  y offset
-          offset_z & 0xFF,  # [7]  z offset low
-          (offset_z >> 8) & 0xFF,  # [8]  z offset high
-          secondary_mode & 0xFF,  # [9]  secondary mode
-          encode_signed_byte(secondary_x),  # [10] secondary x
-          encode_signed_byte(secondary_y),  # [11] secondary y
-          secondary_z & 0xFF,  # [12] secondary z low
-          (secondary_z >> 8) & 0xFF,  # [13] secondary z high
-          0,
-          0,  # [14-15] reserved
-        ]
-      )
-      + column_mask_bytes
-      + bytes([0, 0, 0, 0])
-    )  # [16-17] column mask + [18-21] padding
+      Writer()
+      .u8(self.plate_type.value)                     # [0] Plate type
+      .u8(1 if vacuum_filtration else 0)             # [1] Vacuum filtration
+      .u16(time_value)                               # [2-3] Time/delay (LE)
+      .u8(travel_rate_byte & 0xFF)                   # [4] Travel rate
+      .i8(offset_x)                                  # [5] X offset
+      .i8(offset_y)                                  # [6] Y offset
+      .u16(offset_z)                                 # [7-8] Z offset (LE)
+      .u8(secondary_mode & 0xFF)                     # [9] Secondary mode
+      .i8(secondary_x)                               # [10] Secondary X
+      .i8(secondary_y)                               # [11] Secondary Y
+      .u16(secondary_z)                              # [12-13] Secondary Z (LE)
+      .raw_bytes(b'\x00' * 2)                        # [14-15] Reserved
+      .raw_bytes(b'\xff\x0f')                        # [16-17] Column mask (all)
+      .raw_bytes(b'\x00' * 4)                        # [18-21] Padding
+      .finish()
+    )  # fmt: skip
 
   def _build_dispense_command(
     self,
@@ -1486,44 +1260,24 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (20 bytes).
     """
-    vol_low, vol_high = encode_volume_16bit(volume)
-    z_low = offset_z & 0xFF
-    z_high = (offset_z >> 8) & 0xFF
+    pre_disp_vol = int(pre_dispense_volume) if pre_dispense_volume > 0 else 0
+    vac_delay = int(vacuum_delay_volume) if vacuum_delay_volume > 0 else 0
 
-    # Pre-dispense volume (enabled when > 0)
-    pre_disp_vol_int = int(pre_dispense_volume) if pre_dispense_volume > 0 else 0
-    pre_disp_low = pre_disp_vol_int & 0xFF
-    pre_disp_high = (pre_disp_vol_int >> 8) & 0xFF
-
-    # Vacuum delay volume (enabled when > 0)
-    vac_delay_int = int(vacuum_delay_volume) if vacuum_delay_volume > 0 else 0
-    vac_delay_low = vac_delay_int & 0xFF
-    vac_delay_high = (vac_delay_int >> 8) & 0xFF
-
-    return bytes(
-      [
-        self.plate_type.value,  # [0] Plate type prefix
-        ord(buffer.upper()),  # [1] Buffer as ASCII char
-        vol_low,  # [2] Volume low
-        vol_high,  # [3] Volume high
-        flow_rate,  # [4] Flow rate
-        encode_signed_byte(offset_x),  # [5] X offset
-        encode_signed_byte(offset_y),  # [6] Y offset
-        z_low,  # [7] Z offset low
-        z_high,  # [8] Z offset high
-        pre_disp_low,  # [9] Pre-dispense volume low
-        pre_disp_high,  # [10] Pre-dispense volume high
-        pre_dispense_flow_rate,  # [11] Pre-dispense flow rate
-        vac_delay_low,  # [12] Vacuum delay volume low
-        vac_delay_high,  # [13] Vacuum delay volume high
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,  # [14-19] Padding (6 bytes)
-      ]
-    )
+    return (
+      Writer()
+      .u8(self.plate_type.value)       # [0] Plate type
+      .u8(ord(buffer.upper()))         # [1] Buffer (ASCII)
+      .u16(int(volume))                # [2-3] Volume (LE)
+      .u8(flow_rate)                   # [4] Flow rate
+      .i8(offset_x)                    # [5] X offset
+      .i8(offset_y)                    # [6] Y offset
+      .u16(offset_z)                   # [7-8] Z offset (LE)
+      .u16(pre_disp_vol)              # [9-10] Pre-dispense volume (LE)
+      .u8(pre_dispense_flow_rate)      # [11] Pre-dispense flow rate
+      .u16(vac_delay)                  # [12-13] Vacuum delay volume (LE)
+      .raw_bytes(b'\x00' * 6)         # [14-19] Padding
+      .finish()
+    )  # fmt: skip
 
   def _build_manifold_prime_command(
     self,
@@ -1560,41 +1314,20 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (13 bytes).
     """
-    vol_low, vol_high = encode_volume_16bit(volume_ml)
+    lf_vol = low_flow_volume_ml if (low_flow_enabled and low_flow_volume_ml > 0) else 0
+    sub_dur = submerge_duration_min if submerge_enabled else 0
 
-    # Low flow volume: 16-bit LE, but only if enabled
-    if low_flow_enabled and low_flow_volume_ml > 0:
-      lf_low = low_flow_volume_ml & 0xFF
-      lf_high = (low_flow_volume_ml >> 8) & 0xFF
-    else:
-      lf_low = 0
-      lf_high = 0
-
-    # Submerge duration: 16-bit LE in minutes, only if enabled
-    if submerge_enabled:
-      sub_low = submerge_duration_min & 0xFF
-      sub_high = (submerge_duration_min >> 8) & 0xFF
-    else:
-      sub_low = 0
-      sub_high = 0
-
-    return bytes(
-      [
-        self.plate_type.value,  # Plate type prefix
-        ord(buffer.upper()),  # Buffer as ASCII char
-        vol_low,
-        vol_high,
-        flow_rate,
-        lf_low,  # Low flow volume low byte
-        lf_high,  # Low flow volume high byte
-        sub_low,  # Submerge duration low byte (minutes)
-        sub_high,  # Submerge duration high byte (minutes)
-        0,
-        0,
-        0,
-        0,  # Padding (4 bytes)
-      ]
-    )
+    return (
+      Writer()
+      .u8(self.plate_type.value)       # [0] Plate type
+      .u8(ord(buffer.upper()))         # [1] Buffer (ASCII)
+      .u16(int(volume_ml))             # [2-3] Volume (LE, mL)
+      .u8(flow_rate)                   # [4] Flow rate
+      .u16(lf_vol)                     # [5-6] Low flow volume (LE, mL)
+      .u16(sub_dur)                    # [7-8] Submerge duration (LE, minutes)
+      .raw_bytes(b'\x00' * 4)         # [9-12] Padding
+      .finish()
+    )  # fmt: skip
 
   def _build_auto_clean_command(
     self,
@@ -1617,19 +1350,11 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (8 bytes).
     """
-    duration_int = int(duration_min) & 0xFFFF
-    duration_low = duration_int & 0xFF
-    duration_high = (duration_int >> 8) & 0xFF
-
-    return bytes(
-      [
-        self.plate_type.value,  # Plate type prefix
-        ord(buffer.upper()),  # Buffer as ASCII char
-        duration_low,
-        duration_high,
-        0,
-        0,
-        0,
-        0,  # Padding (4 bytes)
-      ]
-    )
+    return (
+      Writer()
+      .u8(self.plate_type.value)       # [0] Plate type
+      .u8(ord(buffer.upper()))         # [1] Buffer (ASCII)
+      .u16(int(duration_min))          # [2-3] Duration (LE, minutes)
+      .raw_bytes(b'\x00' * 4)         # [4-7] Padding
+      .finish()
+    )  # fmt: skip

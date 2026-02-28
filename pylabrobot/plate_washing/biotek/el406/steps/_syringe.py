@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from pylabrobot.io.binary import Writer
+
 from ..constants import (
   SYRINGE_DISPENSE_COMMAND,
   SYRINGE_PRIME_COMMAND,
@@ -16,8 +18,6 @@ from ..constants import (
 from ..helpers import (
   columns_to_column_mask,
   encode_column_mask,
-  encode_signed_byte,
-  encode_volume_16bit,
   plate_type_well_count,
   syringe_to_byte,
   validate_num_pre_dispenses,
@@ -238,58 +238,26 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (26 bytes).
     """
-    vol_low, vol_high = encode_volume_16bit(volume)
-    z_low = offset_z & 0xFF
-    z_high = (offset_z >> 8) & 0xFF
-    delay_low = pump_delay_ms & 0xFF
-    delay_high = (pump_delay_ms >> 8) & 0xFF
-
-    # Pre-dispense volume: only encode if pre-dispense is enabled
-    if pre_dispense:
-      pre_disp_vol_int = int(pre_dispense_volume)
-    else:
-      pre_disp_vol_int = 0
-    pre_disp_vol_low = pre_disp_vol_int & 0xFF
-    pre_disp_vol_high = (pre_disp_vol_int >> 8) & 0xFF
-
-    # Encode column mask (6 bytes)
-    column_mask_bytes = encode_column_mask(column_mask)
-
-    # Bottle selection based on syringe: A→0, B→2, Both→4
-    _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2, "BOTH": 4}
-    bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
+    pre_disp_vol_int = int(pre_dispense_volume) if pre_dispense else 0
+    bottle_byte = {"A": 0, "B": 2, "BOTH": 4}.get(syringe.upper(), 0)
 
     return (
-      bytes(
-        [
-          self.plate_type.value,  # Plate type prefix
-          syringe_to_byte(syringe),
-          vol_low,
-          vol_high,
-          flow_rate,
-          encode_signed_byte(offset_x),
-          encode_signed_byte(offset_y),
-          z_low,
-          z_high,
-          delay_low,
-          delay_high,
-          pre_disp_vol_low,
-          pre_disp_vol_high,
-          num_pre_dispenses,  # Number of pre-dispenses (default 2)
-        ]
-      )
-      + column_mask_bytes
-      + bytes(
-        [
-          bottle_byte,  # Bottle selection
-          0,
-          0,
-          0,
-          0,
-          0,  # Padding (5 bytes)
-        ]
-      )
-    )
+      Writer()
+      .u8(self.plate_type.value)               # [0] Plate type
+      .u8(syringe_to_byte(syringe))            # [1] Syringe
+      .u16(int(volume))                        # [2-3] Volume (LE)
+      .u8(flow_rate)                           # [4] Flow rate
+      .i8(offset_x)                            # [5] Offset X
+      .i8(offset_y)                            # [6] Offset Y
+      .u16(offset_z)                           # [7-8] Offset Z (LE)
+      .u16(pump_delay_ms)                      # [9-10] Pump delay (LE)
+      .u16(pre_disp_vol_int)                   # [11-12] Pre-dispense vol (LE)
+      .u8(num_pre_dispenses)                   # [13] Num pre-dispenses
+      .raw_bytes(encode_column_mask(column_mask))  # [14-19] Column mask
+      .u8(bottle_byte)                         # [20] Bottle selection
+      .raw_bytes(b'\x00' * 5)                  # [21-25] Padding
+      .finish()
+    )  # fmt: skip
 
   def _build_syringe_prime_command(
     self,
@@ -328,36 +296,20 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (13 bytes).
     """
-    vol_low, vol_high = encode_volume_16bit(volume)
-    delay_low = pump_delay_ms & 0xFF
-    delay_high = (pump_delay_ms >> 8) & 0xFF
+    sub_total = submerge_duration_min if (submerge_tips and submerge_duration_min > 0) else 0
+    bottle_byte = {"A": 0, "B": 2}.get(syringe.upper(), 0)
 
-    # Submerge time: only encode when submerge_tips is enabled
-    if submerge_tips and submerge_duration_min > 0:
-      sub_total = submerge_duration_min & 0xFFFF
-    else:
-      sub_total = 0
-    sub_low = sub_total & 0xFF
-    sub_high = (sub_total >> 8) & 0xFF
-
-    # Bottle selection: A→0, B→2
-    _SYRINGE_TO_BOTTLE = {"A": 0, "B": 2}
-    bottle_byte = _SYRINGE_TO_BOTTLE.get(syringe.upper(), 0)
-
-    return bytes(
-      [
-        self.plate_type.value,  # Plate type prefix
-        syringe_to_byte(syringe),  # Syringe index (A=0, B=1)
-        vol_low,
-        vol_high,
-        flow_rate,
-        refills & 0xFF,
-        delay_low,
-        delay_high,
-        1 if submerge_tips else 0,
-        sub_low,  # Submerge duration low byte (minutes)
-        sub_high,  # Submerge duration high byte (minutes)
-        bottle_byte,  # Bottle selection
-        0,  # Padding
-      ]
-    )
+    return (
+      Writer()
+      .u8(self.plate_type.value)               # [0] Plate type
+      .u8(syringe_to_byte(syringe))            # [1] Syringe (A=0, B=1)
+      .u16(int(volume))                        # [2-3] Volume (LE)
+      .u8(flow_rate)                           # [4] Flow rate
+      .u8(refills & 0xFF)                      # [5] Refills
+      .u16(pump_delay_ms)                      # [6-7] Pump delay (LE)
+      .u8(1 if submerge_tips else 0)           # [8] Submerge tips
+      .u16(sub_total)                          # [9-10] Submerge duration (LE, minutes)
+      .u8(bottle_byte)                         # [11] Bottle selection
+      .u8(0x00)                                # [12] Padding
+      .finish()
+    )  # fmt: skip

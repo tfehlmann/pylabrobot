@@ -22,8 +22,6 @@ from .enums import (
 from .errors import EL406CommunicationError, EL406DeviceError
 from .helpers import (
   encode_column_mask,
-  encode_signed_byte,
-  encode_volume_16bit,
   syringe_to_byte,
   validate_buffer,
   validate_flow_rate,

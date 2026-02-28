@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from pylabrobot.io.binary import Writer
+
 from ..constants import (
   PERISTALTIC_DISPENSE_COMMAND,
   PERISTALTIC_PRIME_COMMAND,
@@ -19,8 +21,6 @@ from ..helpers import (
   columns_to_column_mask,
   encode_column_mask,
   encode_quadrant_mask_inverted,
-  encode_signed_byte,
-  encode_volume_16bit,
   plate_type_default_z,
   plate_type_max_columns,
   plate_type_max_rows,
@@ -323,26 +323,18 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (11 bytes).
     """
-    vol_low, vol_high = encode_volume_16bit(volume)
-    dur_low = duration & 0xFF
-    dur_high = (duration >> 8) & 0xFF
-    cassette_byte = cassette_to_byte(cassette)
-
-    return bytes(
-      [
-        self.plate_type.value,  # Plate type prefix
-        vol_low,
-        vol_high,
-        dur_low,  # Duration low byte (0 in volume mode)
-        dur_high,  # Duration high byte
-        flow_rate,  # Flow rate (0=Low, 1=Medium, 2=High)
-        1 if reverse else 0,  # Reverse/submerge
-        cassette_byte,  # Cassette type
-        pump & 0xFF,  # Pump (1=Primary, 2=Secondary)
-        0,
-        0,  # Padding
-      ]
-    )
+    return (
+      Writer()
+      .u8(self.plate_type.value)              # [0] Plate type
+      .u16(int(volume))                       # [1-2] Volume (LE)
+      .u16(duration)                          # [3-4] Duration (LE)
+      .u8(flow_rate)                          # [5] Flow rate
+      .u8(1 if reverse else 0)                # [6] Reverse/submerge
+      .u8(cassette_to_byte(cassette))         # [7] Cassette type
+      .u8(pump & 0xFF)                        # [8] Pump
+      .raw_bytes(b'\x00' * 2)                 # [9-10] Padding
+      .finish()
+    )  # fmt: skip
 
   def _build_peristaltic_dispense_command(
     self,
@@ -393,44 +385,22 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     Returns:
       Command bytes (24 bytes).
     """
-    vol_low, vol_high = encode_volume_16bit(volume)
-    z_low = offset_z & 0xFF
-    z_high = (offset_z >> 8) & 0xFF
-    pre_disp_low, pre_disp_high = encode_volume_16bit(pre_dispense_volume)
-    cassette_byte = cassette_to_byte(cassette)
-    # Pass correct num_row_groups based on plate type
     num_row_groups = plate_type_max_rows(self.plate_type)
-    row_mask_byte = encode_quadrant_mask_inverted(rows, num_row_groups=num_row_groups)
-
-    # Encode column mask (6 bytes)
-    column_mask_bytes = encode_column_mask(column_mask)
 
     return (
-      bytes(
-        [
-          self.plate_type.value,  # Plate type prefix
-          vol_low,
-          vol_high,
-          flow_rate,  # Flow rate (0=Low, 1=Medium, 2=High)
-          cassette_byte,  # Cassette type
-          encode_signed_byte(offset_x),  # Offset X
-          encode_signed_byte(offset_y),  # Offset Y
-          z_low,
-          z_high,
-          pre_disp_low,
-          pre_disp_high,
-          num_pre_dispenses,  # Number of pre-dispenses
-        ]
-      )
-      + column_mask_bytes
-      + bytes(
-        [
-          row_mask_byte,  # Row mask (inverted: 0=selected)
-          pump & 0xFF,  # Pump (1=Primary, 2=Secondary)
-          0,
-          0,
-          0,
-          0,  # Padding (4 bytes)
-        ]
-      )
-    )
+      Writer()
+      .u8(self.plate_type.value)                                         # [0] Plate type
+      .u16(int(volume))                                                  # [1-2] Volume (LE)
+      .u8(flow_rate)                                                     # [3] Flow rate
+      .u8(cassette_to_byte(cassette))                                    # [4] Cassette type
+      .i8(offset_x)                                                      # [5] Offset X
+      .i8(offset_y)                                                      # [6] Offset Y
+      .u16(offset_z)                                                     # [7-8] Offset Z (LE)
+      .u16(int(pre_dispense_volume))                                     # [9-10] Pre-dispense vol
+      .u8(num_pre_dispenses)                                             # [11] Num pre-dispenses
+      .raw_bytes(encode_column_mask(column_mask))                        # [12-17] Column mask
+      .u8(encode_quadrant_mask_inverted(rows, num_row_groups=num_row_groups))  # [18] Row mask
+      .u8(pump & 0xFF)                                                   # [19] Pump
+      .raw_bytes(b'\x00' * 4)                                            # [20-23] Padding
+      .finish()
+    )  # fmt: skip
