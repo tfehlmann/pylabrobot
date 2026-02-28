@@ -19,5 +19,6 @@ from .helpers import (
 from .protocol import build_framed_message, encode_column_mask
 from .queries import EL406QueriesMixin
 from .steps import EL406StepsMixin
-from .steps._manifold import validate_buffer, validate_flow_rate
-from .steps._syringe import validate_syringe
+from .steps._manifold import Buffer, Intensity, TravelRate, validate_buffer, validate_flow_rate
+from .steps._peristaltic import Cassette, PeristalticFlowRate
+from .steps._syringe import Syringe, validate_syringe

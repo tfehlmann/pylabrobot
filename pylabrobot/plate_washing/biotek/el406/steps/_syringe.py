@@ -20,8 +20,10 @@ from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
+Syringe = Literal["A", "B", "Both"]
 
-def syringe_to_byte(syringe: str) -> int:
+
+def syringe_to_byte(syringe: Syringe) -> int:
   syringe_upper = syringe.upper()
   if syringe_upper == "A":
     return 0
@@ -32,7 +34,7 @@ def syringe_to_byte(syringe: str) -> int:
   raise ValueError(f"Invalid syringe: {syringe}")
 
 
-def validate_syringe(syringe: str) -> None:
+def validate_syringe(syringe: Syringe) -> None:
   if syringe.upper() not in {"A", "B", "BOTH"}:
     raise ValueError(f"Invalid syringe '{syringe}'. Must be one of: A, B, BOTH")
 
@@ -64,7 +66,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    syringe: Literal["A", "B", "Both"] = "A",
+    syringe: Syringe = "A",
     flow_rate: int = 2,
     offset_x: int = 0,
     offset_y: int = 0,
@@ -215,7 +217,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    syringe: str,
+    syringe: Syringe,
     flow_rate: int,
     offset_x: int = 0,
     offset_y: int = 0,
@@ -284,7 +286,7 @@ class EL406SyringeStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    syringe: str,
+    syringe: Literal["A", "B"],
     flow_rate: int,
     refills: int = 2,
     pump_delay_ms: int = 0,

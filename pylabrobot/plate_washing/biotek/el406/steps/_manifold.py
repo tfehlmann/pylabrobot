@@ -15,9 +15,12 @@ from ..enums import EL406PlateType
 from ..helpers import PLATE_TYPE_DEFAULTS
 from ..protocol import build_framed_message
 from ._base import EL406StepsBaseMixin
-from ._shake import INTENSITY_TO_BYTE, validate_intensity
+from ._shake import INTENSITY_TO_BYTE, Intensity, validate_intensity
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
+
+Buffer = Literal["A", "B", "C", "D"]
+TravelRate = Literal["1", "2", "3", "4", "5", "1 CW", "2 CW", "3 CW", "4 CW", "6 CW"]
 
 TRAVEL_RATE_TO_BYTE: dict[str, int] = {
   "1": 1,
@@ -33,7 +36,7 @@ TRAVEL_RATE_TO_BYTE: dict[str, int] = {
 }
 
 
-def travel_rate_to_byte(rate: str) -> int:
+def travel_rate_to_byte(rate: TravelRate) -> int:
   if rate not in TRAVEL_RATE_TO_BYTE:
     valid = sorted(TRAVEL_RATE_TO_BYTE.keys())
     raise ValueError(
@@ -51,7 +54,7 @@ def get_plate_type_wash_defaults(plate_type):
   }
 
 
-def validate_buffer(buffer: str) -> None:
+def validate_buffer(buffer: Buffer) -> None:
   if buffer.upper() not in {"A", "B", "C", "D"}:
     raise ValueError(f"Invalid buffer '{buffer}'. Must be one of: A, B, C, D")
 
@@ -90,7 +93,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   @staticmethod
   def _validate_aspirate_mode_params(
     vacuum_filtration: bool,
-    travel_rate: str,
+    travel_rate: TravelRate,
     delay_ms: int,
     vacuum_time_sec: int,
   ) -> tuple[int, int]:
@@ -133,7 +136,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     vacuum_filtration: bool,
-    travel_rate: str,
+    travel_rate: TravelRate,
     delay_ms: int,
     vacuum_time_sec: int,
     offset_x: int,
@@ -195,7 +198,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    buffer: str,
+    buffer: Buffer,
     flow_rate: int,
     offset_x: int,
     offset_y: int,
@@ -257,7 +260,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   def _validate_wash_core_params(
     cls,
     cycles: int,
-    buffer: str,
+    buffer: Buffer,
     dispense_volume: float,
     dispense_flow_rate: int,
     dispense_x: int,
@@ -296,7 +299,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     vacuum_delay_volume: float,
     soak_duration: int,
     shake_duration: int,
-    shake_intensity: str,
+    shake_intensity: Intensity,
   ) -> None:
     """Validate final-aspirate, pre-dispense, soak/shake parameters."""
     cls._validate_manifold_xy(final_aspirate_x, final_aspirate_y, "Final aspirate")
@@ -355,7 +358,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     cycles: int,
-    buffer: str,
+    buffer: Buffer,
     dispense_volume: float | None,
     dispense_flow_rate: int,
     dispense_x: int,
@@ -456,7 +459,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     vacuum_filtration: bool = False,
-    travel_rate: str = "3",
+    travel_rate: TravelRate = "3",
     delay: float = 0.0,
     vacuum_time: float = 30.0,
     offset_x: int = 0,
@@ -543,7 +546,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    buffer: str = "A",
+    buffer: Buffer = "A",
     flow_rate: int = 7,
     offset_x: int = 0,
     offset_y: int = 0,
@@ -613,7 +616,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     cycles: int = 3,
-    buffer: str = "A",
+    buffer: Buffer = "A",
     dispense_volume: float | None = None,
     dispense_flow_rate: int = 7,
     dispense_x: int = 0,
@@ -634,7 +637,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     vacuum_delay_volume: float = 0.0,
     soak_duration: int = 0,
     shake_duration: int = 0,
-    shake_intensity: str = "Medium",
+    shake_intensity: Intensity = "Medium",
     secondary_aspirate: bool = False,
     secondary_z: int | None = None,
     secondary_x: int = 0,
@@ -884,7 +887,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    buffer: str = "A",
+    buffer: Buffer = "A",
     flow_rate: int = 9,
     low_flow_volume: float = 5000.0,
     submerge_duration: float = 0.0,
@@ -966,7 +969,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   async def manifold_auto_clean(
     self,
     plate_type: EL406PlateType,
-    buffer: str = "A",
+    buffer: Buffer = "A",
     duration: float = 60.0,
   ) -> None:
     """Run a manifold auto-clean cycle.
@@ -1010,7 +1013,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     cycles: int = 3,
-    buffer: str = "A",
+    buffer: Buffer = "A",
     dispense_volume: float | None = None,
     dispense_flow_rate: int = 7,
     dispense_x: int = 0,
@@ -1031,7 +1034,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     vacuum_delay_volume: float = 0.0,
     soak_duration: int = 0,
     shake_duration: int = 0,
-    shake_intensity: str = "Medium",
+    shake_intensity: Intensity = "Medium",
     secondary_aspirate: bool = False,
     secondary_z: int | None = None,
     secondary_x: int = 0,
@@ -1257,7 +1260,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    buffer: str,
+    buffer: Buffer,
     flow_rate: int,
     offset_x: int = 0,
     offset_y: int = 0,
@@ -1322,7 +1325,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   def _build_manifold_prime_command(
     self,
     plate_type: EL406PlateType,
-    buffer: str,
+    buffer: Buffer,
     volume_ml: float,
     flow_rate: int = 9,
     low_flow_volume_ml: int = 5,
@@ -1373,7 +1376,7 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   def _build_auto_clean_command(
     self,
     plate_type: EL406PlateType,
-    buffer: str,
+    buffer: Buffer,
     duration_min: int = 1,
   ) -> bytes:
     """Build auto-clean command bytes.

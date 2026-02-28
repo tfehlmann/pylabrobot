@@ -23,10 +23,13 @@ from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
+PeristalticFlowRate = Literal["Low", "Medium", "High"]
+Cassette = Literal["Any", "1uL", "5uL", "10uL"]
+
 PERISTALTIC_FLOW_RATE_MAP: dict[str, int] = {"Low": 0, "Medium": 1, "High": 2}
 
 
-def cassette_to_byte(cassette: str) -> int:
+def cassette_to_byte(cassette: Cassette) -> int:
   mapping = {"ANY": 0, "1UL": 1, "5UL": 2, "10UL": 3}
   key = cassette.upper()
   if key not in mapping:
@@ -67,7 +70,7 @@ def encode_quadrant_mask_inverted(
   return mask & 0xFF
 
 
-def validate_peristaltic_flow_rate(flow_rate: str) -> None:
+def validate_peristaltic_flow_rate(flow_rate: PeristalticFlowRate) -> None:
   if flow_rate not in PERISTALTIC_FLOW_RATE_MAP:
     raise ValueError(
       f"flow_rate must be one of {sorted(PERISTALTIC_FLOW_RATE_MAP)}, got {flow_rate!r}"
@@ -102,7 +105,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    flow_rate: Literal["Low", "Medium", "High"],
+    flow_rate: PeristalticFlowRate,
     offset_x: int,
     offset_y: int,
     offset_z: int | None,
@@ -140,8 +143,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     plate_type: EL406PlateType,
     volume: float | None = None,
     duration: int | None = None,
-    flow_rate: Literal["Low", "Medium", "High"] = "High",
-    cassette: Literal["Any", "1uL", "5uL", "10uL"] = "Any",
+    flow_rate: PeristalticFlowRate = "High",
+    cassette: Cassette = "Any",
   ) -> None:
     """Prime the peristaltic fluid lines.
 
@@ -200,13 +203,13 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     volume: float,
-    flow_rate: Literal["Low", "Medium", "High"] = "High",
+    flow_rate: PeristalticFlowRate = "High",
     offset_x: int = 0,
     offset_y: int = 0,
     offset_z: int | None = None,
     pre_dispense_volume: float = 10.0,
     num_pre_dispenses: int = 2,
-    cassette: Literal["Any", "1uL", "5uL", "10uL"] = "Any",
+    cassette: Cassette = "Any",
     columns: list[int] | None = None,
     rows: list[int] | None = None,
   ) -> None:
@@ -271,8 +274,8 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     plate_type: EL406PlateType,
     volume: float | None = None,
     duration: int | None = None,
-    flow_rate: Literal["Low", "Medium", "High"] = "High",
-    cassette: Literal["Any", "1uL", "5uL", "10uL"] = "Any",
+    flow_rate: PeristalticFlowRate = "High",
+    cassette: Cassette = "Any",
   ) -> None:
     """Purge the fluid lines using the peristaltic pump.
 
@@ -342,7 +345,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     duration: int = 0,
     flow_rate: int = 2,
     reverse: bool = True,
-    cassette: str = "Any",
+    cassette: Cassette = "Any",
     pump: int = 1,
   ) -> bytes:
     """Build peristaltic prime command bytes.
@@ -388,7 +391,7 @@ class EL406PeristalticStepsMixin(EL406StepsBaseMixin):
     plate_type: EL406PlateType,
     volume: float,
     flow_rate: int,
-    cassette: str = "Any",
+    cassette: Cassette = "Any",
     offset_x: int = 0,
     offset_y: int = 0,
     offset_z: int = 336,

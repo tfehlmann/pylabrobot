@@ -24,7 +24,10 @@ from ._base import EL406StepsBaseMixin
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
 
-def validate_intensity(intensity: str) -> None:
+Intensity = Literal["Variable", "Slow", "Medium", "Fast"]
+
+
+def validate_intensity(intensity: Intensity) -> None:
   if intensity not in {"Slow", "Medium", "Fast", "Variable"}:
     raise ValueError(
       f"intensity must be one of {sorted({'Slow', 'Medium', 'Fast', 'Variable'})}, got {intensity!r}"
@@ -41,7 +44,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     self,
     plate_type: EL406PlateType,
     duration: int = 0,
-    intensity: Literal["Variable", "Slow", "Medium", "Fast"] = "Medium",
+    intensity: Intensity = "Medium",
     soak_duration: int = 0,
     move_home_first: bool = True,
   ) -> None:
@@ -104,7 +107,7 @@ class EL406ShakeStepsMixin(EL406StepsBaseMixin):
     plate_type: EL406PlateType,
     shake_duration: int = 0,
     soak_duration: int = 0,
-    intensity: str = "medium",
+    intensity: Intensity = "Medium",
     shake_enabled: bool = True,
     move_home_first: bool = True,
   ) -> bytes:
