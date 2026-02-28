@@ -11,6 +11,8 @@ import logging
 import time
 from typing import TYPE_CHECKING, NamedTuple
 
+from pylabrobot.io.binary import Reader
+
 from .constants import (
   ACK_BYTE,
   INIT_STATE_COMMAND,
@@ -265,7 +267,7 @@ class EL406CommunicationMixin:
       if len(resp_header) == 11:
         result += resp_header
         # Parse data length from header bytes 7-8 (little-endian)
-        data_len = resp_header[7] | (resp_header[8] << 8)
+        data_len = Reader(resp_header[7:]).u16()
         response_data = await self._read_exact_bytes(data_len, timeout, t0)
         result += response_data
         logger.debug("Full response: %s (%d bytes)", result.hex(), len(result))
@@ -323,7 +325,7 @@ class EL406CommunicationMixin:
         raise TimeoutError(f"Timeout waiting for completion header (got {len(header)} bytes)")
 
       # Parse data length and read remaining data
-      data_len = header[7] | (header[8] << 8)
+      data_len = Reader(header[7:]).u16()
       data = await self._read_exact_bytes(data_len, timeout, t0)
 
       result = header + data
@@ -331,7 +333,7 @@ class EL406CommunicationMixin:
       logger.debug("Completion frame: %s (%d bytes)", result.hex(), len(result))
 
       # Parse and log result
-      cmd_echo = result[2] | (result[3] << 8)
+      cmd_echo = Reader(result[2:]).u16()
       response_data = result[11 : 11 + data_len] if len(result) >= 11 + data_len else b""
       logger.debug("  Command echo: 0x%04X, data: %s", cmd_echo, response_data.hex())
 
@@ -402,7 +404,7 @@ class EL406CommunicationMixin:
       logger.debug("Response header: %s", resp_header.hex())
 
       # Parse data length from header bytes 7-8 (little-endian)
-      data_len = resp_header[7] | (resp_header[8] << 8)
+      data_len = Reader(resp_header[7:]).u16()
       logger.debug("Response data length: %d", data_len)
 
       # Read data bytes
@@ -437,9 +439,11 @@ class EL406CommunicationMixin:
     #   bytes 14-15: state (little-endian)
     #   bytes 16-19: timestamp/counter
     #   byte 20:     status code
-    validity = poll_response[12] | (poll_response[13] << 8)
-    state = poll_response[14] | (poll_response[15] << 8)
-    status = poll_response[20]
+    r = Reader(poll_response[12:])
+    validity = r.u16()
+    state = r.u16()
+    r.raw_bytes(4)  # skip timestamp/counter (bytes 16-19)
+    status = r.u8()
 
     if validity != 0:
       error_msg = get_error_message(validity)
