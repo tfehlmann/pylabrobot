@@ -110,7 +110,7 @@ class ItemizedResource(Resource, Generic[T], metaclass=ABCMeta):
 
     # validate that ordering is in the transposed Excel style notation
     for identifier in self._ordering:
-      split_identifier(identifier)
+      _ = split_identifier(identifier)
 
   def __getitem__(
     self,
