@@ -11,17 +11,43 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
-from ..helpers import (
-  INTENSITY_TO_BYTE,
-  VALID_TRAVEL_RATES,
-  get_plate_type_wash_defaults,
-  travel_rate_to_byte,
-)
+from ..helpers import PLATE_TYPE_DEFAULTS
 from ..protocol import build_framed_message
 from ._base import EL406StepsBaseMixin
-from ._shake import validate_intensity
+from ._shake import INTENSITY_TO_BYTE, validate_intensity
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
+
+TRAVEL_RATE_TO_BYTE: dict[str, int] = {
+  "1": 1,
+  "2": 2,
+  "3": 3,
+  "4": 4,
+  "5": 5,
+  "1 CW": 7,
+  "2 CW": 8,
+  "3 CW": 9,
+  "4 CW": 10,
+  "6 CW": 6,
+}
+
+
+def travel_rate_to_byte(rate: str) -> int:
+  if rate not in TRAVEL_RATE_TO_BYTE:
+    valid = sorted(TRAVEL_RATE_TO_BYTE.keys())
+    raise ValueError(
+      f"Invalid travel rate '{rate}'. Must be one of: {', '.join(repr(r) for r in valid)}"
+    )
+  return TRAVEL_RATE_TO_BYTE[rate]
+
+
+def get_plate_type_wash_defaults(plate_type):
+  pt = PLATE_TYPE_DEFAULTS[plate_type]
+  return {
+    "dispense_volume": 300.0 if pt["cols"] == 12 else 100.0,
+    "dispense_z": pt["dispense_z"],
+    "aspirate_z": pt["aspirate_z"],
+  }
 
 
 def validate_buffer(buffer: str) -> None:
@@ -69,10 +95,10 @@ class EL406ManifoldStepsMixin(EL406StepsBaseMixin):
   ) -> tuple[int, int]:
     """Validate aspirate mode-specific params and return (time_value, rate_byte)."""
     if not vacuum_filtration:
-      if travel_rate not in VALID_TRAVEL_RATES:
+      if travel_rate not in TRAVEL_RATE_TO_BYTE:
         raise ValueError(
           f"Invalid travel rate '{travel_rate}'. Must be one of: "
-          f"{', '.join(repr(r) for r in sorted(VALID_TRAVEL_RATES))}"
+          f"{', '.join(repr(r) for r in sorted(TRAVEL_RATE_TO_BYTE))}"
         )
       if not 0 <= delay_ms <= 5000:
         raise ValueError(f"Aspirate delay must be 0-5000 ms, got {delay_ms}")

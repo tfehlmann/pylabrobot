@@ -10,10 +10,14 @@ from typing import Literal
 
 from pylabrobot.io.binary import Writer
 
-from ..helpers import (
-  INTENSITY_TO_BYTE,
-)
 from ..protocol import build_framed_message
+
+INTENSITY_TO_BYTE: dict[str, int] = {
+  "Variable": 0x01,
+  "Slow": 0x02,
+  "Medium": 0x03,
+  "Fast": 0x04,
+}
 from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")

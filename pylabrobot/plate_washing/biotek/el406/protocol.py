@@ -48,3 +48,60 @@ def build_framed_message(command: int, data: bytes = b"") -> bytes:
   checksum = (0xFFFF - checksum_sum + 1) & 0xFFFF
 
   return header_prefix + Writer().u16(checksum).finish() + data
+
+
+def encode_column_mask(columns: list[int] | None) -> bytes:
+  """Encode list of column indices to 6-byte (48-bit) column mask.
+
+  Each bit represents one column: 0 = skip, 1 = operate on column.
+
+  Args:
+    columns: List of column indices (0-47) to select, or None for all columns.
+      If None, returns all 1s (all columns selected).
+      If empty list, returns all 0s (no columns selected).
+
+  Returns:
+    6 bytes representing the 48-bit column mask in little-endian order.
+
+  Raises:
+    ValueError: If any column index is out of range (not 0-47).
+  """
+  if columns is None:
+    return bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+
+  for col in columns:
+    if col < 0 or col > 47:
+      raise ValueError(f"Column index {col} out of range. Must be 0-47.")
+
+  mask = [0] * 6
+  for col in columns:
+    byte_index = col // 8
+    bit_index = col % 8
+    mask[byte_index] |= 1 << bit_index
+
+  return bytes(mask)
+
+
+def columns_to_column_mask(columns: list[int] | None, plate_wells: int = 96) -> list[int] | None:
+  """Convert 1-indexed column numbers to 0-indexed column indices.
+
+  Args:
+    columns: List of column numbers (1-based), or None for all columns.
+    plate_wells: Plate format (96, 384, 1536). Determines max columns.
+
+  Returns:
+    List of 0-indexed column indices, or None if columns is None.
+
+  Raises:
+    ValueError: If column numbers are out of range.
+  """
+  if columns is None:
+    return None
+
+  max_cols = {96: 12, 384: 24, 1536: 48}.get(plate_wells, 48)
+  indices = []
+  for col in columns:
+    if col < 1 or col > max_cols:
+      raise ValueError(f"Column {col} out of range for {plate_wells}-well plate (1-{max_cols}).")
+    indices.append(col - 1)
+  return indices

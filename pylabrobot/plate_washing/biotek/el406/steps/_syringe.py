@@ -12,15 +12,23 @@ from typing import Literal
 from pylabrobot.io.binary import Writer
 
 from ..helpers import (
-  columns_to_column_mask,
-  encode_column_mask,
   plate_type_well_count,
-  syringe_to_byte,
 )
-from ..protocol import build_framed_message
+from ..protocol import build_framed_message, columns_to_column_mask, encode_column_mask
 from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
+
+
+def syringe_to_byte(syringe: str) -> int:
+  syringe_upper = syringe.upper()
+  if syringe_upper == "A":
+    return 0
+  if syringe_upper == "B":
+    return 1
+  if syringe_upper == "BOTH":
+    return 2
+  raise ValueError(f"Invalid syringe: {syringe}")
 
 
 def validate_syringe(syringe: str) -> None:

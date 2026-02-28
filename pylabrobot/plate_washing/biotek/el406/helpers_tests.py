@@ -5,7 +5,7 @@ import unittest
 from pylabrobot.plate_washing.biotek.el406 import (
   BioTekEL406Backend,
 )
-from pylabrobot.plate_washing.biotek.el406.helpers import encode_column_mask
+from pylabrobot.plate_washing.biotek.el406.protocol import encode_column_mask
 
 
 class TestHelperFunctions(unittest.TestCase):

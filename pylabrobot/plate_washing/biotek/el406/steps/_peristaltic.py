@@ -12,21 +12,58 @@ from typing import Literal
 from pylabrobot.io.binary import Writer
 
 from ..helpers import (
-  cassette_to_byte,
-  columns_to_column_mask,
-  encode_column_mask,
-  encode_quadrant_mask_inverted,
   plate_type_default_z,
   plate_type_max_columns,
   plate_type_max_rows,
   plate_type_well_count,
 )
-from ..protocol import build_framed_message
+from ..protocol import build_framed_message, columns_to_column_mask, encode_column_mask
 from ._base import EL406StepsBaseMixin
 
 logger = logging.getLogger("pylabrobot.plate_washing.biotek.el406")
 
 PERISTALTIC_FLOW_RATE_MAP: dict[str, int] = {"Low": 0, "Medium": 1, "High": 2}
+
+
+def cassette_to_byte(cassette: str) -> int:
+  mapping = {"ANY": 0, "1UL": 1, "5UL": 2, "10UL": 3}
+  key = cassette.upper()
+  if key not in mapping:
+    raise ValueError(f"Invalid cassette '{cassette}'. Must be one of: Any, 1uL, 5uL, 10uL")
+  return mapping[key]
+
+
+def encode_quadrant_mask_inverted(
+  rows: list[int] | None,
+  num_row_groups: int = 4,
+) -> int:
+  """Encode row/quadrant selection as inverted bitmask.
+
+  The protocol uses INVERTED encoding for the quadrant/row mask byte:
+  0 = selected, 1 = deselected. This is the opposite of the well mask.
+
+  Args:
+    rows: List of row numbers (1 to num_row_groups) to select, or None for all.
+      If None, returns 0x00 (all selected in inverted encoding).
+    num_row_groups: Number of valid row groups for this plate type (1, 2, or 4).
+
+  Returns:
+    Single byte with inverted bit encoding (only lower num_row_groups bits used).
+
+  Raises:
+    ValueError: If any row number is out of range.
+  """
+  if rows is None:
+    return 0x00
+
+  max_mask = (1 << num_row_groups) - 1
+  mask = max_mask
+  for row in rows:
+    if row < 1 or row > num_row_groups:
+      raise ValueError(f"Row number {row} out of range. Must be 1-{num_row_groups}.")
+    mask &= ~(1 << (row - 1))
+
+  return mask & 0xFF
 
 
 def validate_peristaltic_flow_rate(flow_rate: str) -> None:
