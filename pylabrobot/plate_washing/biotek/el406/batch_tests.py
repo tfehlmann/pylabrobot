@@ -36,7 +36,7 @@ class TestBatchContextManager(EL406TestCase):
     async with self.backend.batch(PT96):
       count_inside = len(self.backend.io.written_data)
 
-    # cleanup_after_protocol sends: set_vacuum_pump, home_motors, end_of_batch
+    # cleanup_after_protocol sends: home_motors, end_of_batch
     self.assertGreater(len(self.backend.io.written_data), count_inside)
 
   async def test_batch_sends_cleanup_on_exception(self):

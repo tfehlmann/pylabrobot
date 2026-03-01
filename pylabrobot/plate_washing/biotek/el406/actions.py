@@ -27,7 +27,6 @@ class EL406ActionsMixin:
   - Abort, pause, resume operations
   - Reset instrument
   - Home/verify motors
-  - Vacuum pump control
   - End-of-batch operations
   - Auto-prime operations
   - Set washer manifold
@@ -100,10 +99,7 @@ class EL406ActionsMixin:
     - Stop the pump
     - Home the syringes
 
-    For a complete cleanup after a protocol, use cleanup_after_protocol() instead,
-    or manually call:
-    1. set_vacuum_pump(False) - to stop the pump
-    2. home_motors() - to return syringes to home position
+    For a complete cleanup after a protocol, use cleanup_after_protocol() instead.
     """
     logger.info("Performing end-of-batch activities (completion marker)")
     framed_command = build_framed_message(command=0x8C)
@@ -115,9 +111,8 @@ class EL406ActionsMixin:
 
     This method performs the full cleanup sequence that the original BioTek
     software does after all protocol steps complete:
-    1. Stop the vacuum/peristaltic pump
-    2. Home the syringes (XYZ motors)
-    3. Send end-of-batch completion marker
+    1. Home the syringes (XYZ motors)
+    2. Send end-of-batch completion marker
 
     This is the recommended way to end a protocol run.
 
@@ -130,48 +125,15 @@ class EL406ActionsMixin:
     """
     logger.info("Starting post-protocol cleanup")
 
-    # Step 1: Stop the pump
-    logger.info("  Stopping vacuum pump...")
-    await self.set_vacuum_pump(False)
-
-    # Step 2: Home syringes
+    # Step 1: Home syringes
     logger.info("  Homing motors...")
     await self.home_motors(EL406MotorHomeType.HOME_XYZ_MOTORS)
 
-    # Step 3: Send end-of-batch marker
+    # Step 2: Send end-of-batch marker
     logger.info("  Sending end-of-batch marker...")
     await self._perform_end_of_batch()
 
     logger.info("Post-protocol cleanup complete")
-
-  async def set_vacuum_pump(self, enabled: bool) -> None:
-    """Control the vacuum/peristaltic pump on or off.
-
-    This sends command 299 (LeaveVacuumPumpOn) to control the pump state.
-    After syringe_prime or other pump operations, call this with
-    enabled=False to stop the pump.
-
-    Args:
-      enabled: True to turn pump ON, False to turn pump OFF.
-
-    Raises:
-      RuntimeError: If device not initialized.
-      TimeoutError: If timeout waiting for response.
-
-    Example:
-      >>> # After syringe prime, stop the pump
-      >>> await backend.syringe_prime("A", 1000, 5, 2)
-      >>> await backend.set_vacuum_pump(False)  # STOP THE PUMP
-      >>> await backend.home_motors(EL406MotorHomeType.HOME_XYZ_MOTORS)
-    """
-    state_str = "ON" if enabled else "OFF"
-    logger.info("Setting vacuum pump: %s", state_str)
-
-    # Command 299 with 2-byte parameter (little-endian short): 1=on, 0=off
-    data = bytes([1 if enabled else 0, 0x00])
-    framed_command = build_framed_message(command=0x012B, data=data)
-    await self._send_framed_command(framed_command)
-    logger.info("Vacuum pump set to %s", state_str)
 
   async def home_motors(
     self,
